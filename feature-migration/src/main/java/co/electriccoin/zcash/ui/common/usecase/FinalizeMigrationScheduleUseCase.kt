@@ -8,6 +8,7 @@ import co.electriccoin.zcash.ui.common.model.migration.estimatedSecondsBetweenHe
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.screen.migration.scheduled.MigrationScheduledArgs
+import co.electriccoin.zcash.work.MigrationLiveDriver
 import co.electriccoin.zcash.work.MigrationScheduler
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -32,6 +33,7 @@ class FinalizeMigrationScheduleUseCase(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
     private val synchronizerProvider: SynchronizerProvider,
+    private val migrationLiveDriver: MigrationLiveDriver,
 ) {
     suspend operator fun invoke(sched: MigrationSchedule, mode: MigrationMode) {
         // Measured block rate — the 75s constant grossly overestimates on the bursty testnet,
@@ -50,6 +52,11 @@ class FinalizeMigrationScheduleUseCase(
         // AnchorNotFound on the plan's first bucket).
         val restarted = synchronizerProvider.getSynchronizerOrNull()?.restartSyncSession() ?: false
         migrationLog("FinalizeMigrationSchedule: sync-session restart for anchor retention — restarted=$restarted")
+        // Must come AFTER the sync-session restart above, never before: starting the live driver
+        // first risks it entering syncRun (syncToTip) concurrently with the anchor-retention
+        // restart, the exact mechanism that exists to prevent a permanent AnchorNotFound on the
+        // plan's first bucket.
+        migrationLiveDriver.startIfNotRunning(accountKeyId)
         navigationRouter.forward(MigrationScheduledArgs)
     }
 

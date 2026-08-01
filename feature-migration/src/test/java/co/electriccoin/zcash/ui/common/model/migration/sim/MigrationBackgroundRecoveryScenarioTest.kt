@@ -8,6 +8,7 @@ import co.electriccoin.zcash.ui.common.usecase.CheckMigrationRecoveryUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.usecase.MigrationWorkerRunState
+import co.electriccoin.zcash.work.MigrationLiveDriver
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -86,6 +87,7 @@ class MigrationBackgroundRecoveryScenarioTest {
         pendingMigrationTorFailure: Boolean = false,
         getWorkerRunState: suspend (String) -> MigrationWorkerRunState = { MigrationWorkerRunState.RUNNING },
         scheduleNow: suspend (String) -> Unit = {},
+        migrationLiveDriver: MigrationLiveDriver = mockk(relaxed = true),
     ) = CheckMigrationRecoveryUseCase(
         getOrchardMigrationSdk =
             mockk<GetOrchardMigrationSdkUseCase> {
@@ -100,6 +102,7 @@ class MigrationBackgroundRecoveryScenarioTest {
         context = mockk<Context>(relaxed = true),
         getWorkerRunState = getWorkerRunState,
         scheduleNow = scheduleNow,
+        migrationLiveDriver = migrationLiveDriver,
     )
 
     @Test
@@ -158,24 +161,23 @@ class MigrationBackgroundRecoveryScenarioTest {
         }
 
     @Test
-    fun `an in-progress migration with a worker scheduled for later accelerates it to now`() =
+    fun `an in-progress migration with a worker scheduled for later does not accelerate via scheduleNow`() =
         runTest {
-            // The app-open trigger: some users never get reliable background execution, so opening
-            // the app must accelerate a merely-scheduled worker chain to run now rather than waiting
-            // out whatever delay it last armed for itself.
+            // SCHEDULED no longer triggers scheduleNow directly — the live driver (started
+            // unconditionally whenever the engine is InProgress) is the fast path now.
             val driver = inProgressDriver()
             assertTrue(driver.sdk.getMigrationState() is MigrationState.InProgress)
 
             val router = mockk<NavigationRouter>(relaxed = true)
-            var scheduledAccountKeyId: String? = null
+            var scheduled = false
 
             useCase(
                 driver = driver,
                 navigationRouter = router,
                 getWorkerRunState = { MigrationWorkerRunState.SCHEDULED },
-                scheduleNow = { scheduledAccountKeyId = it },
+                scheduleNow = { scheduled = true },
             ).invoke()
 
-            assertTrue(scheduledAccountKeyId != null, "a scheduled-for-later worker must be accelerated to run now")
+            assertFalse(scheduled, "SCHEDULED must not call scheduleNow anymore — the live driver covers acceleration")
         }
 }

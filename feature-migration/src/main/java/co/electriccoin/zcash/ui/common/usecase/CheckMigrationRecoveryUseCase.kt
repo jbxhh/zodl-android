@@ -11,6 +11,7 @@ import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
 import co.electriccoin.zcash.ui.screen.home.HomeArgs
 import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingArgs
+import co.electriccoin.zcash.work.MigrationLiveDriver
 import co.electriccoin.zcash.work.MigrationScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -45,6 +46,7 @@ class CheckMigrationRecoveryUseCase(
     private val pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider,
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
     private val context: Context,
+    private val migrationLiveDriver: MigrationLiveDriver,
     /** Extracted for testability — production default checks WorkManager. */
     private val getWorkerRunState: suspend (String) -> MigrationWorkerRunState = { migrationWorkerRunState(context, it) },
     /**
@@ -89,30 +91,27 @@ class CheckMigrationRecoveryUseCase(
         // (observed live: repository empty while the engine held a run with 8/9 broadcast and the
         // last transfer proved) and the engine is the single source of truth — a live in-progress
         // migration must always have its worker chain running.
-        //
-        // App-open is a forward-progress trigger in its own right, not just a revival mechanism:
-        // some users never get reliable background execution at all (battery restrictions, some
-        // OEM schedulers silently defer WorkManager indefinitely) — for them, opening the app is
-        // the ONLY moment the migration can move. So a worker merely SCHEDULED for later (not
-        // absent) is also accelerated to run now, not just left to wait out its armed delay.
-        // A currently RUNNING worker is left alone (already doing the work this trigger wants).
-        // Safe to accelerate unconditionally: nextStep()/broadcastRun are idempotent and still
-        // privacy-gated (a due-but-gapped broadcast just re-arms, per spec §4), and a cancelled
-        // in-flight send's durable mark is cancellation-safe (spec §2a).
         val engineInProgress = sdk.getMigrationState() is MigrationState.InProgress
         if (engineInProgress) {
             val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
+            // The live driver is the fast path while the app is alive — starting it here covers
+            // both cold start (process was killed mid-migration) and every subsequent foreground
+            // return; it is a no-op if already running for this account. It supersedes the old
+            // "accelerate a SCHEDULED worker to run now" logic entirely: the live driver already
+            // drives the account forward on its own once running, so there is nothing left to
+            // separately nudge.
+            migrationLiveDriver.startIfNotRunning(accountKeyId)
             when (getWorkerRunState(accountKeyId)) {
-                MigrationWorkerRunState.RUNNING -> {
-                    migrationLog("MigrationRecovery: migration worker already running — nothing to accelerate.")
-                }
-
-                MigrationWorkerRunState.SCHEDULED -> {
-                    migrationLog("MigrationRecovery: migration worker scheduled for later — accelerating to run now.")
-                    scheduleNow(accountKeyId)
+                MigrationWorkerRunState.RUNNING, MigrationWorkerRunState.SCHEDULED -> {
+                    // Nothing to do — RUNNING is already executing; SCHEDULED will either fire on
+                    // its own or be superseded by the live driver's own re-arm (reArm's
+                    // MigrationScheduler.schedule call), whichever comes first.
                 }
 
                 MigrationWorkerRunState.ABSENT -> {
+                    // Revival: recovers the DURABLE background chain after process kill, device
+                    // reboot, or an app upgrade that cleared WorkManager state — the live driver
+                    // covers speed while alive, but only the worker chain survives process death.
                     migrationLog("MigrationRecovery: migration worker absent — scheduling now.")
                     scheduleNow(accountKeyId)
                 }

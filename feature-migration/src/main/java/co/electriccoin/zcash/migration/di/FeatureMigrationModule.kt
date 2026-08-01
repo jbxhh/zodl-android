@@ -126,6 +126,7 @@ val featureMigrationModule =
                 pendingMigrationTorFailureStorageProvider = get(),
                 getSelectedWalletAccount = get(),
                 context = get(),
+                migrationLiveDriver = get(),
             )
         }
         factoryOf(::FinalizeMigrationScheduleUseCase)

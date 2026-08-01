@@ -11,8 +11,10 @@ import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteArgs
 import co.electriccoin.zcash.ui.screen.migration.invalid.MigrationTransferInvalidArgs
 import co.electriccoin.zcash.ui.screen.migration.progress.MigrationProgressArgs
 import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingArgs
+import co.electriccoin.zcash.work.MigrationLiveDriver
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
@@ -32,6 +34,7 @@ class CheckMigrationRecoveryUseCaseTest {
         // keeping existing test behaviour unchanged. Override to test reconciliation explicitly.
         getWorkerRunState: suspend (String) -> MigrationWorkerRunState = { MigrationWorkerRunState.RUNNING },
         scheduleNow: suspend (String) -> Unit = {},
+        migrationLiveDriver: MigrationLiveDriver = mockk(relaxed = true),
     ) = CheckMigrationRecoveryUseCase(
         getOrchardMigrationSdk =
             mockk<GetOrchardMigrationSdkUseCase> {
@@ -46,6 +49,7 @@ class CheckMigrationRecoveryUseCaseTest {
         context = mockk<Context>(relaxed = true),
         getWorkerRunState = getWorkerRunState,
         scheduleNow = scheduleNow,
+        migrationLiveDriver = migrationLiveDriver,
     )
 
     // ── Task 6: auto-navigation removal — only Tor-failure fires on app-open ─────────────
@@ -198,9 +202,11 @@ class CheckMigrationRecoveryUseCaseTest {
         }
 
     @Test
-    fun workerReconciliation_planExistsAndWorkerScheduledForLater_acceleratesToNow() =
+    fun workerReconciliation_planExistsAndWorkerScheduledForLater_doesNotAccelerateViaScheduleNow() =
         runTest {
-            var scheduledAccountKeyId: String? = null
+            // SCHEDULED no longer triggers scheduleNow directly — the live driver (started
+            // unconditionally whenever engineInProgress) is the fast path now.
+            var scheduled = false
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
@@ -211,12 +217,34 @@ class CheckMigrationRecoveryUseCaseTest {
                 sdk = sdk,
                 navigationRouter = mockk(relaxed = true),
                 getWorkerRunState = { MigrationWorkerRunState.SCHEDULED },
-                scheduleNow = { scheduledAccountKeyId = it },
+                scheduleNow = { scheduled = true },
             ).invoke()
 
-            // App-open must not just wait out whatever delay the worker last armed — a worker
-            // merely scheduled for later is accelerated to run now.
-            kotlin.test.assertTrue(scheduledAccountKeyId != null, "a scheduled-for-later worker must be accelerated to run now")
+            kotlin.test.assertFalse(scheduled, "SCHEDULED must not call scheduleNow anymore — the live driver covers acceleration")
+        }
+
+    @Test
+    fun workerReconciliation_planExists_alwaysStartsTheLiveDriver() =
+        runTest {
+            var startedAccountKeyId: String? = null
+            val sdk =
+                mockk<OrchardMigrationSdk>(relaxed = true) {
+                    coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { hasOverdueTransfers() } returns false
+                }
+            val liveDriver =
+                mockk<MigrationLiveDriver> {
+                    every { startIfNotRunning(any()) } answers { startedAccountKeyId = firstArg() }
+                }
+
+            useCase(
+                sdk = sdk,
+                navigationRouter = mockk(relaxed = true),
+                getWorkerRunState = { MigrationWorkerRunState.RUNNING },
+                migrationLiveDriver = liveDriver,
+            ).invoke()
+
+            kotlin.test.assertTrue(startedAccountKeyId != null, "an in-progress migration must always start (or no-op) the live driver")
         }
 
     @Test

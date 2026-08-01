@@ -42,6 +42,7 @@ class FinalizeMigrationScheduleUseCaseTest {
                     coEvery { this@mockk() } returns mockk<ZashiAccount>(relaxed = true)
                 },
             synchronizerProvider = mockk(relaxed = true),
+            migrationLiveDriver = mockk(relaxed = true),
         )
 
     @Test
