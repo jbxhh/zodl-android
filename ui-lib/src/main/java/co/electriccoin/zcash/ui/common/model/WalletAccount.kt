@@ -92,23 +92,23 @@ data class ZashiAccount(
         get() = R.drawable.ic_item_zashi
 
     override val totalBalance: Zatoshi
-        get() = unified.balance.total + sapling.balance.total + ironwoodBalance.total + transparent.balance
+        get() = unified.balance.total + sapling.balance.total + transparent.balance
 
     override val totalShieldedBalance: Zatoshi
-        get() = unified.balance.total + sapling.balance.total + ironwoodBalance.total
+        get() = unified.balance.total + sapling.balance.total
 
     override val totalTransparentBalance: Zatoshi
         get() = transparent.balance
 
     override val spendableShieldedBalance: Zatoshi
-        get() = unified.balance.available + sapling.balance.available + ironwoodBalance.available
+        get() = unified.balance.available + sapling.balance.available
 
     override val pendingShieldedBalance: Zatoshi
         get() {
             val changePendingShieldedBalance =
-                unified.balance.changePending + sapling.balance.changePending + ironwoodBalance.changePending
+                unified.balance.changePending + sapling.balance.changePending
             val valuePendingShieldedBalance =
-                unified.balance.valuePending + sapling.balance.valuePending + ironwoodBalance.valuePending
+                unified.balance.valuePending + sapling.balance.valuePending
             return changePendingShieldedBalance + valuePendingShieldedBalance
         }
 
@@ -135,21 +135,21 @@ data class KeystoneAccount(
     override val sapling: SaplingInfo? = null
 
     override val totalBalance: Zatoshi
-        get() = unified.balance.total + ironwoodBalance.total + transparent.balance
+        get() = unified.balance.total + transparent.balance
 
     override val totalShieldedBalance: Zatoshi
-        get() = unified.balance.total + ironwoodBalance.total
+        get() = unified.balance.total
 
     override val totalTransparentBalance: Zatoshi
         get() = transparent.balance
 
     override val spendableShieldedBalance: Zatoshi
-        get() = unified.balance.available + ironwoodBalance.available
+        get() = unified.balance.available
 
     override val pendingShieldedBalance: Zatoshi
         get() =
-            unified.balance.changePending + ironwoodBalance.changePending +
-                unified.balance.valuePending + ironwoodBalance.valuePending
+            unified.balance.changePending +
+                unified.balance.valuePending
 
     override fun compareTo(other: WalletAccount) =
         when (other) {
