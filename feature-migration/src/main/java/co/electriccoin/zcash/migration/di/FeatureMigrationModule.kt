@@ -59,6 +59,7 @@ import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingVM
 import co.electriccoin.zcash.ui.screen.migration.setup.MigrationSetupVM
 import co.electriccoin.zcash.ui.screen.migration.success.MigrationSuccessVM
 import co.electriccoin.zcash.ui.screen.migration.torfailure.MigrationTorFailureVM
+import co.electriccoin.zcash.work.MigrationDriveOnce
 import co.electriccoin.zcash.work.MigrationScheduler
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
@@ -93,6 +94,7 @@ val featureMigrationModule =
             PendingMigrationTorFailureStorageProvider::class
         singleOf(::MigrationNotifier)
         factoryOf(::MigrationScheduler)
+        singleOf(::MigrationDriveOnce)
 
         // Repositories
         singleOf(::PendingMigrationScheduleRepositoryImpl) bind PendingMigrationScheduleRepository::class

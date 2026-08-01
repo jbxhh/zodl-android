@@ -15,7 +15,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-class MigrationWorkerTest {
+class MigrationDriveOnceTest {
     // ── executeWithRetries ────────────────────────────────────────────────────
 
     @Test
