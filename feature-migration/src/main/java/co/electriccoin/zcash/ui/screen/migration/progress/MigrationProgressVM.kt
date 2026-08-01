@@ -1,14 +1,10 @@
 package co.electriccoin.zcash.ui.screen.migration.progress
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import cash.z.ecc.android.sdk.MigrationTransferStates
-import cash.z.ecc.android.sdk.NetworkPrivacyOptions
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.migration.BuildConfig
-import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.LceState
 import co.electriccoin.zcash.ui.common.model.guardLoading
@@ -21,14 +17,9 @@ import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
 import co.electriccoin.zcash.ui.common.model.migration.toSnapshot
 import co.electriccoin.zcash.ui.common.model.mutableLce
 import co.electriccoin.zcash.ui.common.model.stateIn
-import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.model.withLce
-import co.electriccoin.zcash.ui.common.provider.IsMigrationTorEnabledStorageProvider
-import co.electriccoin.zcash.ui.common.provider.LastNetworkActivityStorageProvider
-import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
-import co.electriccoin.zcash.ui.common.usecase.GetMigrationSnapshotUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
@@ -36,15 +27,11 @@ import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
 import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingArgs
-import co.electriccoin.zcash.work.MigrationScheduler
-import co.electriccoin.zcash.work.SYNC_TIMEOUT
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.MathContext
 import kotlin.time.Clock
@@ -57,10 +44,6 @@ class MigrationProgressVM(
     private val navigationRouter: NavigationRouter,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val errorStateMapper: ErrorMapperUseCase,
-    private val synchronizerProvider: SynchronizerProvider,
-    private val lastNetworkActivity: LastNetworkActivityStorageProvider,
-    private val isMigrationTorEnabledStorageProvider: IsMigrationTorEnabledStorageProvider,
-    private val context: Context,
 ) : ViewModel() {
     private val sendLce = mutableLce<Unit>()
 
@@ -84,21 +67,6 @@ class MigrationProgressVM(
         }.withLce(sendLce, errorStateMapper::mapToState)
             .stateIn(this)
 
-    init {
-        // Issue 3b: drive migration forward WHILE the progress screen is foregrounded.
-        //
-        // Root cause of the stall: on this screen the app is foreground and the main synchronizer
-        // follows the chain tip continuously, so Lane B's background preflight sees
-        // synchronizerSyncing=true and DEFER_OVERLAPs forever — nothing ever broadcasts while the
-        // user watches (every successful E2E previously required backgrounding the app to open a
-        // Lane B quiet window). This foreground pass opens that window itself, PRIVACY-PRESERVED:
-        // it pauses the main synchronizer, waits out the privacy quiet gap, then broadcasts through
-        // the EXACT same pipeline Lane B/Sending use (executeNextPendingTransfer) — never a raw
-        // send, and never while a sync source is live. The side effect lives here in init{} (not in
-        // the state combine) so it runs once per VM instance rather than re-subscribing.
-        foregroundBroadcastLoop()
-    }
-
     // MigrationPlanRepository's per-transfer status/scheduledAt is a display cache, written once
     // at propose/commit time. Polling the SDK's own persisted state directly keeps the displayed
     // schedule true to the engine — the single source of truth for the plan — regardless of what
@@ -111,106 +79,6 @@ class MigrationProgressVM(
                 delay(OVERDUE_RECHECK_INTERVAL)
             }
         }
-
-    /**
-     * Issue 3b — the foreground broadcast pass. Periodically, while this VM is alive (i.e. the
-     * progress screen is on top), checks whether a transfer is genuinely due AND proved; if so,
-     * acquires a privacy-safe broadcast window and broadcasts it via the same SDK pipeline the
-     * background Lane B uses. Runs on the VM scope, so it is cancelled automatically when the
-     * screen leaves.
-     */
-    private fun foregroundBroadcastLoop() =
-        viewModelScope.launch {
-            while (true) {
-                runCatching { attemptForegroundBroadcast() }
-                    .onFailure {
-                        // Swallowing a CancellationException would fight structured concurrency —
-                        // the VM scope is going away (navigation), the loop must die with it
-                        // (observed live 2026-07-30: navigation churn logged these as "transient"
-                        // failures and the pass never completed its quiet-gap wait).
-                        if (it is kotlinx.coroutines.CancellationException) throw it
-                        migrationLog("ProgressBroadcast: pass failed (transient) — retrying next tick", it)
-                    }
-                delay(FOREGROUND_BROADCAST_INTERVAL)
-            }
-        }
-
-    /**
-     * One foreground broadcast attempt, privacy-preserved.
-     *
-     * 1. Only proceeds when the engine holds a PROVED, unsent transaction whose scheduledHeight has
-     *    been reached at the SCANNED tip (a broadcast that can actually happen). An unproven due
-     *    transfer is left to Lane A's sync to prove — never force-broadcast here.
-     * 2. Respects the SDK's own post-broadcast privacy gate (isSyncBlocked): if active, defers.
-     * 3. PAUSES the main synchronizer so no sync source is live, waits out the privacy quiet gap
-     *    from the last network activity, then broadcasts through executeNextPendingTransfer — the
-     *    identical call Lane B and the Sending screen use. After a successful overdue broadcast the
-     *    SDK itself sets the post-broadcast resume-at buffer, which keeps the main sync paused via
-     *    isSyncBlocked; we still resume() so the SDK-owned gate — not this manual pause — governs
-     *    sync from here on.
-     */
-    private suspend fun attemptForegroundBroadcast() {
-        val sdk = getOrchardMigrationSdk() ?: return
-        val states = sdk.getMigrationTransferStates() ?: return
-        // Only bother when the ENGINE would actually serve a broadcast: a proved, unsent,
-        // non-stuck transaction due at the scanned tip (executeNextPendingTransfer re-verifies
-        // and picks the exact transaction itself — decision vs action).
-        if (!co.electriccoin.zcash.work
-                .broadcastDueByEstimate(states, states.tipHeight)
-        ) {
-            return
-        }
-        if (sdk.isSyncBlocked().first()) {
-            migrationLog("ProgressBroadcast: privacy gate active (isSyncBlocked) — deferring foreground broadcast.")
-            return
-        }
-        val synchronizer = synchronizerProvider.getSynchronizerOrNull()
-        // Pause the continuously-syncing foreground synchronizer so the broadcast never overlaps a
-        // live sync (privacy). Cast mirrors ResetZashiUseCase — the runtime instance is always a
-        // CloseableSynchronizer; a null/incompatible synchronizer simply skips this pass.
-        val closeable =
-            synchronizer as? cash.z.ecc.android.sdk.CloseableSynchronizer ?: run {
-                migrationLog("ProgressBroadcast: no pausable synchronizer — skipping foreground broadcast.")
-                return
-            }
-        closeable.pause()
-        // Stamp "network activity" at the moment of pause so the quiet gap below is measured from
-        // when THIS sync stopped — not from the last SYNCED transition. In the exact state this
-        // path targets (the foreground synchronizer catching up continuously and never reaching
-        // SYNCED), lastNetworkActivity is stamped only on SYNCED, so it would be stale and the gap
-        // would collapse to ~0 → an immediate broadcast right after an ASYNC pause() whose
-        // stopPolling() may still be in flight, i.e. sync traffic still adjacent to the broadcast.
-        // Stamping here forces the full privacy buffer to elapse after the sync actually stopped,
-        // covering the async stop and giving real decorrelation.
-        lastNetworkActivity.stampNow()
-        migrationLog("ProgressBroadcast: paused foreground sync to open a broadcast window.")
-        try {
-            // Wait out the privacy quiet gap since the pause stamp above (same buffer Lane B's
-            // preflight enforces) so an observer can't correlate the just-stopped sync with the
-            // broadcast. The pause above already removed the live-sync source; this covers the gap.
-            val gap = quietGapRemaining(sdk.privacySyncBufferDuration())
-            if (gap.isPositive()) {
-                migrationLog("ProgressBroadcast: waiting privacy quiet gap $gap before broadcast.")
-                delay(gap)
-            }
-            val useTor = isMigrationTorEnabledStorageProvider.get()
-            val outcome = sdk.executeNextPendingTransfer(NetworkPrivacyOptions(useTor = useTor), useEstimatedTip = false)
-            migrationLog("ProgressBroadcast: foreground broadcast outcome=$outcome")
-            lastNetworkActivity.stampNow()
-        } finally {
-            // Hand sync governance back to the SDK-owned isSyncBlocked gate (which, after a
-            // successful overdue broadcast, keeps sync paused for the post-broadcast buffer).
-            closeable.resume()
-            migrationLog("ProgressBroadcast: resumed foreground sync (SDK gate now governs).")
-        }
-    }
-
-    private suspend fun quietGapRemaining(privacyBuffer: kotlin.time.Duration): kotlin.time.Duration {
-        val last = lastNetworkActivity.get() ?: return kotlin.time.Duration.ZERO
-        val elapsed = (Clock.System.now().epochSeconds - last.epochSecond).seconds
-        val remaining = privacyBuffer - elapsed
-        return if (remaining.isPositive()) remaining else kotlin.time.Duration.ZERO
-    }
 
     fun navigateBack() = navigationRouter.back()
 
@@ -302,11 +170,6 @@ class MigrationProgressVM(
 
     companion object {
         private val OVERDUE_RECHECK_INTERVAL = 15.seconds
-
-        // How often the foreground broadcast pass (Issue 3b) re-checks for a due, proved transfer.
-        // Short enough to advance the migration responsively while watched, long enough not to
-        // churn; the SDK's own gates make redundant passes cheap no-ops.
-        internal val FOREGROUND_BROADCAST_INTERVAL = 20.seconds
     }
 }
 
