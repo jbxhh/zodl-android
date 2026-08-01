@@ -99,11 +99,13 @@ fun MigrationProgressView(state: MigrationProgressState) {
                 // this block renders nothing and the transfers start immediately.
                 val firstUnsentPrepIndex = state.preparations.indexOfFirst { !it.isSent }
                 state.preparations.forEachIndexed { i, prep ->
-                    // When the debug syncLabel is present, append it as "· sync <label>" so the
-                    // row composable needs no new parameter — statusLabel is plain text.
+                    // statusLabel is the PRIMARY, all-builds time hint. When the DEBUG-only
+                    // syncLabel (raw engine status word) is present, append it as a diagnostic
+                    // suffix "· status <label>" — inverse of the pre-2026-08-01 format — so the
+                    // row composable needs no new parameter.
                     val rowStatusLabel =
                         if (prep.syncLabel != null) {
-                            prep.statusLabel + stringRes(" · sync ") + prep.syncLabel
+                            prep.statusLabel + stringRes(" · status ") + prep.syncLabel
                         } else {
                             prep.statusLabel
                         }
@@ -125,11 +127,13 @@ fun MigrationProgressView(state: MigrationProgressState) {
                 }
                 val activeIndex = state.transfers.indexOfFirst { !it.isSent }
                 state.transfers.forEachIndexed { i, transfer ->
-                    // When the debug syncLabel is present, append it as "· sync <label>" so the
-                    // row composable needs no new parameter — statusLabel is plain text.
+                    // statusLabel is the PRIMARY, all-builds time hint. When the DEBUG-only
+                    // syncLabel (raw engine status word) is present, append it as a diagnostic
+                    // suffix "· status <label>" — inverse of the pre-2026-08-01 format — so the
+                    // row composable needs no new parameter.
                     val rowStatus =
                         if (transfer.syncLabel != null) {
-                            transfer.statusLabel + stringRes(" · sync ") + transfer.syncLabel
+                            transfer.statusLabel + stringRes(" · status ") + transfer.syncLabel
                         } else {
                             transfer.statusLabel
                         }

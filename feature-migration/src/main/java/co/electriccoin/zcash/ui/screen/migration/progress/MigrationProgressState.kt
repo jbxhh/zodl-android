@@ -20,9 +20,12 @@ data class MigrationProgressState(
  * One note-split (preparation) transaction row in the Migration Progress timeline.
  *
  * [number] is 1-based display order (broadcast/schedule order).
- * [statusLabel] uses the same relative formatting as transfer rows ("Sent X min ago" / "~X min").
- * [syncLabel] is non-null only in DEBUG builds — shows the prove state as a relative time label,
- * appended to [statusLabel] in the UI as "· sync $syncLabel" when present.
+ * [statusLabel] is the PRIMARY label shown to ALL users (reinstated 2026-08-01, decision with
+ * Dominik) — a soft, non-deadline-implying per-row time hint ("~5 min" or a status-derived phrase
+ * like "Preparing" when no honest duration remains), never styled as a countdown-to-deadline.
+ * [syncLabel] is non-null only in DEBUG builds — the raw engine status word, demoted to a
+ * diagnostic suffix, appended in the UI as "· status $syncLabel" when present (inverse of the
+ * pre-2026-08-01 priority).
  */
 data class MigrationProgressPreparationState(
     val number: Int,
@@ -34,13 +37,14 @@ data class MigrationProgressPreparationState(
 data class MigrationProgressTransferState(
     val index: Int,
     val amount: StringResource,
+    // PRIMARY label shown to ALL users — see [MigrationProgressPreparationState.statusLabel] doc.
     val statusLabel: StringResource,
     // Attention paint (orange) — genuine cannot-heal states only (expired / unprovable anchor),
     // never a merely-late-but-healthy transfer.
     val isAttention: Boolean,
     val isSent: Boolean,
     val fiatAmount: StringResource? = null,
-    // Non-null only in DEBUG builds — shows the prove state ("proved" / relative time / "pending"),
-    // appended to [statusLabel] in the UI as "· sync $syncLabel" when present.
+    // Non-null only in DEBUG builds — the raw engine status word, demoted to a diagnostic suffix.
+    // See [MigrationProgressPreparationState.syncLabel] doc.
     val syncLabel: StringResource? = null,
 )

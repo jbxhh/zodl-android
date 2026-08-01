@@ -87,20 +87,7 @@ class MigrationProgressVM(
         exchangeRateState: ExchangeRateState,
     ): MigrationProgressState {
         val now = Clock.System.now()
-        // Rough total-duration estimate for the header only (first→last scheduled moment across
-        // preparations AND transfers) — a "the whole thing takes about X" hint, never a per-row
-        // deadline.
-        val allScheduled = (snapshot.transfers.map { it.scheduledAt } + snapshot.preparations.map { it.scheduledAt })
-        val span =
-            ((allScheduled.maxOrNull() ?: now) - (allScheduled.minOrNull() ?: now)).inWholeSeconds
-        val subtitle =
-            if (snapshot.isComplete) {
-                "All ${snapshot.totalCount} transfers are complete."
-            } else {
-                "Your balance splits into ${snapshot.totalCount} transfers over " +
-                    "${formatMigrationDuration(span)}. There are " +
-                    "${snapshot.totalCount - snapshot.completedCount} remaining transfers."
-            }
+        val subtitle = migrationProgressSubtitle(snapshot, now)
 
         val totalZatoshi = snapshot.transfers.sumOf { it.amountZatoshi }
         return MigrationProgressState(
@@ -112,12 +99,17 @@ class MigrationProgressVM(
                 snapshot.preparations.mapIndexed { i, p ->
                     MigrationProgressPreparationState(
                         number = i + 1,
-                        statusLabel = preparationStatusLabel(p),
+                        // PRIMARY, all builds: a soft, non-deadline-implying time hint (never a
+                        // countdown-to-deadline, never "Overdue"/attention-painted — see
+                        // preparationSyncLabel doc). Inverse of this field's old priority.
+                        statusLabel = preparationSyncLabel(p, now),
                         isSent = p.isSent,
                         // BuildConfig.DEBUG read inline (matching the codebase's other VMs) rather than
                         // injected — a `Boolean` constructor param breaks Koin's `viewModelOf` reflective
                         // resolution (NoDefinitionFoundException at screen open).
-                        syncLabel = if (BuildConfig.DEBUG) preparationSyncLabel(p, now) else null,
+                        // DEBUG-only diagnostic suffix: the raw engine status word, demoted from
+                        // its old PRIMARY spot.
+                        syncLabel = if (BuildConfig.DEBUG) preparationStatusLabel(p) else null,
                     )
                 },
             transfers =
@@ -126,7 +118,10 @@ class MigrationProgressVM(
                         index = t.index + 1,
                         amount = stringRes(Zatoshi(t.amountZatoshi)),
                         fiatAmount = fiatAmount(Zatoshi(t.amountZatoshi), exchangeRateState),
-                        statusLabel = transferLabel(t),
+                        // PRIMARY, all builds: a soft, non-deadline-implying time hint (never a
+                        // countdown-to-deadline, never "Overdue"/attention-painted — see
+                        // transferSyncLabel doc). Inverse of this field's old priority.
+                        statusLabel = transferSyncLabel(t, now),
                         // Attention paint (orange) ONLY for genuine, cannot-heal-on-its-own states —
                         // never for a merely-late-but-healthy transfer (the old "overdue" false
                         // alarm). Expired and the synthetic unprovable-anchor are the only two.
@@ -134,7 +129,9 @@ class MigrationProgressVM(
                             t.blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR ||
                                 t.blocker == MigrationTransferBlocker.EXPIRED,
                         isSent = t.isSent,
-                        syncLabel = if (BuildConfig.DEBUG) transferSyncLabel(t, now) else null,
+                        // DEBUG-only diagnostic suffix: the raw engine status word, demoted from
+                        // its old PRIMARY spot.
+                        syncLabel = if (BuildConfig.DEBUG) transferLabel(t) else null,
                     )
                 },
             isComplete = snapshot.isComplete,
@@ -174,13 +171,77 @@ class MigrationProgressVM(
 }
 
 /**
- * Status label for a crossing transfer row, rendered PURELY from the engine's per-transaction
- * status (`ready`/`action`/`blocker` from `transaction_statuses`) — NO wall-clock, NO "overdue",
- * NO countdown. The engine has no notion of "overdue": a proved transfer waiting for the engine
- * to reach its broadcast (proving is prioritised) is a normal state, not a failure. Showing a
- * projected countdown that we then don't strictly honour — and painting late-but-healthy rows
- * "Overdue" — made correct engine execution look broken (decision with Dominik 2026-07-31), so
- * both are gone. Every branch maps 1:1 onto `state.rs::transaction_statuses`.
+ * Header subtitle for the Migration Progress screen.
+ *
+ * Before any transfer has completed ([LiveMigrationSnapshot.completedCount] == 0), keeps the
+ * existing static total-span framing unchanged: "over ~X" spanning the earliest to the latest
+ * scheduled moment across preparations AND transfers.
+ *
+ * Once in progress (`completedCount > 0` — a concrete, checkable condition, decision with Dominik
+ * 2026-08-01), the header instead counts down the REMAINING time to the last scheduled moment.
+ * This MUST branch explicitly on `remaining > 0` vs `remaining <= 0`: [formatMigrationDuration]
+ * floors its input at 60 seconds, so once the migration runs late (`now >= lastScheduled` — a
+ * normal, expected state for this engine, not stuck/broken), a naive
+ * `formatMigrationDuration(remaining)` call on a negative/zero span would silently floor to a
+ * permanently-lying "~1 min" forever. That is exactly the "healthy-but-late state painted as
+ * broken" bug class commit `33cff6883` fixed for the per-row labels — this header must not
+ * reintroduce it via a different code path, so the `remaining <= 0` branch switches to non-time
+ * copy that never calls [formatMigrationDuration] on that value.
+ *
+ * Top-level and internal for unit-testability without Android, Koin, or a live SDK/ViewModel.
+ */
+internal fun migrationProgressSubtitle(
+    snapshot: LiveMigrationSnapshot,
+    now: Instant,
+): String {
+    // Scheduled moments across preparations AND transfers, used for both the pre-start static
+    // total-span estimate and the in-progress remaining-time countdown below.
+    val allScheduled = (snapshot.transfers.map { it.scheduledAt } + snapshot.preparations.map { it.scheduledAt })
+    val firstScheduled = allScheduled.minOrNull() ?: now
+    val lastScheduled = allScheduled.maxOrNull() ?: now
+    val remainingCount = snapshot.totalCount - snapshot.completedCount
+    return when {
+        snapshot.isComplete -> {
+            "All ${snapshot.totalCount} transfers are complete."
+        }
+
+        // Not yet started (no transfer has completed): keep today's existing static total-span
+        // framing unchanged — this task only changes the in-progress copy.
+        snapshot.completedCount <= 0 -> {
+            val span = (lastScheduled - firstScheduled).inWholeSeconds
+            "Your balance splits into ${snapshot.totalCount} transfers over " +
+                "${formatMigrationDuration(span)}. There are $remainingCount remaining transfers."
+        }
+
+        // In progress: the header now counts down remaining time instead of showing a static total.
+        else -> {
+            val remaining = (lastScheduled - now).inWholeSeconds
+            if (remaining > 0) {
+                "Your balance splits into ${snapshot.totalCount} transfers. About " +
+                    "${formatMigrationDuration(remaining)} remaining. There are " +
+                    "$remainingCount remaining transfers."
+            } else {
+                // Running late but healthy — never claim a duration here (see doc above).
+                "Your balance splits into ${snapshot.totalCount} transfers. Finishing up… " +
+                    "There are $remainingCount remaining transfers."
+            }
+        }
+    }
+}
+
+/**
+ * Raw engine status word for a crossing transfer row, rendered PURELY from the engine's
+ * per-transaction status (`ready`/`action`/`blocker` from `transaction_statuses`) — NO
+ * wall-clock, NO "overdue", NO countdown. The engine has no notion of "overdue": a proved
+ * transfer waiting for the engine to reach its broadcast (proving is prioritised) is a normal
+ * state, not a failure. Showing a projected countdown that we then don't strictly honour — and
+ * painting late-but-healthy rows "Overdue" — made correct engine execution look broken (decision
+ * with Dominik 2026-07-31), so both are gone. Every branch maps 1:1 onto
+ * `state.rs::transaction_statuses`.
+ *
+ * DEBUG-only diagnostic suffix as of 2026-08-01 (decision with Dominik): the friendly per-row
+ * time hint from [transferSyncLabel] is now the PRIMARY, all-builds label; this raw word is
+ * demoted to a debug diagnostic appended after it.
  *
  * Top-level and internal for unit-testability without Android or Koin.
  */
@@ -200,9 +261,14 @@ internal fun transferLabel(t: LiveMigrationTransfer): StringResource =
     }
 
 /**
- * Status label for a preparation row — same pure-status mapping as [transferLabel]. Preparations
- * are internal note-split plumbing, so the copy is deliberately plain ("Preparing" / "Sending
- * soon" / "Waiting" / "Sent"). No wall-clock, no overdue. Top-level and internal for testability.
+ * Raw engine status word for a preparation row — same pure-status mapping as [transferLabel].
+ * Preparations are internal note-split plumbing, so the copy is deliberately plain ("Preparing" /
+ * "Sending soon" / "Waiting" / "Sent"). No wall-clock, no overdue.
+ *
+ * DEBUG-only diagnostic suffix as of 2026-08-01 (see [transferLabel] doc) — [preparationSyncLabel]
+ * is now the PRIMARY, all-builds label.
+ *
+ * Top-level and internal for testability.
  */
 internal fun preparationStatusLabel(p: LiveMigrationPreparation): StringResource =
     when {
@@ -215,17 +281,25 @@ internal fun preparationStatusLabel(p: LiveMigrationPreparation): StringResource
     }
 
 /**
- * DEBUG-only prove-state label for a preparation row, formatted with the same relative formatter
- * as [preparationStatusLabel] so "~X min" / pending text look identical. Returns "proved" when
- * the preparation already has a proof, otherwise a relative scheduled time or "pending".
+ * PRIMARY, all-builds per-row time hint for a preparation row (reintroduced 2026-08-01, decision
+ * with Dominik) — a soft, non-deadline-implying estimate, e.g. "~5 min", NEVER styled as a
+ * countdown-to-deadline and NEVER triggering "Overdue"/attention-paint (that regression is exactly
+ * what commit `33cff6883` fixed; this only changes what's primary vs. debug-suffix).
+ *
+ * When there IS a meaningful future estimate ([now] is still before [LiveMigrationPreparation.scheduledAt]),
+ * this formats the relative time with [formatMigrationDuration]. Otherwise — the row is already
+ * proved, or its scheduled moment has passed (the common case for an active/due row) — there is no
+ * honest duration left to show, so this falls back to the row's own status-derived phrase (the
+ * same text [preparationStatusLabel] renders, e.g. "Preparing" / "Sending soon") instead of the
+ * bare, uninformative "proved"/"pending" words that leaked debug jargon in an earlier draft.
+ *
  * Top-level and internal for unit-testability.
  */
 internal fun preparationSyncLabel(p: LiveMigrationPreparation, now: Instant): StringResource {
-    if (p.isProved) return stringRes("proved")
     val scheduledAt = p.scheduledAt
     return when {
-        scheduledAt <= now -> {
-            stringRes("pending")
+        p.isProved || scheduledAt <= now -> {
+            preparationStatusLabel(p)
         }
 
         else -> {
@@ -236,16 +310,16 @@ internal fun preparationSyncLabel(p: LiveMigrationPreparation, now: Instant): St
 }
 
 /**
- * DEBUG-only prove-state label for a transfer row, mirroring [preparationSyncLabel]: returns
- * "proved" when the transfer already has a proof, otherwise a relative scheduled time or "pending".
- * Top-level and internal for unit-testability.
+ * PRIMARY, all-builds per-row time hint for a transfer row, mirroring [preparationSyncLabel]: a
+ * relative estimate via [formatMigrationDuration] while a meaningful future estimate exists,
+ * otherwise the row's own status-derived phrase ([transferLabel]'s output) instead of the bare
+ * "proved"/"pending" words. Top-level and internal for unit-testability.
  */
 internal fun transferSyncLabel(t: LiveMigrationTransfer, now: Instant): StringResource {
-    if (t.isProved) return stringRes("proved")
     val scheduledAt = t.scheduledAt
     return when {
-        scheduledAt <= now -> {
-            stringRes("pending")
+        t.isProved || scheduledAt <= now -> {
+            transferLabel(t)
         }
 
         else -> {
