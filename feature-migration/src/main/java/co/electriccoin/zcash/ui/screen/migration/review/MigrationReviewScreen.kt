@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -196,7 +200,15 @@ internal fun ImmediateDetailsRow(label: String, value: String) {
 }
 
 @Composable
-private fun PrivacyReviewContent(state: MigrationReviewState) {
+private fun PrivacyReviewContent(
+    state: MigrationReviewState,
+    // Preview-only override so PreviewPrivacyWithPreparationsExpanded can render the split-balance
+    // section already open; production call sites always use the collapsed-by-default value.
+    initiallyExpanded: Boolean = false,
+) {
+    // Hoisted here (a real @Composable) rather than inside the LazyColumn content lambda below,
+    // which is a plain LazyListScope and cannot call remember {}.
+    var isSplitSectionExpanded by remember { mutableStateOf(initiallyExpanded) }
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Confirm Transfer Plan",
@@ -226,17 +238,56 @@ private fun PrivacyReviewContent(state: MigrationReviewState) {
         }
         // Only this list scrolls when it doesn't fit — header and Confirm button stay pinned.
         LazyColumn(modifier = Modifier.weight(1f)) {
-            if (state.preparations.isNotEmpty()) {
-                // Multi-note wallet: show one "Split balance N" row per preparation transaction.
-                // No amount shown — raw denominations are internal plumbing and confusing.
+            if (state.preparations.size > 1) {
+                // Multi-note wallet: collapse the per-preparation "Split balance N" rows into a
+                // single "Split Balance (N)" summary row (collapsed by default), tap-to-expand.
+                // Otherwise the plan visually grows by one row per split. No amount shown — raw
+                // denominations are internal plumbing and confusing.
+                item {
+                    TransferTimelineRow(
+                        title = "Split Balance (${state.preparations.size})",
+                        subtitle = stringRes("Ready now"),
+                        amount = null,
+                        fiatAmount = null,
+                        // Figma PR App Designs Q3'26, node 4207-7450: a checkmark, not the
+                        // coins-swap glyph — Split Balance is a same-device self-send.
+                        icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
+                        isFirst = true,
+                        isLast = false,
+                        trailingIcon =
+                            if (isSplitSectionExpanded) {
+                                co.electriccoin.zcash.ui.design.R.drawable.ic_chevron_up
+                            } else {
+                                co.electriccoin.zcash.ui.design.R.drawable.ic_chevron_down
+                            },
+                        onClick = { isSplitSectionExpanded = !isSplitSectionExpanded },
+                    )
+                }
+                if (isSplitSectionExpanded) {
+                    items(state.preparations) { prep ->
+                        TransferTimelineRow(
+                            title = "Split balance ${prep.number}",
+                            subtitle = prep.scheduledLabel,
+                            amount = null,
+                            fiatAmount = null,
+                            icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
+                            // Force isFirst = false on every expanded sub-row: the collapsed summary
+                            // row above already claims the "first/active" styling slot, so the old
+                            // prep.number == 1 logic would light up two rows as active at once.
+                            isFirst = false,
+                            isLast = false,
+                        )
+                    }
+                }
+            } else if (state.preparations.isNotEmpty()) {
+                // Exactly one preparation: nothing to collapse, render the single "Split balance 1"
+                // row as before.
                 items(state.preparations) { prep ->
                     TransferTimelineRow(
                         title = "Split balance ${prep.number}",
                         subtitle = prep.scheduledLabel,
                         amount = null,
                         fiatAmount = null,
-                        // Figma PR App Designs Q3'26, node 4207-7450: a checkmark, not the
-                        // coins-swap glyph — Split Balance is a same-device self-send.
                         icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
                         isFirst = prep.number == 1,
                         isLast = false,
@@ -294,11 +345,14 @@ private fun TransferTimelineRow(
     isLast: Boolean,
     index: Int = 0,
     @DrawableRes icon: Int? = null,
+    @DrawableRes trailingIcon: Int? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .clickable(enabled = onClick != null) { onClick?.invoke() }
                 .height(IntrinsicSize.Min)
                 .padding(bottom = if (isLast) 0.dp else 12.dp),
     ) {
@@ -405,6 +459,18 @@ private fun TransferTimelineRow(
                     color = ZashiColors.Text.textTertiary,
                 )
             }
+        }
+        trailingIcon?.let { chevron ->
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                painter = painterResource(chevron),
+                contentDescription = null,
+                tint = ZashiColors.Text.textTertiary,
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterVertically)
+                        .size(20.dp),
+            )
         }
     }
 }
@@ -513,5 +579,38 @@ private fun PreviewPrivacyWithPreparations() =
                     onConfirm = {},
                     onBack = {},
                 )
+        )
+    }
+
+@PreviewScreens
+@Composable
+private fun PreviewPrivacyWithPreparationsExpanded() =
+    ZcashTheme {
+        // Renders PrivacyReviewContent directly (rather than via MigrationReviewView) so the
+        // split-balance section can be pre-expanded through the preview-only initiallyExpanded flag.
+        PrivacyReviewContent(
+            state =
+                MigrationReviewState(
+                    mode = MigrationMode.AUTOMATIC,
+                    totalAmount = stringRes("12.458 ZEC"),
+                    estimatedDuration = stringRes("~8 min"),
+                    preparations =
+                        listOf(
+                            MigrationReviewPreparationState(1, stringRes("Ready now")),
+                            MigrationReviewPreparationState(2, stringRes("Ready now")),
+                            MigrationReviewPreparationState(3, stringRes("Ready now")),
+                        ),
+                    transfers =
+                        listOf(
+                            MigrationReviewTransferState(1, 5, stringRes("1.348 ZEC"), stringRes("$521.30"), stringRes("~10 mins")),
+                            MigrationReviewTransferState(2, 5, stringRes("1.052 ZEC"), stringRes("$406.86"), stringRes("~6 hours")),
+                            MigrationReviewTransferState(3, 5, stringRes("2.105 ZEC"), stringRes("$813.74"), stringRes("~12 hours")),
+                            MigrationReviewTransferState(4, 5, stringRes("1.897 ZEC"), stringRes("$733.51"), stringRes("~18 hours")),
+                            MigrationReviewTransferState(5, 5, stringRes("4.456 ZEC"), stringRes("$1,723.53"), stringRes("~24 hours")),
+                        ),
+                    onConfirm = {},
+                    onBack = {},
+                ),
+            initiallyExpanded = true,
         )
     }
