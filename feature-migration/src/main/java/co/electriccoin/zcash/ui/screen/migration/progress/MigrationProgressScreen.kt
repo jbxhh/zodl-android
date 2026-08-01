@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiTopAppBarCloseNavigation
@@ -52,7 +53,10 @@ fun MigrationProgressScreen() {
     val vm = koinViewModel<MigrationProgressVM>()
     val state by vm.state.collectAsStateWithLifecycle()
     BackHandler { state.content?.onBack?.invoke() ?: vm.navigateBack() }
-    LceRenderer(state) { MigrationProgressView(it) }
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading) CircularScreenProgressIndicator() },
+    ) { MigrationProgressView(it) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
