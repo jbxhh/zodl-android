@@ -67,6 +67,7 @@ class ActivityMapper {
                     value = getTransactionValue(data),
                     onClick = { onTransactionClick(data.transaction) },
                     isUnread = isTransactionUnread(data, restoreTimestamp),
+                    isMigration = data.metadata.migrationMetadata != null,
                     onDisplayed = { onDisplayed(data) }
                 )
             }

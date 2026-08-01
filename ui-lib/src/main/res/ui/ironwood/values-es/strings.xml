@@ -7,4 +7,5 @@
     <string name="ironwood_announcement_body_guide">Si prefieres no esperar, nuestra guía explica cómo mover los fondos manualmente.</string>
     <string name="ironwood_announcement_body_guide_link">nuestra guía</string>
     <string name="ironwood_announcement_primary_button">Ir a Zodl</string>
+    <string name="activity_migration_badge">Migración</string>
 </resources>

@@ -12,7 +12,10 @@ import co.electriccoin.zcash.ui.common.model.SwapStatus
 import co.electriccoin.zcash.ui.common.model.WalletAccount
 import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.model.ZecSimpleSwapAsset
+import co.electriccoin.zcash.ui.common.model.metadata.MigrationTxKindV3
+import co.electriccoin.zcash.ui.common.model.metadata.MigrationTxMetadataV3
 import co.electriccoin.zcash.ui.common.model.metadata.SwapMetadataV3
+import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.MetadataKeyStorageProvider
 import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.common.provider.SimpleSwapAssetProvider
@@ -72,6 +75,15 @@ interface MetadataRepository {
     // fun deleteSwap(depositAddress: String)
 
     fun addSwapAssetToHistory(tokenTicker: String, chainTicker: String)
+
+    /**
+     * Tags [txId] as a migration-related transaction so the Activity screen can badge it. Unlike
+     * every other write on this repository, this is keyed by an EXPLICIT [accountKeyId] rather than
+     * the currently-selected account: the migration worker runs in the background for a specific
+     * account that has no relationship to whatever the user happens to be viewing in the foreground
+     * when a transfer broadcasts, so the badge must land in that account's encrypted store.
+     */
+    fun markTxAsMigration(txId: String, accountKeyId: String, kind: MigrationTxKind)
 
     fun observeTransactionMetadata(transaction: Transaction): Flow<TransactionMetadata>
 
@@ -195,6 +207,19 @@ class MetadataRepositoryImpl(
             metadataDataSource.addSwapAssetToHistory(tokenTicker = tokenTicker, chainTicker = chainTicker, key = it)
         }
 
+    override fun markTxAsMigration(txId: String, accountKeyId: String, kind: MigrationTxKind) =
+        updateMetadataForAccount(accountKeyId) { key ->
+            metadataDataSource.markTxAsMigration(
+                txId = txId,
+                kind =
+                    when (kind) {
+                        MigrationTxKind.PREP_SPLIT -> MigrationTxKindV3.PREP_SPLIT
+                        MigrationTxKind.TRANSFER -> MigrationTxKindV3.TRANSFER
+                    },
+                key = key
+            )
+        }
+
     override fun observeTransactionMetadata(transaction: Transaction): Flow<TransactionMetadata> {
         val txId = transaction.id.txIdString()
         val depositAddress = transaction.recipient
@@ -213,7 +238,11 @@ class MetadataRepositoryImpl(
                     isBookmarked = accountMetadata.bookmarked.find { it.txId == txId }?.isBookmarked == true,
                     isRead = accountMetadata.read.any { it == txId },
                     note = accountMetadata.annotations.find { it.txId == txId }?.content,
-                    swapMetadata = swapMetadata?.toBusinessObject()
+                    swapMetadata = swapMetadata?.toBusinessObject(),
+                    migrationMetadata =
+                        accountMetadata.migrations
+                            .find { it.txId == txId }
+                            ?.toBusinessObject()
                 )
             }.distinctUntilChanged()
     }
@@ -245,6 +274,15 @@ class MetadataRepositoryImpl(
             totalFeesUsd = totalFeesUsd,
         )
     }
+
+    private fun MigrationTxMetadataV3.toBusinessObject(): TransactionMigrationMetadata =
+        TransactionMigrationMetadata(
+            kind =
+                when (kind) {
+                    MigrationTxKindV3.PREP_SPLIT -> MigrationTxKind.PREP_SPLIT
+                    MigrationTxKindV3.TRANSFER -> MigrationTxKind.TRANSFER
+                }
+        )
 
     override fun observeSwapMetadata(): Flow<List<TransactionSwapMetadata>?> =
         metadata
@@ -307,6 +345,35 @@ class MetadataRepositoryImpl(
         }
     }
 
+    /**
+     * Account-explicit sibling of [updateMetadata]: derives the encryption key from the account
+     * whose [WalletAccount.sdkAccount] uuid stringifies to [accountKeyId] (see
+     * [AccountUuid.toStorageKeyId]) instead of the currently-selected account, so a background
+     * write lands in the intended account's store regardless of foreground selection. No-ops with a
+     * logged error if no such account exists (e.g. it was removed while the worker ran).
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun updateMetadataForAccount(accountKeyId: String, block: suspend (MetadataKey) -> Unit) {
+        scope.launch {
+            mutex.withLock {
+                try {
+                    val account =
+                        accountDataSource
+                            .getAllAccounts()
+                            .firstOrNull { it.sdkAccount.accountUuid.toStorageKeyId() == accountKeyId }
+                    if (account == null) {
+                        Twig.error { "Unable to update Metadata: no account for keyId=$accountKeyId" }
+                        return@withLock
+                    }
+                    val key = getMetadataKey(account)
+                    block(key)
+                } catch (e: Exception) {
+                    Twig.error(e) { "Unable to update Metadata for account" }
+                }
+            }
+        }
+    }
+
     private suspend fun getMetadataKey(selectedAccount: WalletAccount): MetadataKey {
         val key = metadataKeyStorageProvider.get(selectedAccount.sdkAccount.accountUuid)
 
@@ -343,8 +410,15 @@ data class TransactionMetadata(
     val isBookmarked: Boolean,
     val isRead: Boolean,
     val note: String?,
-    val swapMetadata: TransactionSwapMetadata?
+    val swapMetadata: TransactionSwapMetadata?,
+    val migrationMetadata: TransactionMigrationMetadata?
 )
+
+data class TransactionMigrationMetadata(
+    val kind: MigrationTxKind
+)
+
+enum class MigrationTxKind { PREP_SPLIT, TRANSFER }
 
 data class TransactionSwapMetadata(
     val depositAddress: String,

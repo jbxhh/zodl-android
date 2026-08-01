@@ -11,6 +11,8 @@ import co.electriccoin.zcash.ui.common.model.metadata.AnnotationMetadataV3
 import co.electriccoin.zcash.ui.common.model.metadata.BookmarkMetadataV3
 import co.electriccoin.zcash.ui.common.model.metadata.MetadataSimpleSwapAssetV3
 import co.electriccoin.zcash.ui.common.model.metadata.MetadataV3
+import co.electriccoin.zcash.ui.common.model.metadata.MigrationTxKindV3
+import co.electriccoin.zcash.ui.common.model.metadata.MigrationTxMetadataV3
 import co.electriccoin.zcash.ui.common.model.metadata.SwapMetadataV3
 import co.electriccoin.zcash.ui.common.model.metadata.SwapsMetadataV3
 import co.electriccoin.zcash.ui.common.provider.MetadataProvider
@@ -71,6 +73,12 @@ interface MetadataDataSource {
     suspend fun addSwapAssetToHistory(
         tokenTicker: String,
         chainTicker: String,
+        key: MetadataKey
+    )
+
+    suspend fun markTxAsMigration(
+        txId: String,
+        kind: MigrationTxKindV3,
         key: MetadataKey
     )
 
@@ -268,6 +276,29 @@ class MetadataDataSourceImpl(
             tokenTicker = tokenTicker,
             chainTicker = chainTicker,
             key = key
+        )
+    }
+
+    override suspend fun markTxAsMigration(
+        txId: String,
+        kind: MigrationTxKindV3,
+        key: MetadataKey
+    ) = mutex.withLock {
+        updateMetadata(
+            key = key,
+            transform = { metadata ->
+                metadata.copy(
+                    migrations =
+                        metadata.migrations
+                            .replaceOrAdd(predicate = { it.txId == txId }) {
+                                MigrationTxMetadataV3(
+                                    txId = txId,
+                                    kind = kind,
+                                    lastUpdated = Instant.now(),
+                                )
+                            }
+                )
+            }
         )
     }
 

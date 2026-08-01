@@ -21,6 +21,8 @@ import co.electriccoin.zcash.ui.common.provider.LastNetworkActivityStorageProvid
 import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
 import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
+import co.electriccoin.zcash.ui.common.repository.MetadataRepository
+import co.electriccoin.zcash.ui.common.repository.MigrationTxKind
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -73,6 +75,7 @@ class MigrationDriveOnce(
     private val synchronizerProvider: SynchronizerProvider,
     private val lastNetworkActivity: LastNetworkActivityStorageProvider,
     private val applicationStateProvider: ApplicationStateProvider,
+    private val metadataRepository: MetadataRepository,
 ) {
     /**
      * @param allowForcedBroadcastWindow Only `true` for [MigrationLiveDriver] — the worker (via
@@ -369,6 +372,14 @@ class MigrationDriveOnce(
         when (result) {
             is TransferResult.Success -> {
                 migrationLog("MigrationDriveOnce: sent — txId=${result.txId}")
+                // Tag this tx so the Activity screen can badge it as migration-related. Keyed by
+                // THIS run's accountKeyId (not the selected account) so the badge lands in the right
+                // account's store even if the user is viewing the other account when this fires.
+                metadataRepository.markTxAsMigration(
+                    txId = result.txId,
+                    accountKeyId = accountKeyId,
+                    kind = if (sentWasPrep) MigrationTxKind.PREP_SPLIT else MigrationTxKind.TRANSFER,
+                )
                 // Everything below reads the engine's post-send state live — there is no cache to
                 // write through anymore (the banner reads the same live states).
                 val snapshot = sdk.snapshot()
