@@ -149,7 +149,7 @@ class MigrationDriveOnce(
                 // Everything broadcast, awaiting mining. Mining is only observed by a scan-driven
                 // reconcile, so the sweep must be a REAL sync run — a passive wait would never let
                 // the engine reach Complete in the background (review M2).
-                migrationLog("Worker: all transactions sent — completion sweep sync run.")
+                migrationLog("MigrationDriveOnce: all transactions sent — completion sweep sync run.")
                 syncRun(sdk, accountKeyId)
             }
 
@@ -172,19 +172,19 @@ class MigrationDriveOnce(
      */
     private suspend fun syncRun(sdk: OrchardMigrationSdk, accountKeyId: String): DriveOnceResult {
         if (sdk.isSyncBlocked().first()) {
-            migrationLog("Worker: sync run blocked by the post-broadcast privacy gate — deferring.")
+            migrationLog("MigrationDriveOnce: sync run blocked by the post-broadcast privacy gate — deferring.")
             return DriveOnceResult.ReArmed(reArm(sdk, accountKeyId, floor = sdk.privacySyncBufferDuration()))
         }
         val burst = synchronizerProvider.getSynchronizerOrNull()?.syncToTip(timeout = SYNC_TIMEOUT)
-        migrationLog("Worker: syncToTip result=$burst")
+        migrationLog("MigrationDriveOnce: syncToTip result=$burst")
         val proved = sdk.finalizeReadyTransfers()
-        migrationLog("Worker: proved=$proved")
+        migrationLog("MigrationDriveOnce: proved=$proved")
         if (sdk.reconcileInvalidations()) {
             // The plan is invalid (input notes spent externally) — notify and do NOT re-arm; the
             // app-open router (CheckMigrationRecoveryUseCase) takes over from here.
             migrationNotifier.notifyMigrationPlanInvalid(accountKeyId)
             MigrationScheduler(applicationContext).cancel(accountKeyId)
-            migrationLog("Worker: reconcile found an invalidation — stopping the work chain.")
+            migrationLog("MigrationDriveOnce: reconcile found an invalidation — stopping the work chain.")
             return DriveOnceResult.Terminal
         }
         lastNetworkActivity.stampNow()
@@ -194,7 +194,7 @@ class MigrationDriveOnce(
                 val prep = nextDueUnsentIsPreparation(sdk.getMigrationTransferStates(), sdk.estimatedChainTip())
                 val chainDelay = if (prep) PREP_FAST_TRACK_REARM else sdk.privacySyncBufferDuration()
                 MigrationScheduler(applicationContext).schedule(accountKeyId, chainDelay)
-                migrationLog("Worker: sync done, next=$next — broadcast run in $chainDelay")
+                migrationLog("MigrationDriveOnce: sync done, next=$next — broadcast run in $chainDelay")
                 DriveOnceResult.ReArmed(chainDelay)
             }
 
@@ -210,7 +210,7 @@ class MigrationDriveOnce(
 
             else -> {
                 // Prove again (boundary not yet settled at the new tip) or Waiting.
-                migrationLog("Worker: sync done, next=$next — re-arming.")
+                migrationLog("MigrationDriveOnce: sync done, next=$next — re-arming.")
                 surfaceUnprovableBlocker(sdk, accountKeyId, sdk.getMigrationTransferStates())
                 DriveOnceResult.ReArmed(reArm(sdk, accountKeyId))
             }
@@ -252,7 +252,7 @@ class MigrationDriveOnce(
                 prepFastTrack = prepFastTrack,
             )
         migrationLog(
-            "Worker: broadcast preflight=$preflight " +
+            "MigrationDriveOnce: broadcast preflight=$preflight " +
                 "(syncing=$syncing, prepFastTrack=$prepFastTrack, lastNetworkActivity=$lastActivity)"
         )
         if (preflight == BroadcastPreflight.DEFER) {
@@ -293,7 +293,7 @@ class MigrationDriveOnce(
                 // backgrounded) — unchanged from today's behavior.
                 val deferDelay = if (prepFastTrack) PREP_FAST_TRACK_REARM else sdk.privacySyncBufferDuration()
                 MigrationScheduler(applicationContext).schedule(accountKeyId, deferDelay)
-                migrationLog("Worker: deferring broadcast $deferDelay — a sync source is live or the quiet gap is unmet.")
+                migrationLog("MigrationDriveOnce: deferring broadcast $deferDelay — a sync source is live or the quiet gap is unmet.")
                 return DriveOnceResult.ReArmed(deferDelay)
             }
         }
@@ -333,14 +333,14 @@ class MigrationDriveOnce(
                     sdk.executeNextPendingTransfer(NetworkPrivacyOptions(useTor = useTor), useEstimatedTip = true)
                 }
             } ?: run {
-                migrationLog("Worker: broadcast attempt timed out after $BROADCAST_ATTEMPT_TIMEOUT — re-arming.")
+                migrationLog("MigrationDriveOnce: broadcast attempt timed out after $BROADCAST_ATTEMPT_TIMEOUT — re-arming.")
                 return DriveOnceResult.ReArmed(reArm(sdk, accountKeyId, floor = REARM_FLOOR))
             }
         return when (outcome) {
             is TransferAttemptOutcome.NothingDue -> {
                 // The estimate raced ahead of the engine's own due check — re-arm normally.
                 val delay = reArm(sdk, accountKeyId)
-                migrationLog("Worker: NothingDue — re-armed for the next window.")
+                migrationLog("MigrationDriveOnce: NothingDue — re-armed for the next window.")
                 DriveOnceResult.ReArmed(delay)
             }
 
@@ -348,7 +348,7 @@ class MigrationDriveOnce(
                 // Defensive: nextStep said Broadcast, so the engine had a proved transaction — a
                 // proof can only have vanished through a concurrent reorg/rescan. Re-arm floored;
                 // the next run re-asks the engine from scratch.
-                migrationLog("Worker: AwaitingProof for ${outcome.transferId} despite a Broadcast step — re-arming.")
+                migrationLog("MigrationDriveOnce: AwaitingProof for ${outcome.transferId} despite a Broadcast step — re-arming.")
                 DriveOnceResult.ReArmed(reArm(sdk, accountKeyId, floor = REARM_FLOOR))
             }
 
@@ -368,7 +368,7 @@ class MigrationDriveOnce(
     ): DriveOnceResult =
         when (result) {
             is TransferResult.Success -> {
-                migrationLog("Worker: sent — txId=${result.txId}")
+                migrationLog("MigrationDriveOnce: sent — txId=${result.txId}")
                 // Everything below reads the engine's post-send state live — there is no cache to
                 // write through anymore (the banner reads the same live states).
                 val snapshot = sdk.snapshot()
@@ -397,7 +397,7 @@ class MigrationDriveOnce(
                     // the crossings' anchor boundaries — the exact tx9 latency condition (review H1).
                     if (nextDueUnsentIsPreparation(postStates, sdk.estimatedChainTip())) {
                         MigrationScheduler(applicationContext).schedule(accountKeyId, PREP_FAST_TRACK_REARM)
-                        migrationLog("Worker: ready preparation next — chaining in $PREP_FAST_TRACK_REARM")
+                        migrationLog("MigrationDriveOnce: ready preparation next — chaining in $PREP_FAST_TRACK_REARM")
                         if (!sentWasPrep && snapshot != null) {
                             migrationNotifier.notifyTransferComplete(accountKeyId, snapshot.completedCount, snapshot.totalCount)
                         }
@@ -415,7 +415,7 @@ class MigrationDriveOnce(
                     // completeRun stop). The next wake lands in waitingRun's completion-sweep
                     // branch, which runs a REAL sync so mining is actually observed (review M2).
                     val delay = reArm(sdk, accountKeyId, floor = sdk.privacySyncBufferDuration())
-                    migrationLog("Worker: all transfers sent — completion sweep armed.")
+                    migrationLog("MigrationDriveOnce: all transfers sent — completion sweep armed.")
                     DriveOnceResult.ReArmed(delay)
                 }
             }
@@ -424,7 +424,7 @@ class MigrationDriveOnce(
                 // Retries already exhausted (or the failure was non-retryable) inside
                 // executeWithRetries — settle into an error state now rather than asking
                 // WorkManager for yet another attempt.
-                migrationLog("Worker: network error after retries, isTorFailure=${result.isTorFailure}")
+                migrationLog("MigrationDriveOnce: network error after retries, isTorFailure=${result.isTorFailure}")
                 if (result.isTorFailure) {
                     // Persist a flag so app-open reconciliation (CheckMigrationRecoveryUseCase)
                     // routes back through the Sending screen instead of the generic
@@ -448,7 +448,7 @@ class MigrationDriveOnce(
                 // migration flow. On-launch reconciliation surfaces the prompt, but the user still
                 // needs telling since nothing else runs meanwhile. No re-arm — terminal until the
                 // user acts.
-                migrationLog("Worker: transfer invalid (note spent externally) — user action required on next open.")
+                migrationLog("MigrationDriveOnce: transfer invalid (note spent externally) — user action required on next open.")
                 migrationNotifier.notifyMigrationPlanInvalid(accountKeyId)
                 DriveOnceResult.Terminal
             }
@@ -456,7 +456,7 @@ class MigrationDriveOnce(
             TransferResult.Expired -> {
                 // State is now RequiresAttention(TransferExpired) — the anchor expired before the
                 // broadcast could happen. Distinct copy from InvalidNote, same terminal handling.
-                migrationLog("Worker: transfer expired — user action required on next open.")
+                migrationLog("MigrationDriveOnce: transfer expired — user action required on next open.")
                 migrationNotifier.notifyTransferExpired(accountKeyId)
                 DriveOnceResult.Terminal
             }
@@ -470,7 +470,7 @@ class MigrationDriveOnce(
      */
     private suspend fun rebuildRun(sdk: OrchardMigrationSdk, accountKeyId: String, transferId: Long) {
         val snapshot = sdk.snapshot()
-        migrationLog("Worker: engine requests Rebuild{$transferId} — user-driven reschedule required.")
+        migrationLog("MigrationDriveOnce: engine requests Rebuild{$transferId} — user-driven reschedule required.")
         migrationNotifier.notifyRescheduleRequired(
             accountKeyId,
             (snapshot?.nextPending?.index?.plus(1)) ?: 1,
@@ -480,7 +480,7 @@ class MigrationDriveOnce(
 
     /** All transactions mined — nothing left to fold anywhere; just stop the chain. */
     private suspend fun completeRun(accountKeyId: String) {
-        migrationLog("Worker: migration complete — stopping the work chain. (account=$accountKeyId)")
+        migrationLog("MigrationDriveOnce: migration complete — stopping the work chain. (account=$accountKeyId)")
     }
 
     /**
@@ -493,7 +493,7 @@ class MigrationDriveOnce(
     private suspend fun surfaceUnprovableBlocker(sdk: OrchardMigrationSdk, accountKeyId: String, states: MigrationTransferStates?) {
         val stuck = states?.transfers?.firstOrNull { it.blocker == MigrationBlocker.UNPROVABLE_ANCHOR } ?: return
         val snapshot = sdk.snapshot()
-        migrationLog("Worker: transfer ${stuck.id} blocked on an unprovable anchor — user-driven reschedule required.")
+        migrationLog("MigrationDriveOnce: transfer ${stuck.id} blocked on an unprovable anchor — user-driven reschedule required.")
         migrationNotifier.notifyRescheduleRequired(
             accountKeyId,
             (snapshot?.nextPending?.index?.plus(1)) ?: 1,
@@ -527,7 +527,7 @@ class MigrationDriveOnce(
         // The full "why" of the chosen wake, so timing is diagnosable from logs alone: every
         // engine wake-up height, the next unsent due height, the tip estimate, and the floor.
         migrationLog(
-            "Worker: re-armed in $armed " +
+            "MigrationDriveOnce: re-armed in $armed " +
                 "(engineWakeups=${wakeups?.map { "${it.height}->${it.covers}" }}, " +
                 "nextDue=${states?.transfers?.filter { !it.isSent }?.minOfOrNull { it.scheduledHeight }}, " +
                 "estimatedTip=$est, floor=$floor" +

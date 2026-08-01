@@ -106,6 +106,7 @@ class CheckMigrationRecoveryUseCase(
                     // Nothing to do — RUNNING is already executing; SCHEDULED will either fire on
                     // its own or be superseded by the live driver's own re-arm (reArm's
                     // MigrationScheduler.schedule call), whichever comes first.
+                    migrationLog("MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) — nothing to do.")
                 }
 
                 MigrationWorkerRunState.ABSENT -> {
@@ -165,11 +166,13 @@ internal suspend fun isMigrationWorkerActiveInWorkManager(context: Context, acco
     }.any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING }
 
 /**
- * What the migration worker's unique work is doing right now, distinguishing [SCHEDULED] (armed
- * for a future run — the app-open acceleration case) from [RUNNING] (already executing — nothing
- * to accelerate) and [ABSENT] (needs reviving). [isMigrationWorkerActiveInWorkManager] collapses
- * the first two together, which is all [OnMigrationSyncCompletedUseCase] needs; this finer state
- * is what [CheckMigrationRecoveryUseCase]'s app-open trigger needs.
+ * What the migration worker's unique work is doing right now, distinguishing [SCHEDULED] (a
+ * worker run is already armed for later — nothing to do here; the live driver, started
+ * unconditionally whenever a migration is in progress, covers acceleration) from [RUNNING]
+ * (already executing — also nothing to do) and [ABSENT] (needs reviving).
+ * [isMigrationWorkerActiveInWorkManager] collapses the first two together, which is all
+ * [OnMigrationSyncCompletedUseCase] needs; this finer state is what
+ * [CheckMigrationRecoveryUseCase]'s app-open trigger needs.
  */
 enum class MigrationWorkerRunState { RUNNING, SCHEDULED, ABSENT }
 
