@@ -16,9 +16,11 @@ sealed interface WalletAccount : Comparable<WalletAccount> {
     val unified: UnifiedInfo
     val sapling: SaplingInfo?
 
-    // Ironwood shares the same unified address as Orchard (no address of its own — see
-    // GetOrchardBalanceUseCase's own note on `unified` being Orchard-only), so this is a plain
-    // balance, not an address-carrying *Info like sapling/transparent/unified.
+    // Ironwood shares the same unified address as Orchard (no address of its own), so this is a
+    // plain balance, not an address-carrying *Info like sapling/transparent/unified. Note that
+    // `unified`'s *balance* folds Orchard + Ironwood together (see observeUnified in
+    // AccountDataSource) — callers that need the Orchard-only balance should use
+    // GetOrchardBalanceUseCase, not this field or `unified`.
     val ironwoodBalance: WalletBalance
     val transparent: TransparentInfo
     val isSelected: Boolean

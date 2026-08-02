@@ -1,21 +1,54 @@
 package co.electriccoin.zcash.ui.common.usecase
 
 import cash.z.ecc.android.sdk.model.Zatoshi
+import cash.z.ecc.sdk.extension.ZERO
+import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
+import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
  * The real, spendable Orchard balance for the currently selected wallet account — the balance
  * migration actually moves to Ironwood.
  *
- * `WalletAccount.unified` is Orchard-only despite its name (see its own `TODO [#26]` comment) —
- * this use case is the single seam over that quirk, so migration screens read "the Orchard
- * balance" without each needing to know where that quirk lives or where the value comes from.
+ * Reads the raw, un-folded per-pool Orchard balance directly from the synchronizer, mirroring
+ * [GetBalancePoolsUseCase]'s pattern. This deliberately avoids
+ * `co.electriccoin.zcash.ui.common.model.WalletAccount.unified`: that field folds Orchard +
+ * Ironwood balances together, so once migration completes (real Orchard = 0) it would keep
+ * reporting the full post-migration total as "still Orchard" — which is exactly the bug that made
+ * the home screen's "Migration required" banner stick around forever after a full migration.
  */
 class GetOrchardBalanceUseCase(
-    private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
+    private val synchronizerProvider: SynchronizerProvider,
+    private val accountDataSource: AccountDataSource,
 ) {
-    suspend operator fun invoke(): Zatoshi = getSelectedWalletAccount().unified.balance.available
+    suspend operator fun invoke(): Zatoshi {
+        val synchronizer = synchronizerProvider.getSynchronizer()
+        val account = accountDataSource.getSelectedAccount()
+        val balances = synchronizer.walletBalances.filterNotNull().first()
+        return balances[account.sdkAccount.accountUuid]?.orchard?.available ?: Zatoshi.ZERO
+    }
 
-    fun observe(): Flow<Zatoshi?> = getSelectedWalletAccount.observe().map { it?.unified?.balance?.available }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observe(): Flow<Zatoshi?> =
+        combine(
+            synchronizerProvider.synchronizer,
+            accountDataSource.selectedAccount
+        ) { synchronizer, account ->
+            synchronizer to account
+        }.flatMapLatest { (synchronizer, account) ->
+            if (synchronizer == null || account == null) {
+                flowOf(null)
+            } else {
+                synchronizer.walletBalances.map { balances ->
+                    balances?.get(account.sdkAccount.accountUuid)?.orchard?.available
+                }
+            }
+        }
 }
