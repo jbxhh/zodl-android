@@ -400,6 +400,14 @@ class MigrationReviewVM(
 
     private fun onBack() = proposeLce.guardLoading { navigationRouter.back() }
 
+    // Public, always-reachable fallback for the screen's hoisted BackHandler — unlike onBack()
+    // above, this is NOT gated behind proposeLce.guardLoading. onBack() is only reachable via
+    // state.content (the LCE success case); when propose fails permanently (e.g. NothingToMigrate
+    // once migration is already complete — see the 2026-08-02 stale-banner/dead-end bug) content
+    // stays null forever and there is no in-flight propose operation left to guard, so this must
+    // navigate back unconditionally.
+    fun navigateBack() = navigationRouter.back()
+
     // Only ever called for AUTOMATIC (createImmediateState hardcodes its own single-row label
     // instead — a raw send-max Proposal carries no per-transfer schedule to derive one from).
 

@@ -68,8 +68,12 @@ import org.koin.core.parameter.parametersOf
 fun MigrationReviewScreen(args: MigrationReviewArgs) {
     val vm = koinViewModel<MigrationReviewVM> { parametersOf(args) }
     val state by vm.state.collectAsStateWithLifecycle()
+    // Hoisted outside LceRenderer (matching MigrationProgressScreen) so back-navigation is always
+    // available, even when state.content is permanently null (e.g. NothingToMigrate on propose —
+    // see the 2026-08-02 stale-banner/dead-end bug: without this, that failure path left the user
+    // on a blank screen with no back arrow and no back gesture).
+    BackHandler { state.content?.onBack?.invoke() ?: vm.navigateBack() }
     LceRenderer(state) { s ->
-        BackHandler { s.onBack() }
         MigrationReviewView(s)
     }
 }
