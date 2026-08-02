@@ -10,6 +10,7 @@ import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_RESIDUAL_MIN_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MigrationAttentionKind
+import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferBlocker
 import co.electriccoin.zcash.ui.common.model.migration.affectedTransferIndices
 import co.electriccoin.zcash.ui.common.model.migration.toMigrationRangeText
 import co.electriccoin.zcash.ui.common.model.migration.toUiKind
@@ -292,6 +293,23 @@ internal fun migrationMessageFor(
     // not fire over it (the old plan-cache equivalent was their `plan == null` guard). With no
     // statuses (defensive: attention without a run) they stay reachable.
     val midRunAttention = sdkState is MigrationState.RequiresAttention && snapshot != null
+    // A committed schedule that never received its external (Keystone) signature can NEVER
+    // self-resolve — unlike SCHEDULE/ANCHOR_BOUNDARY/DEPENDENCIES, which clear as blocks mine,
+    // SIGNATURE only clears when a human hands the device a QR to sign. There is no "wait longer"
+    // that helps here, so its presence alone (no time threshold) is treated as "this plan needs
+    // attention" and routed through the exact same flow a brand-new migration uses
+    // (isRunActive = false below) rather than the passive "in progress" Progress screen, which has
+    // no way to re-trigger signing. This is safe to re-enter: the engine's own commit_or_reuse
+    // (zcash_pool_migration engine.rs) returns the SAME already-committed, still-unsigned PCZTs
+    // from persisted state whenever a live (non-terminal) migration already exists for the
+    // account — it does not attempt a second, conflicting commit. Found live 2026-08-02: a JNI
+    // linkage bug (since fixed) could crash the app between commit and the first QR display,
+    // leaving a schedule permanently stuck exactly like this.
+    val hasSignatureBlock =
+        snapshot?.let { s ->
+            s.transfers.any { it.blocker == MigrationTransferBlocker.SIGNATURE } ||
+                s.preparations.any { it.blocker == MigrationTransferBlocker.SIGNATURE }
+        } ?: false
     return when {
         // Spec §6.2/§6.3 — takes priority over InProgress/Complete below.
         // SyncRequiredBeforeNext is explicitly excluded (a transient "keep syncing" condition,
@@ -309,6 +327,7 @@ internal fun migrationMessageFor(
         }
 
         sdkState is MigrationState.InProgress &&
+            !hasSignatureBlock &&
             next != null &&
             !isBackgroundExecutionAvailable &&
             !hasOverdueTransfers &&
@@ -323,7 +342,7 @@ internal fun migrationMessageFor(
 
         sdkState is MigrationState.InProgress -> {
             MigrationHomeMessageData(
-                isRunActive = true,
+                isRunActive = !hasSignatureBlock,
                 completedCount = snapshot?.completedCount ?: 0,
                 totalCount = snapshot?.totalCount ?: 0,
             )

@@ -8,6 +8,7 @@ import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationTransfer
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_RESIDUAL_MIN_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MigrationAttentionKind
+import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferBlocker
 import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessageData
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -301,5 +302,77 @@ class MigrationBannerStateTest {
         assertEquals(MigrationHomeMessageData(isRunActive = true, completedCount = 1, totalCount = 2), result)
         assertNull(result?.attentionKind)
         assertNull(result?.attentionRangeText)
+    }
+
+    // ─── §4 SIGNATURE-blocked committed schedule routes through "Migration required" ──
+
+    /**
+     * Found live 2026-08-02: a committed-but-never-signed Keystone schedule (every transaction
+     * stuck in [MigrationTransferBlocker.SIGNATURE] — the one blocker that can never self-resolve,
+     * unlike SCHEDULE/ANCHOR_BOUNDARY/DEPENDENCIES which clear as blocks mine) was classified as
+     * plain InProgress, routing to the read-only Progress screen with no way to re-trigger signing.
+     * [migrationMessageFor] must instead report isRunActive = false, exactly like a fresh
+     * "Migrate now" case, so the click-routing (`onMigrationMessageClick`) sends the user through
+     * the ordinary Setup/Review/Keystone-sign flow — which the engine's own `commit_or_reuse`
+     * safely re-enters (it returns the SAME already-committed PCZTs rather than re-committing).
+     */
+    @Test
+    fun inProgressWithSignatureBlockedTransferShowsMigrationRequired() {
+        val progress = MigrationProgress(completedTransfers = 0, totalTransfers = 2, nextTransferReadyAtHeight = null)
+        val signatureBlockedSnapshot =
+            snapshot().copy(
+                transfers =
+                    snapshot().transfers.map {
+                        if (!it.isSent) it.copy(blocker = MigrationTransferBlocker.SIGNATURE) else it
+                    },
+            )
+        val result =
+            migrationMessageFor(
+                sdkState = MigrationState.InProgress(progress),
+                snapshot = signatureBlockedSnapshot,
+                hasSeenComplete = false,
+                orchardBalanceZatoshi = MIGRATION_RESIDUAL_MIN_ZATOSHI + 1_000_000L,
+            )
+        // Still the InProgress branch (isRunActive flips false, but completedCount/totalCount are
+        // still populated from the snapshot) — NOT the bare "Migrate now" no-run branches further
+        // down, which never fire because `when` returns on the first match.
+        assertEquals(MigrationHomeMessageData(isRunActive = false, completedCount = 1, totalCount = 2), result)
+    }
+
+    /**
+     * Same signature-blocked condition must also suppress the "ready to send" branch — a
+     * signature-blocked transfer is not ready to send, it is blocked, regardless of how the other
+     * ready-to-send preconditions (background execution unavailable, no overdue transfers, due
+     * height reached) evaluate.
+     */
+    @Test
+    fun readyToSendPreconditionsDoNotFireWhenSignatureBlocked() {
+        val progress = MigrationProgress(completedTransfers = 0, totalTransfers = 2, nextTransferReadyAtHeight = null)
+        val signatureBlockedSnapshot =
+            snapshot().copy(
+                transfers =
+                    snapshot().transfers.map {
+                        if (!it.isSent) {
+                            it.copy(
+                                blocker = MigrationTransferBlocker.SIGNATURE,
+                                scheduledAt = kotlin.time.Instant.fromEpochSeconds(0), // already due
+                            )
+                        } else {
+                            it
+                        }
+                    },
+            )
+        val result =
+            migrationMessageFor(
+                sdkState = MigrationState.InProgress(progress),
+                snapshot = signatureBlockedSnapshot,
+                hasSeenComplete = false,
+                orchardBalanceZatoshi = MIGRATION_RESIDUAL_MIN_ZATOSHI + 1_000_000L,
+                isBackgroundExecutionAvailable = false,
+                hasOverdueTransfers = false,
+            )
+        // Full equality also asserts isReadyToSend == false (the data class default) — the
+        // ready-to-send branch must not have fired despite its other preconditions being met.
+        assertEquals(MigrationHomeMessageData(isRunActive = false, completedCount = 1, totalCount = 2), result)
     }
 }
