@@ -49,8 +49,10 @@ import kotlin.test.assertTrue
  * shape for three distinct plan forms:
  *
  * 1. **N-prep plan** — 4 preparations across 3 layers + 11 transfers (mirrors a live multi-note
- *    wallet). The bug that originally surfaced showed a single "Split Balance" row instead of per-
- *    preparation rows because no test drove `createState` with a non-empty preparation list.
+ *    wallet). More than one preparation collapses into a single "Split Balance" summary row with a
+ *    "Show details" sheet (Figma "PR App Designs Q3'26" node 5207:16023, 2026-08-03) — `preparations`
+ *    is empty and `preparationsSummarySubtitle`/`preparationDetails` carry the per-step breakdown
+ *    instead.
  *
  * 2. **0-prep plan** — a single-note direct-funding wallet: `preparations = emptyList()`, 1
  *    transfer. The VM must emit an empty preparations list so the screen's fallback collapsed row
@@ -118,21 +120,42 @@ class MigrationReviewPlanShapeTest {
 
             val state = assertNotNull(vm.state.value.content, "state must be loaded")
 
-            // ── preparations ──────────────────────────────────────────────────────────────────────────
+            // ── preparations collapse into a single "Split Balance" summary + sheet ──────────────────
 
-            assertEquals(4, state.preparations.size, "must have exactly 4 preparation rows")
+            assertTrue(
+                state.preparations.isEmpty(),
+                "preparations must be empty once there's more than one — the summary row replaces them",
+            )
 
-            // Numbers must be 1-indexed and monotonically increasing (iteration order = list order).
-            assertEquals(listOf(1, 2, 3, 4), state.preparations.map { it.number })
+            val subtitle = assertNotNull(state.preparationsSummarySubtitle, "summary subtitle must be present for >1 preparations")
+            assertTrue(
+                subtitle.asString().contains("4 steps"),
+                "summary subtitle must mention the step count, got ${subtitle.asString()}",
+            )
 
-            // Every preparation must carry a non-null, non-empty scheduledLabel.
-            state.preparations.forEach { prep ->
-                val label = prep.scheduledLabel
-                assertTrue(
-                    label is StringResource.ByString && label.value.isNotEmpty(),
-                    "preparation #${prep.number} must have a non-empty ByString scheduledLabel, got $label",
-                )
+            val details = assertNotNull(state.preparationDetails, "preparation details must be present for >1 preparations")
+            assertEquals(4, details.stepCount, "must report exactly 4 steps")
+            assertEquals(4, details.steps.size, "must have exactly 4 step rows in the sheet")
+
+            // Titles must be 1-indexed and monotonically increasing (iteration order = list order).
+            assertEquals(
+                (1..4).map { "Transaction $it of 4" },
+                details.steps.map { it.title.asString() },
+            )
+
+            // Every step must carry a non-null, non-empty time label and status label.
+            details.steps.forEach { step ->
+                assertTrue(step.timeLabel.asString().isNotEmpty(), "step '${step.title.asString()}' must have a non-empty timeLabel")
+                assertTrue(step.statusLabel.asString().isNotEmpty(), "step '${step.title.asString()}' must have a non-empty statusLabel")
             }
+
+            // The two layer-0 splits (steps 1 & 2) have no dependency, so they must NOT read "Waits
+            // on" — only step 3 (depends on 1 & 2) and step 4 (depends on 3) should.
+            val statuses = details.steps.map { it.statusLabel.asString() }
+            assertTrue(!statuses[0].contains("Waits"), "step 1 has no dependency, got '${statuses[0]}'")
+            assertTrue(!statuses[1].contains("Waits"), "step 2 has no dependency, got '${statuses[1]}'")
+            assertEquals("Waits on steps 1 & 2", statuses[2], "step 3 depends on steps 1 & 2")
+            assertEquals("Waits on step 3", statuses[3], "step 4 depends on step 3")
 
             // ── transfers ─────────────────────────────────────────────────────────────────────────────
 
@@ -340,4 +363,21 @@ class MigrationReviewPlanShapeTest {
             submitProposal = mockk<SubmitProposalUseCase>(relaxed = true),
         )
     }
+
+    // preparationsSummarySubtitle/preparationDetails are built by concatenating StringResources
+    // (see MigrationReviewVM's `+` usage), which produces a CompositeStringResource rather than a
+    // plain ByString — this walks that composite via reflection to flatten it back to text.
+    @Suppress("UNCHECKED_CAST")
+    private fun StringResource.asString(): String =
+        when (this) {
+            is StringResource.ByString -> {
+                value
+            }
+
+            else -> {
+                val resourcesField = this::class.java.getDeclaredField("resources").also { it.isAccessible = true }
+                val parts = resourcesField.get(this) as List<StringResource>
+                parts.joinToString(separator = "") { it.asString() }
+            }
+        }
 }

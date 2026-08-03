@@ -1,5 +1,6 @@
 package co.electriccoin.zcash.ui.screen.migration.progress
 
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetails
 import co.electriccoin.zcash.ui.design.util.StringResource
 
 data class MigrationProgressState(
@@ -9,11 +10,30 @@ data class MigrationProgressState(
     // note-split (preparation) transaction, rendered in broadcast order.
     val totalAmount: StringResource,
     val totalFiatAmount: StringResource? = null,
+    // Only populated for a single (or zero) preparation — rendered as-is, one row per item. For
+    // more than one preparation this is left empty and [preparationsSummary]/[preparationDetails]
+    // drive a single collapsed "Split Balance" row + "Show details" sheet instead (Figma "PR App
+    // Designs Q3'26" node 5207:16023, 2026-08-03) — mirrors MigrationReviewScreen's identical
+    // collapse threshold, so both screens render a multi-step note-split the same way.
     val preparations: List<MigrationProgressPreparationState> = emptyList(),
+    val preparationsSummary: MigrationProgressPreparationSummary? = null,
+    val preparationDetails: MigrationPreparationDetails? = null,
     val transfers: List<MigrationProgressTransferState>,
     val isComplete: Boolean,
     val onBack: () -> Unit,
     val onDone: (() -> Unit)? = null,
+)
+
+/**
+ * The collapsed "Split Balance" row shown instead of individual [MigrationProgressPreparationState]
+ * rows once there's more than one preparation. [statusLabel]/[isReadyNow] mirror the single active
+ * (first not-yet-sent) preparation's own row state; [isSent] is true only once every preparation
+ * has broadcast, painting the row DONE.
+ */
+data class MigrationProgressPreparationSummary(
+    val statusLabel: StringResource,
+    val isReadyNow: Boolean,
+    val isSent: Boolean,
 )
 
 /**

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -24,6 +25,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -46,6 +50,7 @@ import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
+import co.electriccoin.zcash.ui.screen.migration.component.MigrationPreparationDetailsBottomSheet
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -62,6 +67,9 @@ fun MigrationProgressScreen() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MigrationProgressView(state: MigrationProgressState) {
+    // Hoisted here (a real @Composable), matching MigrationReviewScreen's identical pattern —
+    // purely a "is the sheet open" UI toggle, not VM-owned state.
+    var isShowingPreparationDetails by remember { mutableStateOf(false) }
     BlankBgScaffold(
         topBar = {
             ZashiSmallTopAppBar(
@@ -94,27 +102,48 @@ fun MigrationProgressView(state: MigrationProgressState) {
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Render one "Split balance N" row per note-split (preparation) transaction,
-                // in broadcast/schedule order. When preparations is empty (single-note wallets),
-                // this block renders nothing and the transfers start immediately.
-                val firstUnsentPrepIndex = state.preparations.indexOfFirst { !it.isSent }
-                state.preparations.forEachIndexed { i, prep ->
-                    // Preparation rows never surface an attention state.
-                    val rowState =
-                        when {
-                            prep.isSent -> TransferRowState.DONE
-                            i == firstUnsentPrepIndex -> TransferRowState.ACTIVE
-                            else -> TransferRowState.IDLE
-                        }
+                // A multi-step note-split collapses into a single "Split Balance" row with a
+                // "Show details" sheet (Figma "PR App Designs Q3'26" node 5207:16023, 2026-08-03,
+                // mirroring MigrationReviewScreen's identical threshold) — state.preparations is
+                // empty whenever state.preparationsSummary is non-null (see MigrationProgressState's
+                // doc), so only one of these two branches ever renders.
+                val summary = state.preparationsSummary
+                if (summary != null) {
+                    // Figma shows the total amount on this collapsed row too (unlike the
+                    // superseded inline-expand design, which omitted it as "internal plumbing").
                     TransferProgressTimelineRow(
-                        title = "Split balance ${prep.number}",
-                        statusLabel = prep.statusLabel,
-                        isReadyNow = prep.isReadyNow,
-                        amount = null,
-                        fiatAmount = null,
-                        state = rowState,
-                        isLast = i == state.preparations.lastIndex && state.transfers.isEmpty(),
+                        title = "Split Balance",
+                        statusLabel = summary.statusLabel,
+                        isReadyNow = summary.isReadyNow,
+                        amount = state.totalAmount,
+                        fiatAmount = state.totalFiatAmount,
+                        state = if (summary.isSent) TransferRowState.DONE else TransferRowState.ACTIVE,
+                        isLast = state.transfers.isEmpty(),
+                        onShowDetails = { isShowingPreparationDetails = true },
                     )
+                } else {
+                    // Render one "Split balance N" row per note-split (preparation) transaction,
+                    // in broadcast/schedule order. When preparations is empty (single-note
+                    // wallets), this block renders nothing and the transfers start immediately.
+                    val firstUnsentPrepIndex = state.preparations.indexOfFirst { !it.isSent }
+                    state.preparations.forEachIndexed { i, prep ->
+                        // Preparation rows never surface an attention state.
+                        val rowState =
+                            when {
+                                prep.isSent -> TransferRowState.DONE
+                                i == firstUnsentPrepIndex -> TransferRowState.ACTIVE
+                                else -> TransferRowState.IDLE
+                            }
+                        TransferProgressTimelineRow(
+                            title = "Split balance ${prep.number}",
+                            statusLabel = prep.statusLabel,
+                            isReadyNow = prep.isReadyNow,
+                            amount = null,
+                            fiatAmount = null,
+                            state = rowState,
+                            isLast = i == state.preparations.lastIndex && state.transfers.isEmpty(),
+                        )
+                    }
                 }
                 val activeIndex = state.transfers.indexOfFirst { !it.isSent }
                 state.transfers.forEachIndexed { i, transfer ->
@@ -155,6 +184,12 @@ fun MigrationProgressView(state: MigrationProgressState) {
             }
         }
     }
+    MigrationPreparationDetailsBottomSheet(
+        details =
+            state.preparationDetails
+                ?.takeIf { isShowingPreparationDetails }
+                ?.copy(onDismiss = { isShowingPreparationDetails = false }),
+    )
 }
 
 /**
@@ -175,6 +210,10 @@ private fun TransferProgressTimelineRow(
     isLast: Boolean,
     index: Int = 0,
     @DrawableRes icon: Int? = null,
+    // Non-null only for the collapsed "Split Balance" summary row — renders a "Show details ⌄"
+    // line under the subtitle (Figma "PR App Designs Q3'26" node 5207:16023), not a whole-row
+    // click target.
+    onShowDetails: (() -> Unit)? = null,
 ) {
     Row(
         modifier =
@@ -278,6 +317,29 @@ private fun TransferProgressTimelineRow(
                         else -> ZashiColors.Text.textTertiary
                     },
             )
+            onShowDetails?.let { onClick ->
+                Row(
+                    modifier =
+                        Modifier
+                            .clickable(onClick = onClick)
+                            .padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Show details",
+                        style = ZashiTypography.textXs,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ZashiColors.Text.textPrimary,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_chevron_down),
+                        contentDescription = null,
+                        tint = ZashiColors.Text.textPrimary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             amount?.let {

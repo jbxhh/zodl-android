@@ -43,6 +43,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.model.migration.MigrationKeystoneRound
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetails
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationStepDetail
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.ZashiButton
@@ -60,6 +62,7 @@ import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIcons
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIconsState
 import co.electriccoin.zcash.ui.screen.migration.component.MigrationFailureBottomSheet
+import co.electriccoin.zcash.ui.screen.migration.component.MigrationPreparationDetailsBottomSheet
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -79,6 +82,9 @@ fun MigrationReviewScreen(args: MigrationReviewArgs) {
 
 @Composable
 fun MigrationReviewView(state: MigrationReviewState) {
+    // Purely a "is the details sheet open" UI toggle — mirrors MigrationProgressScreen's identical
+    // hoisted local state for the same shared sheet.
+    var isShowingPreparationDetails by remember { mutableStateOf(false) }
     BlankBgScaffold(
         topBar = {
             ZashiSmallTopAppBar(
@@ -94,11 +100,17 @@ fun MigrationReviewView(state: MigrationReviewState) {
         ) {
             when (state.mode) {
                 MigrationMode.IMMEDIATE -> ImmediateReviewContent(state)
-                MigrationMode.AUTOMATIC -> PrivacyReviewContent(state)
+                MigrationMode.AUTOMATIC -> PrivacyReviewContent(state, onShowPreparationDetails = { isShowingPreparationDetails = true })
             }
         }
     }
     MigrationFailureBottomSheet(state.failureSheet)
+    MigrationPreparationDetailsBottomSheet(
+        details =
+            state.preparationDetails
+                ?.takeIf { isShowingPreparationDetails }
+                ?.copy(onDismiss = { isShowingPreparationDetails = false }),
+    )
 }
 
 @Composable
@@ -206,13 +218,8 @@ internal fun ImmediateDetailsRow(label: String, value: String) {
 @Composable
 private fun PrivacyReviewContent(
     state: MigrationReviewState,
-    // Preview-only override so PreviewPrivacyWithPreparationsExpanded can render the split-balance
-    // section already open; production call sites always use the collapsed-by-default value.
-    initiallyExpanded: Boolean = false,
+    onShowPreparationDetails: () -> Unit,
 ) {
-    // Hoisted here (a real @Composable) rather than inside the LazyColumn content lambda below,
-    // which is a plain LazyListScope and cannot call remember {}.
-    var isSplitSectionExpanded by remember { mutableStateOf(initiallyExpanded) }
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Confirm Transfer Plan",
@@ -244,44 +251,24 @@ private fun PrivacyReviewContent(
         LazyColumn(modifier = Modifier.weight(1f)) {
             if (state.preparations.size > 1) {
                 // Multi-note wallet: collapse the per-preparation "Split balance N" rows into a
-                // single "Split Balance (N)" summary row (collapsed by default), tap-to-expand.
-                // Otherwise the plan visually grows by one row per split. No amount shown — raw
-                // denominations are internal plumbing and confusing.
+                // single "Split Balance" summary row with a "Show details" sheet (Figma "PR App
+                // Designs Q3'26" node 5207:16023, 2026-08-03 — supersedes the earlier inline
+                // chevron-expand design). Amount IS shown here (unlike the superseded design,
+                // which omitted it) — Figma's summary row carries the same total/fiat pair every
+                // other row does.
                 item {
                     TransferTimelineRow(
-                        title = "Split Balance (${state.preparations.size})",
-                        subtitle = stringRes("Ready now"),
-                        amount = null,
-                        fiatAmount = null,
+                        title = "Split Balance",
+                        subtitle = state.preparationsSummarySubtitle ?: stringRes(""),
+                        amount = state.totalAmount,
+                        fiatAmount = state.totalFiatAmount,
                         // Figma PR App Designs Q3'26, node 4207-7450: a checkmark, not the
                         // coins-swap glyph — Split Balance is a same-device self-send.
                         icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
                         isFirst = true,
                         isLast = false,
-                        trailingIcon =
-                            if (isSplitSectionExpanded) {
-                                co.electriccoin.zcash.ui.design.R.drawable.ic_chevron_up
-                            } else {
-                                co.electriccoin.zcash.ui.design.R.drawable.ic_chevron_down
-                            },
-                        onClick = { isSplitSectionExpanded = !isSplitSectionExpanded },
+                        onShowDetails = onShowPreparationDetails,
                     )
-                }
-                if (isSplitSectionExpanded) {
-                    items(state.preparations) { prep ->
-                        TransferTimelineRow(
-                            title = "Split balance ${prep.number}",
-                            subtitle = prep.scheduledLabel,
-                            amount = null,
-                            fiatAmount = null,
-                            icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
-                            // Force isFirst = false on every expanded sub-row: the collapsed summary
-                            // row above already claims the "first/active" styling slot, so the old
-                            // prep.number == 1 logic would light up two rows as active at once.
-                            isFirst = false,
-                            isLast = false,
-                        )
-                    }
                 }
             } else if (state.preparations.isNotEmpty()) {
                 // Exactly one preparation: nothing to collapse, render the single "Split balance 1"
@@ -349,14 +336,15 @@ private fun TransferTimelineRow(
     isLast: Boolean,
     index: Int = 0,
     @DrawableRes icon: Int? = null,
-    @DrawableRes trailingIcon: Int? = null,
-    onClick: (() -> Unit)? = null,
+    // Non-null only for the collapsed "Split Balance" summary row — renders a "Show details ⌄"
+    // line under the subtitle (Figma "PR App Designs Q3'26" node 5207:16023), not a whole-row
+    // click target.
+    onShowDetails: (() -> Unit)? = null,
 ) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(enabled = onClick != null) { onClick?.invoke() }
                 .height(IntrinsicSize.Min)
                 .padding(bottom = if (isLast) 0.dp else 12.dp),
     ) {
@@ -446,6 +434,29 @@ private fun TransferTimelineRow(
                 style = ZashiTypography.textXs,
                 color = ZashiColors.Text.textTertiary,
             )
+            onShowDetails?.let { onClick ->
+                Row(
+                    modifier =
+                        Modifier
+                            .clickable(onClick = onClick)
+                            .padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Show details",
+                        style = ZashiTypography.textXs,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ZashiColors.Text.textPrimary,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_chevron_down),
+                        contentDescription = null,
+                        tint = ZashiColors.Text.textPrimary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             amount?.let {
@@ -463,18 +474,6 @@ private fun TransferTimelineRow(
                     color = ZashiColors.Text.textTertiary,
                 )
             }
-        }
-        trailingIcon?.let { chevron ->
-            Spacer(Modifier.width(8.dp))
-            Icon(
-                painter = painterResource(chevron),
-                contentDescription = null,
-                tint = ZashiColors.Text.textTertiary,
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterVertically)
-                        .size(20.dp),
-            )
         }
     }
 }
@@ -588,21 +587,42 @@ private fun PreviewPrivacyWithPreparations() =
 
 @PreviewScreens
 @Composable
-private fun PreviewPrivacyWithPreparationsExpanded() =
+private fun PreviewPrivacyWithMultiStepSplitBalance() =
     ZcashTheme {
-        // Renders PrivacyReviewContent directly (rather than via MigrationReviewView) so the
-        // split-balance section can be pre-expanded through the preview-only initiallyExpanded flag.
+        // Renders PrivacyReviewContent directly (rather than via MigrationReviewView) — the
+        // collapsed "Split Balance" row + "Show details" sheet (Figma "PR App Designs Q3'26" node
+        // 5207:16023, 2026-08-03) replaces the old inline chevron-expand this preview used to
+        // exercise.
         PrivacyReviewContent(
             state =
                 MigrationReviewState(
                     mode = MigrationMode.AUTOMATIC,
                     totalAmount = stringRes("12.458 ZEC"),
                     estimatedDuration = stringRes("~8 min"),
-                    preparations =
-                        listOf(
-                            MigrationReviewPreparationState(1, stringRes("Ready now")),
-                            MigrationReviewPreparationState(2, stringRes("Ready now")),
-                            MigrationReviewPreparationState(3, stringRes("Ready now")),
+                    preparationsSummarySubtitle = stringRes("in ~0 hours · 3 steps"),
+                    preparationDetails =
+                        MigrationPreparationDetails(
+                            stepCount = 3,
+                            totalAmount = stringRes("12.458 ZEC"),
+                            steps =
+                                listOf(
+                                    MigrationPreparationStepDetail(
+                                        title = stringRes("Transaction 1 of 3"),
+                                        timeLabel = stringRes("in ~0 hours"),
+                                        statusLabel = stringRes("Ready to send"),
+                                    ),
+                                    MigrationPreparationStepDetail(
+                                        title = stringRes("Transaction 2 of 3"),
+                                        timeLabel = stringRes("in ~1 hours"),
+                                        statusLabel = stringRes("Preparing"),
+                                    ),
+                                    MigrationPreparationStepDetail(
+                                        title = stringRes("Transaction 3 of 3"),
+                                        timeLabel = stringRes("in ~2 hours"),
+                                        statusLabel = stringRes("Waits on steps 1 & 2"),
+                                    ),
+                                ),
+                            onDismiss = {},
                         ),
                     transfers =
                         listOf(
@@ -615,6 +635,6 @@ private fun PreviewPrivacyWithPreparationsExpanded() =
                     onConfirm = {},
                     onBack = {},
                 ),
-            initiallyExpanded = true,
+            onShowPreparationDetails = {},
         )
     }

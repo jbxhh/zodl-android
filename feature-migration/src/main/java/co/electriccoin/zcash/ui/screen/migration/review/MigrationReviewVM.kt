@@ -17,10 +17,15 @@ import co.electriccoin.zcash.ui.common.model.groupLce
 import co.electriccoin.zcash.ui.common.model.guardLoading
 import co.electriccoin.zcash.ui.common.model.migration.MigrationKeystoneRound
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetails
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationStepDetail
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
 import co.electriccoin.zcash.ui.common.model.migration.estimatedSecondsBetweenHeights
 import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
 import co.electriccoin.zcash.ui.common.model.migration.migrationFailureMessage
+import co.electriccoin.zcash.ui.common.model.migration.preparationStepStatus
+import co.electriccoin.zcash.ui.common.model.migration.preparationStepTimeLabel
+import co.electriccoin.zcash.ui.common.model.migration.preparationStepTitle
 import co.electriccoin.zcash.ui.common.model.mutableLce
 import co.electriccoin.zcash.ui.common.model.stateIn
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
@@ -177,15 +182,22 @@ class MigrationReviewVM(
         val anchorHeight = sched.transfers.minOfOrNull { it.anchorHeight } ?: 0L
         val lastAtHeight = sched.transfers.maxOfOrNull { it.nextExecutableAfterHeight } ?: 0L
         val spanSeconds = estimatedSecondsBetweenHeights(anchorHeight, lastAtHeight, secondsPerBlock)
+        val totalAmount = stringRes(Zatoshi(total))
         return MigrationReviewState(
             mode = args.mode,
-            totalAmount = stringRes(Zatoshi(total)),
+            totalAmount = totalAmount,
             totalFiatAmount = fiatAmount(Zatoshi(total), exchangeRateState),
             estimatedDuration = stringRes(formatMigrationDuration(spanSeconds)),
             preparations =
-                sched.preparations.mapIndexed { i, p ->
-                    MigrationReviewPreparationState(number = i + 1, scheduledLabel = scheduledLabelForPrep(p, sched))
+                if (sched.preparations.size > 1) {
+                    emptyList()
+                } else {
+                    sched.preparations.mapIndexed { i, p ->
+                        MigrationReviewPreparationState(number = i + 1, scheduledLabel = scheduledLabelForPrep(p, sched))
+                    }
                 },
+            preparationsSummarySubtitle = preparationsSummarySubtitle(sched),
+            preparationDetails = preparationDetails(sched, totalAmount),
             transfers =
                 sched.transfers.mapIndexed { i, t ->
                     MigrationReviewTransferState(
@@ -462,5 +474,53 @@ class MigrationReviewVM(
         val baseline = sched.transfers.minOfOrNull { it.anchorHeight } ?: p.broadcastHeight
         val secondsUntil = estimatedSecondsBetweenHeights(baseline, p.broadcastHeight, secondsPerBlock)
         return if (secondsUntil <= 0) stringRes("Ready now") else stringRes(formatMigrationDuration(secondsUntil))
+    }
+
+    // "in ~X hours · N steps" — the collapsed "Split Balance" row's subtitle (Figma "PR App
+    // Designs Q3'26" node 5207:16023, 2026-08-03). Only non-null with more than one preparation;
+    // unlike scheduledLabelForPrep, this never says "Ready now" — the sheet's own per-row time
+    // column (see preparationStepTimeLabel) always reads a relative estimate, never a status word.
+    private fun preparationsSummarySubtitle(sched: MigrationSchedule): StringResource? {
+        val preparations = sched.preparations
+        if (preparations.size <= 1) return null
+        val first = preparations.minByOrNull { it.broadcastHeight } ?: return null
+        val baseline = sched.transfers.minOfOrNull { it.anchorHeight } ?: first.broadcastHeight
+        val secondsUntil = estimatedSecondsBetweenHeights(baseline, first.broadcastHeight, secondsPerBlock)
+        return preparationStepTimeLabel(secondsUntil) + stringRes(" · ${preparations.size} steps")
+    }
+
+    // The "Show details" sheet's full per-step breakdown — see MigrationPreparationDetails' doc.
+    // Only non-null alongside [preparationsSummarySubtitle] (more than one preparation). Nothing
+    // has been sent yet at this pre-confirm stage, so isSent/isAwaitingSignature are always false —
+    // only a step's own dependencies or timing can produce a non-"Ready to send" status here.
+    private fun preparationDetails(
+        sched: MigrationSchedule,
+        totalAmount: StringResource,
+    ): MigrationPreparationDetails? {
+        val preparations = sched.preparations
+        if (preparations.size <= 1) return null
+        val baseline = sched.transfers.minOfOrNull { it.anchorHeight } ?: return null
+        val numberById = preparations.mapIndexed { i, p -> p.id to (i + 1) }.toMap()
+        return MigrationPreparationDetails(
+            stepCount = preparations.size,
+            totalAmount = totalAmount,
+            steps =
+                preparations.mapIndexed { i, p ->
+                    val dependsOnNumbers = p.dependsOn.mapNotNull { numberById[it] }.sorted()
+                    val secondsUntil = estimatedSecondsBetweenHeights(baseline, p.broadcastHeight, secondsPerBlock)
+                    MigrationPreparationStepDetail(
+                        title = preparationStepTitle(i + 1, preparations.size),
+                        timeLabel = preparationStepTimeLabel(secondsUntil),
+                        statusLabel =
+                            preparationStepStatus(
+                                isSent = false,
+                                isAwaitingSignature = false,
+                                dependsOnNumbers = dependsOnNumbers,
+                                isDueNow = secondsUntil <= 0,
+                            ),
+                    )
+                },
+            onDismiss = {},
+        )
     }
 }

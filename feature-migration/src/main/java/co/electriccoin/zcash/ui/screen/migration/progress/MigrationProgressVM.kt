@@ -10,8 +10,13 @@ import co.electriccoin.zcash.ui.common.model.guardLoading
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationPreparation
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationTransfer
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetails
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationStepDetail
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferBlocker
 import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
+import co.electriccoin.zcash.ui.common.model.migration.preparationStepStatus
+import co.electriccoin.zcash.ui.common.model.migration.preparationStepTimeLabel
+import co.electriccoin.zcash.ui.common.model.migration.preparationStepTitle
 import co.electriccoin.zcash.ui.common.model.migration.toSnapshot
 import co.electriccoin.zcash.ui.common.model.mutableLce
 import co.electriccoin.zcash.ui.common.model.stateIn
@@ -88,28 +93,35 @@ class MigrationProgressVM(
         val subtitle = migrationProgressSubtitle(snapshot, now)
 
         val totalZatoshi = snapshot.transfers.sumOf { it.amountZatoshi }
+        val totalAmount = stringRes(Zatoshi(totalZatoshi))
         return MigrationProgressState(
             title = stringRes("Migration Progress"),
             subtitle = stringRes(subtitle),
-            totalAmount = stringRes(Zatoshi(totalZatoshi)),
+            totalAmount = totalAmount,
             totalFiatAmount = fiatAmount(Zatoshi(totalZatoshi), exchangeRateState),
             preparations =
-                snapshot.preparations.mapIndexed { i, p ->
-                    // The last row overall (across the combined preparations+transfers timeline)
-                    // gets the "in ~X" phrasing; every earlier not-yet-due row gets bare "~X".
-                    // Preparations always schedule before the transfers that depend on them, so
-                    // this display order (preparations, then transfers) already matches schedule
-                    // order — the last preparation is only the overall-last row when there are no
-                    // transfers at all.
-                    val isLastRowOverall = i == snapshot.preparations.lastIndex && snapshot.transfers.isEmpty()
-                    val display = preparationRowDisplay(p, now, isLastRowOverall)
-                    MigrationProgressPreparationState(
-                        number = i + 1,
-                        statusLabel = display.label,
-                        isReadyNow = display.isReadyNow,
-                        isSent = p.isSent,
-                    )
+                if (snapshot.preparations.size > 1) {
+                    emptyList()
+                } else {
+                    snapshot.preparations.mapIndexed { i, p ->
+                        // The last row overall (across the combined preparations+transfers
+                        // timeline) gets the "in ~X" phrasing; every earlier not-yet-due row gets
+                        // bare "~X". Preparations always schedule before the transfers that depend
+                        // on them, so this display order (preparations, then transfers) already
+                        // matches schedule order — the last preparation is only the overall-last
+                        // row when there are no transfers at all.
+                        val isLastRowOverall = i == snapshot.preparations.lastIndex && snapshot.transfers.isEmpty()
+                        val display = preparationRowDisplay(p, now, isLastRowOverall)
+                        MigrationProgressPreparationState(
+                            number = i + 1,
+                            statusLabel = display.label,
+                            isReadyNow = display.isReadyNow,
+                            isSent = p.isSent,
+                        )
+                    }
                 },
+            preparationsSummary = preparationsSummary(snapshot, now),
+            preparationDetails = preparationDetails(snapshot, now, totalAmount),
             transfers =
                 snapshot.transfers.mapIndexed { i, t ->
                     val isLastRowOverall = i == snapshot.transfers.lastIndex
@@ -132,6 +144,59 @@ class MigrationProgressVM(
             isComplete = snapshot.isComplete,
             onBack = ::onBack,
             onDone = if (snapshot.isComplete) ::onDone else null,
+        )
+    }
+
+    // Only non-null with more than one preparation (mirrors MigrationReviewScreen's identical
+    // collapse threshold) — rolls up to the single active (first not-yet-sent) preparation's own
+    // row state, or "Done" once every preparation has broadcast.
+    private fun preparationsSummary(
+        snapshot: LiveMigrationSnapshot,
+        now: Instant,
+    ): MigrationProgressPreparationSummary? {
+        val preparations = snapshot.preparations
+        if (preparations.size <= 1) return null
+        val active = preparations.firstOrNull { !it.isSent }
+        return if (active == null) {
+            MigrationProgressPreparationSummary(statusLabel = stringRes("Done"), isReadyNow = false, isSent = true)
+        } else {
+            val isLastRowOverall = active.id == preparations.last().id && snapshot.transfers.isEmpty()
+            val display = preparationRowDisplay(active, now, isLastRowOverall)
+            MigrationProgressPreparationSummary(statusLabel = display.label, isReadyNow = display.isReadyNow, isSent = false)
+        }
+    }
+
+    // The "Show details" sheet's full per-step breakdown — see MigrationPreparationDetails' doc.
+    // Only non-null alongside [preparationsSummary] (more than one preparation).
+    private fun preparationDetails(
+        snapshot: LiveMigrationSnapshot,
+        now: Instant,
+        totalAmount: StringResource,
+    ): MigrationPreparationDetails? {
+        val preparations = snapshot.preparations
+        if (preparations.size <= 1) return null
+        val numberById = preparations.mapIndexed { i, p -> p.id to (i + 1) }.toMap()
+        return MigrationPreparationDetails(
+            stepCount = preparations.size,
+            totalAmount = totalAmount,
+            steps =
+                preparations.mapIndexed { i, p ->
+                    val dependsOnNumbers = p.dependsOn.mapNotNull { numberById[it] }.sorted()
+                    val secondsUntil = (p.scheduledAt - now).inWholeSeconds
+                    MigrationPreparationStepDetail(
+                        title = preparationStepTitle(i + 1, preparations.size),
+                        timeLabel = preparationStepTimeLabel(secondsUntil),
+                        statusLabel =
+                            preparationStepStatus(
+                                isSent = p.isSent,
+                                isAwaitingSignature = p.blocker == MigrationTransferBlocker.SIGNATURE,
+                                dependsOnNumbers = dependsOnNumbers,
+                                isDueNow = p.scheduledAt <= now,
+                            ),
+                        isDone = p.isSent,
+                    )
+                },
+            onDismiss = {},
         )
     }
 

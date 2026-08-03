@@ -2,6 +2,7 @@ package co.electriccoin.zcash.ui.screen.migration.review
 
 import co.electriccoin.zcash.ui.common.model.migration.MigrationKeystoneRound
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
+import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetails
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
 import co.electriccoin.zcash.ui.design.util.StringResource
 
@@ -17,8 +18,16 @@ data class MigrationReviewState(
     // timeline on Confirm Transfer Plan.
     val totalFiatAmount: StringResource? = null,
     val estimatedDuration: StringResource,
-    // Individual note-split (preparation) rows; empty for single-note wallets that need no split.
+    // Individual note-split (preparation) rows; empty whenever there's more than one preparation
+    // (that case renders a single collapsed "Split Balance" row instead — see
+    // [preparationsSummarySubtitle]/[preparationDetails]), and for single-note wallets that need
+    // no split at all.
     val preparations: List<MigrationReviewPreparationState> = emptyList(),
+    // "in ~X hours · N steps" — the collapsed row's subtitle. Non-null only alongside
+    // [preparationDetails] (more than one preparation). Figma "PR App Designs Q3'26" node
+    // 5207:16023, 2026-08-03.
+    val preparationsSummarySubtitle: StringResource? = null,
+    val preparationDetails: MigrationPreparationDetails? = null,
     val transfers: List<MigrationReviewTransferState>,
     val isKeystone: Boolean = false,
     // See MigrationKeystoneRound's kdoc — only non-null for a genuine multi-round Keystone
