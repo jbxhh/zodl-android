@@ -148,10 +148,10 @@ class MigrationHomeMessageSourceImpl(
                             Triple(MigrationBannerPhase.REQUIRED, null, null)
                         }
 
-                        data.completedCount == 0 -> {
-                            Triple(MigrationBannerPhase.IN_PROGRESS, null, "First transfer sending…")
-                        }
-
+                        // MOB-1620: always the numeric count, including the 0-of-N case right
+                        // after the first transfer starts sending — the earlier "First transfer
+                        // sending…" copy read as vaguer/stuck to Harry, and 0-based counts render
+                        // fine ("0 of 5 transfers done ~0% complete").
                         else -> {
                             Triple(
                                 MigrationBannerPhase.IN_PROGRESS,

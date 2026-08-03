@@ -110,21 +110,14 @@ fun MigrationPrivacyView(
 
 // Hand-styled pill switch (Material3's default Switch renders solid black-on-black in this app's
 // theme). Based on RestoreTorView.kt's toggle, but per the migration Figma the thumb is a
-// theme-independent white and the active state shows no border highlight. If the two Tor toggles
+// theme-independent white and the card shows no border highlight in EITHER state (MOB-1620: the
+// OFF state was still showing one after the ON-state border was removed). If the two Tor toggles
 // must stay identical, mirror these two tweaks in RestoreTorView.kt as well.
 @Suppress("MagicNumber")
 @Composable
 private fun TorToggleCard(state: CheckboxState) {
-    val borderColor by animateColorAsState(
-        if (state.isChecked) {
-            Color.Transparent
-        } else {
-            ZashiColors.Surfaces.strokeSecondary
-        }
-    )
-
     Surface(
-        border = BorderStroke(1.dp, borderColor),
+        border = BorderStroke(1.dp, Color.Transparent),
         shape = RoundedCornerShape(ZashiDimensions.Radius.radiusXl),
         onClick = state.onClick,
     ) {

@@ -17,6 +17,7 @@ import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.design.component.BlankSurface
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.ZashiButton
+import co.electriccoin.zcash.ui.design.component.ZashiButtonDefaults
 import co.electriccoin.zcash.ui.design.component.ZashiCircularProgressIndicatorByPercent
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
@@ -118,7 +119,12 @@ fun MigrationMessage(
                     ButtonState(
                         onClick = state.onButtonClick,
                         text = stringRes(stringResource(R.string.general_more))
-                    )
+                    ),
+                // MOB-1620: pinned to ZashiLightColors like the rest of this banner (see the
+                // banner-background comment above) — the un-pinned default read from the
+                // theme-reactive ZashiColors, so the button flipped black in light mode and
+                // blended into this always-dark banner instead of standing out white.
+                defaultPrimaryColors = ZashiButtonDefaults.secondaryColors(source = ZashiLightColors),
             )
         },
     )

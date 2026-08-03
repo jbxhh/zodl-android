@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
@@ -103,7 +104,12 @@ fun MigrationSetupView(state: MigrationSetupState) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = buildMigrationBodyText(state.orchardBalance.getValue(), state.fiatBalance?.getValue()),
+                text =
+                    buildMigrationBodyText(
+                        zecAmount = state.orchardBalance.getValue(),
+                        fiatAmount = state.fiatBalance?.getValue(),
+                        emphasisColor = ZashiColors.Text.textPrimary,
+                    ),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
@@ -164,10 +170,12 @@ fun MigrationSetupView(state: MigrationSetupState) {
     }
 }
 
-private fun buildMigrationBodyText(zecAmount: String, fiatAmount: String?) =
+// MOB-1620 (Figma node 3925:16408): the balance figure is a distinct, brighter emphasis color
+// against the rest of this muted sentence, not just bold-in-the-same-tertiary-gray.
+private fun buildMigrationBodyText(zecAmount: String, fiatAmount: String?, emphasisColor: Color) =
     buildAnnotatedString {
         append("Latest Zcash network upgrade requires moving your ")
-        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = emphasisColor)) {
             append(zecAmount)
         }
         if (fiatAmount != null) {
@@ -196,7 +204,7 @@ private fun MigrationModeSelector(
         MigrationModeOption(
             mode = MigrationMode.IMMEDIATE,
             title = "Migrate Immediately",
-            subtitle = "Single transfer · Sends now · No privacy",
+            subtitle = "Single transfer · Sends now · Less privacy",
             isWarning = true,
             selected = selected,
             onSelect = onSelect,

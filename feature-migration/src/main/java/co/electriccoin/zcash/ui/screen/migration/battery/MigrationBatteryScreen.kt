@@ -122,7 +122,7 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
                     .scaffoldPadding(padding),
         ) {
             Text(
-                text = "Disable Battery Optimization",
+                text = "Allow Background Delivery",
                 style = ZashiTypography.header6,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
