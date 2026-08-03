@@ -29,8 +29,7 @@ import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetai
 import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationStepDetail
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.ZashiButton
-import co.electriccoin.zcash.ui.design.component.ZashiModalBottomSheet
-import co.electriccoin.zcash.ui.design.component.rememberModalBottomSheetState
+import co.electriccoin.zcash.ui.design.component.ZashiScreenModalBottomSheet
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.getValue
@@ -43,25 +42,24 @@ import co.electriccoin.zcash.ui.design.util.stringRes
  * both open this exact sheet — see [MigrationPreparationDetails]'s doc for why the two screens
  * still compute their own [MigrationPreparationDetails] independently.
  *
- * [skipPartiallyExpanded] forces the sheet to open fully expanded immediately instead of the M3
- * default half-open "peek" state — with a multi-step breakdown card, the peek height clipped the
- * "Got it" button below the fold, so users had to drag the sheet up (or the content wasn't
- * scrollable, so the button was unreachable at all). The content Column is ALSO scrollable as a
- * second line of defense: even at full expansion, a wallet with enough steps to exceed screen
- * height still needs to scroll to reach the button.
+ * Uses [ZashiScreenModalBottomSheet] rather than the bare modal primitive — matching this
+ * codebase's convention for button-heavy sheets (HeightInfoView, SeedInfoView, IntegrationsView,
+ * InfoBottomSheetView): it opens fully expanded by default (no half-open "peek" state clipping the
+ * "Got it" button) AND supplies a [contentPadding] whose bottom accounts for the system nav-bar
+ * inset plus a 24 dp margin, instead of a bare fixed padding that a plain [ZashiButton] can end up
+ * flush against on gesture-nav devices. The content Column is ALSO scrollable as a second line of
+ * defense: even at full expansion, a wallet with enough steps to exceed screen height still needs
+ * to scroll to reach the button.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MigrationPreparationDetailsBottomSheet(details: MigrationPreparationDetails?) {
     if (details == null) return
-    ZashiModalBottomSheet(
-        onDismissRequest = details.onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
+    ZashiScreenModalBottomSheet(onDismissRequest = details.onDismiss) { contentPadding ->
         Column(
             modifier =
                 Modifier
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = contentPadding.calculateBottomPadding())
                     .verticalScroll(rememberScrollState()),
         ) {
             Text(
@@ -127,7 +125,6 @@ fun MigrationPreparationDetailsBottomSheet(details: MigrationPreparationDetails?
                 state = ButtonState(text = stringRes("Got it"), onClick = details.onDismiss),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -153,27 +150,34 @@ private fun PreparationStepRow(
             contentAlignment = Alignment.TopCenter,
         ) {
             if (!isLast) {
+                // Matches MigrationProgressScreen's TransferProgressTimelineRow: the connector
+                // paints green once this step is done, gray otherwise.
+                val connectorColor =
+                    if (step.isDone) ZashiColors.Utility.SuccessGreen.utilitySuccess500 else ZashiColors.Surfaces.strokePrimary
                 Box(
                     modifier =
                         Modifier
                             .fillMaxHeight()
                             .padding(top = 24.dp)
                             .width(2.dp)
-                            .background(ZashiColors.Surfaces.strokePrimary)
+                            .background(connectorColor)
                 )
             }
             Box(
                 modifier =
                     Modifier
                         .size(24.dp)
-                        .background(ZashiColors.Surfaces.bgTertiary, CircleShape),
+                        .background(
+                            if (step.isDone) ZashiColors.Utility.SuccessGreen.utilitySuccess500 else ZashiColors.Surfaces.bgTertiary,
+                            CircleShape,
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 if (step.isDone) {
                     Icon(
                         painter = painterResource(co.electriccoin.zcash.migration.R.drawable.ic_migration_check),
                         contentDescription = null,
-                        tint = ZashiColors.Text.textTertiary,
+                        tint = ZashiColors.Btns.Primary.btnPrimaryFg,
                         modifier = Modifier.size(14.dp),
                     )
                 } else {

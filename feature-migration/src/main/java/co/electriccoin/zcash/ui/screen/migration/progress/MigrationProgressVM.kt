@@ -185,7 +185,12 @@ class MigrationProgressVM(
                     val secondsUntil = (p.scheduledAt - now).inWholeSeconds
                     MigrationPreparationStepDetail(
                         title = preparationStepTitle(i + 1, preparations.size),
-                        timeLabel = preparationStepTimeLabel(secondsUntil),
+                        // A sent step's own scheduledAt is in the past by the time it's actually
+                        // broadcast, so a forward-looking "in ~X" here would floor to a misleading
+                        // "in ~10 min"/"in ~1 hour" (formatMigrationDuration's privacy floor) even
+                        // though the step already happened — "Done" alone (statusLabel) already
+                        // says everything this row needs to.
+                        timeLabel = if (p.isSent) stringRes("") else preparationStepTimeLabel(secondsUntil),
                         statusLabel =
                             preparationStepStatus(
                                 isSent = p.isSent,
