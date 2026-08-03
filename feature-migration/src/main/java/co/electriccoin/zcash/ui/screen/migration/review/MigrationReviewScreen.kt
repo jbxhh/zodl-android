@@ -45,7 +45,6 @@ import co.electriccoin.zcash.ui.common.model.migration.MigrationKeystoneRound
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
-import co.electriccoin.zcash.ui.design.component.ButtonStyle
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiTopAppBarBackNavigation
@@ -140,16 +139,6 @@ private fun ImmediateReviewContent(state: MigrationReviewState) {
             ImmediateDetailsCard(amount = state.totalAmount, fee = state.fee)
         }
         Spacer(Modifier.height(24.dp))
-        ZashiButton(
-            state =
-                ButtonState(
-                    text = stringRes("Cancel"),
-                    style = ButtonStyle.TERTIARY,
-                    onClick = state.onBack,
-                ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
         ZashiButton(
             state =
                 ButtonState(
@@ -336,16 +325,6 @@ private fun PrivacyReviewContent(
             }
         }
         Spacer(Modifier.height(24.dp))
-        ZashiButton(
-            state =
-                ButtonState(
-                    text = stringRes("Cancel"),
-                    style = ButtonStyle.TERTIARY,
-                    onClick = state.onBack,
-                ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
         ZashiButton(
             state =
                 ButtonState(
