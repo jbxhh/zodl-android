@@ -3,30 +3,26 @@ package co.electriccoin.zcash.ui.screen.migration.progress
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationPreparation
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationTransfer
-import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferAction
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferBlocker
 import co.electriccoin.zcash.ui.design.util.StringResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
  * Pure-logic coverage for the Migration Progress row rendering and header subtitle.
  *
- * The engine's per-transaction status (`action`/`blocker` from `transaction_statuses`) remains
- * the single source of truth for what STATE a row is in — no app-side "overdue" flag, no
- * countdown-to-deadline, no red/orange attention paint tied to time (decision with Dominik
- * 2026-07-31, preserved by commit `33cff6883`).
- *
- * As of 2026-08-01 (decision with Dominik), a soft, non-deadline-implying per-row TIME HINT is
- * reinstated as the PRIMARY label for all users, with the raw engine status word demoted to a
- * DEBUG-only diagnostic suffix — the inverse of the prior priority — and the header now counts
- * down remaining time (with an explicit overdue clamp) instead of a static total span.
+ * Finalized 2026-08-03 (decision with Dominik) against 4 Figma reference screens: no debug-only
+ * raw engine word is shown anywhere anymore, "Overdue" stays gone (decision 2026-07-31, reaffirmed
+ * here), and every row falls into exactly one of: a genuinely-blocked state (`EXPIRED` /
+ * `UNPROVABLE_ANCHOR` / `SIGNATURE` — the only three blockers that never self-resolve), "Sent"
+ * (collapsing the old "Confirmed"/"Sent" split — mined time if known, else plain "Sent"), "Ready
+ * now" (primary text color, folds in the unbacked "Sending now" state), or a future relative
+ * estimate ("~X", or "in ~X" for the last row overall).
  *
  * Uses top-level internal functions only — no Koin, no Android, no ViewModel required.
  */
@@ -37,226 +33,214 @@ class MigrationProgressVMTest {
         index: Int = 0,
         isSent: Boolean = false,
         isProved: Boolean = false,
-        action: MigrationTransferAction? = null,
         blocker: MigrationTransferBlocker? = null,
-        minedHeight: Long? = null,
+        minedAt: Instant? = null,
         amountZatoshi: Long = 100_000_000L,
         id: Long = 1L,
+        scheduledAt: Instant = now,
     ) = LiveMigrationTransfer(
         id = id,
         index = index,
         amountZatoshi = amountZatoshi,
         scheduledHeight = 1_000L + index,
-        scheduledAt = now,
+        scheduledAt = scheduledAt,
         isSent = isSent,
         isProved = isProved,
-        action = action,
+        action = null,
         blocker = blocker,
         expiryAt = null,
-        minedHeight = minedHeight,
+        minedHeight = minedAt?.let { 1_000L },
+        minedAt = minedAt,
     )
 
     private fun prep(
         id: Long = 1L,
         isSent: Boolean = false,
         isProved: Boolean = false,
-        action: MigrationTransferAction? = null,
         blocker: MigrationTransferBlocker? = null,
+        scheduledAt: Instant = now,
     ) = LiveMigrationPreparation(
         id = id,
         layer = 0,
         index = 0,
         scheduledHeight = 1_000L,
-        scheduledAt = now,
+        scheduledAt = scheduledAt,
         isSent = isSent,
         isProved = isProved,
-        action = action,
+        action = null,
         blocker = blocker,
         dependsOn = emptyList(),
     )
 
-    // ── transferLabel: pure engine-status mapping ─────────────────────────────
+    // ── transferRowDisplay: priority order ────────────────────────────────────
 
     @Test
-    fun transferLabel_broadcast_shows_sent() {
-        assertEquals("Sent", transferLabel(transfer(isSent = true)).asString())
+    fun transferRowDisplay_expired_blocker_wins_regardless_of_schedule() {
+        val t = transfer(blocker = MigrationTransferBlocker.EXPIRED, scheduledAt = now - 5.minutes)
+        val display = transferRowDisplay(t, now, isLastRowOverall = false)
+        assertEquals("Expired", display.label.asString())
+        assertFalse(display.isReadyNow)
     }
 
     @Test
-    fun transferLabel_mined_shows_confirmed() {
-        assertEquals("Confirmed", transferLabel(transfer(isSent = true, minedHeight = 4_226_000L)).asString())
+    fun transferRowDisplay_unprovable_anchor_shows_needs_reschedule() {
+        val t = transfer(blocker = MigrationTransferBlocker.UNPROVABLE_ANCHOR)
+        assertEquals("Needs reschedule", transferRowDisplay(t, now, false).label.asString())
     }
 
     @Test
-    fun transferLabel_expired_blocker_shows_expired() {
-        assertEquals("Expired", transferLabel(transfer(blocker = MigrationTransferBlocker.EXPIRED)).asString())
+    fun transferRowDisplay_signature_blocker_shows_awaiting_signature_even_when_ready() {
+        // A SIGNATURE-blocked row keeps its own copy even though scheduledAt has passed — it is
+        // NOT painted "Ready now" while a signature is still owed.
+        val t = transfer(blocker = MigrationTransferBlocker.SIGNATURE, scheduledAt = now - 1.minutes)
+        val display = transferRowDisplay(t, now, false)
+        assertEquals("Awaiting signature", display.label.asString())
+        assertFalse(display.isReadyNow)
     }
 
     @Test
-    fun transferLabel_unprovable_anchor_blocker_shows_needs_reschedule() {
-        assertEquals(
-            "Needs reschedule",
-            transferLabel(transfer(blocker = MigrationTransferBlocker.UNPROVABLE_ANCHOR)).asString(),
-        )
+    fun transferRowDisplay_sent_without_mined_time_shows_plain_sent() {
+        val t = transfer(isSent = true, minedAt = null)
+        assertEquals("Sent", transferRowDisplay(t, now, false).label.asString())
     }
 
     @Test
-    fun transferLabel_signature_blocker_shows_awaiting_signature() {
-        assertEquals("Awaiting signature", transferLabel(transfer(blocker = MigrationTransferBlocker.SIGNATURE)).asString())
+    fun transferRowDisplay_sent_with_mined_time_shows_relative_ago() {
+        val t = transfer(isSent = true, minedAt = now - 20.minutes)
+        // Below both privacy floors (10 min testnet / 1 hour mainnet), so the exact "20 min" never
+        // leaks — formatMigrationDuration's own floor governs the exact rendered text.
+        val display = transferRowDisplay(t, now, false)
+        assertTrue(display.label.asString().startsWith("Sent "), display.label.asString())
+        assertTrue(display.label.asString().endsWith(" ago"), display.label.asString())
+        assertFalse(display.isReadyNow)
     }
 
     @Test
-    fun transferLabel_dependencies_blocker_shows_waiting_for_note_split() {
-        assertEquals(
-            "Waiting for note split",
-            transferLabel(transfer(blocker = MigrationTransferBlocker.DEPENDENCIES)).asString(),
-        )
+    fun transferRowDisplay_collapses_confirmed_and_sent_into_one_state() {
+        // The old code distinguished isSent+minedHeight!=null ("Confirmed") from isSent alone
+        // ("Sent"). Figma never shows "Confirmed" — both collapse to "Sent {relative} ago"/"Sent".
+        val sentOnly = transferRowDisplay(transfer(isSent = true, minedAt = null), now, false)
+        val sentAndMined = transferRowDisplay(transfer(isSent = true, minedAt = now - 20.minutes), now, false)
+        assertTrue(sentOnly.label.asString().startsWith("Sent"))
+        assertTrue(sentAndMined.label.asString().startsWith("Sent"))
+        assertFalse(sentOnly.label.asString().contains("Confirmed"))
+        assertFalse(sentAndMined.label.asString().contains("Confirmed"))
     }
 
     @Test
-    fun transferLabel_anchor_boundary_blocker_shows_waiting_for_anchor_window() {
-        assertEquals(
-            "Waiting for anchor window",
-            transferLabel(transfer(blocker = MigrationTransferBlocker.ANCHOR_BOUNDARY)).asString(),
-        )
+    fun transferRowDisplay_not_sent_past_due_no_blocker_shows_ready_now_in_primary_color() {
+        val t = transfer(scheduledAt = now - 1.minutes)
+        val display = transferRowDisplay(t, now, false)
+        assertEquals("Ready now", display.label.asString())
+        assertTrue(display.isReadyNow)
     }
 
     @Test
-    fun transferLabel_schedule_blocker_shows_scheduled_not_a_countdown() {
-        assertEquals("Scheduled", transferLabel(transfer(blocker = MigrationTransferBlocker.SCHEDULE)).asString())
-    }
-
-    @Test
-    fun transferLabel_ready_to_prove_shows_preparing() {
-        assertEquals("Preparing", transferLabel(transfer(action = MigrationTransferAction.PROVE)).asString())
-    }
-
-    @Test
-    fun transferLabel_ready_to_broadcast_shows_sending_soon() {
-        assertEquals("Sending soon", transferLabel(transfer(action = MigrationTransferAction.BROADCAST)).asString())
-    }
-
-    @Test
-    fun transferLabel_no_status_falls_back_to_waiting() {
-        assertEquals("Waiting", transferLabel(transfer()).asString())
-    }
-
-    // ── preparationStatusLabel: pure engine-status mapping ────────────────────
-
-    @Test
-    fun preparationStatusLabel_sent_shows_sent() {
-        assertEquals("Sent", preparationStatusLabel(prep(isSent = true)).asString())
-    }
-
-    @Test
-    fun preparationStatusLabel_ready_to_prove_shows_preparing() {
-        assertEquals("Preparing", preparationStatusLabel(prep(action = MigrationTransferAction.PROVE)).asString())
-    }
-
-    @Test
-    fun preparationStatusLabel_ready_to_broadcast_shows_sending_soon() {
-        assertEquals("Sending soon", preparationStatusLabel(prep(action = MigrationTransferAction.BROADCAST)).asString())
-    }
-
-    @Test
-    fun preparationStatusLabel_dependencies_shows_waiting_for_previous_split() {
-        assertEquals(
-            "Waiting for previous split",
-            preparationStatusLabel(prep(blocker = MigrationTransferBlocker.DEPENDENCIES)).asString(),
-        )
-    }
-
-    @Test
-    fun preparationStatusLabel_default_shows_waiting() {
-        assertEquals("Waiting", preparationStatusLabel(prep()).asString())
-    }
-
-    // ── mapping: number/isSent/isAttention/syncLabel presence ─────────────────
-
-    @Test
-    fun mapping_preparations_number_and_sent_and_debug_synclabel() {
-        val rows =
-            mapPreparationsToState(
-                listOf(prep(id = 1, isSent = true, isProved = true), prep(id = 2, action = MigrationTransferAction.PROVE)),
-                now,
-                debugSyncEnabled = true,
+    fun transferRowDisplay_self_resolving_blockers_still_show_ready_now_when_due() {
+        // DEPENDENCIES/ANCHOR_BOUNDARY/SCHEDULE are self-resolving — once the schedule moment has
+        // passed they fold into "Ready now" exactly like an unblocked row, per the finalized plan.
+        val selfResolvingBlockers =
+            listOf(
+                MigrationTransferBlocker.DEPENDENCIES,
+                MigrationTransferBlocker.ANCHOR_BOUNDARY,
+                MigrationTransferBlocker.SCHEDULE,
             )
-        assertEquals(2, rows.size)
-        assertEquals(1, rows[0].number)
-        assertTrue(rows[0].isSent)
-        // statusLabel is now the PRIMARY, all-builds time hint (preparationSyncLabel) — for a
-        // sent+proved row it falls back to the status-derived phrase, which is "Sent" here too.
-        assertEquals("Sent", rows[0].statusLabel.asString())
-        assertNotNull(rows[0].syncLabel, "syncLabel must be non-null when debugSyncEnabled=true")
-        // syncLabel is now the DEBUG-only raw engine status word (preparationStatusLabel).
-        assertEquals("Sent", rows[0].syncLabel?.asString())
-        assertEquals(2, rows[1].number)
-        assertFalse(rows[1].isSent)
+        for (blocker in selfResolvingBlockers) {
+            val t = transfer(blocker = blocker, scheduledAt = now - 1.minutes)
+            val display = transferRowDisplay(t, now, false)
+            assertEquals("Ready now", display.label.asString(), "blocker=$blocker")
+            assertTrue(display.isReadyNow, "blocker=$blocker")
+        }
     }
 
     @Test
-    fun mapping_preparations_synclabel_null_when_debug_disabled() {
-        val rows = mapPreparationsToState(listOf(prep(isProved = true)), now, debugSyncEnabled = false)
-        assertNull(rows.single().syncLabel)
+    fun transferRowDisplay_never_shows_overdue() {
+        // Regardless of how late a healthy, unblocked transfer runs, the word "Overdue" must never
+        // appear (decision 2026-07-31, reaffirmed 2026-08-03) — it reads "Ready now" instead.
+        val t = transfer(scheduledAt = now - 10.minutes)
+        assertFalse(transferRowDisplay(t, now, false).label.asString().contains("Overdue", ignoreCase = true))
     }
 
     @Test
-    fun mapping_transfer_attention_only_for_expired_and_unprovable() {
-        val unprovable = mapTransfersToState(listOf(transfer(blocker = MigrationTransferBlocker.UNPROVABLE_ANCHOR)), now, false)
-        assertTrue(unprovable.single().isAttention)
-        val expired = mapTransfersToState(listOf(transfer(blocker = MigrationTransferBlocker.EXPIRED)), now, false)
-        assertTrue(expired.single().isAttention)
-        // A merely-late-but-healthy transfer (scheduled/ready) is NEVER attention-painted.
-        val scheduled = mapTransfersToState(listOf(transfer(blocker = MigrationTransferBlocker.SCHEDULE)), now, false)
-        assertFalse(scheduled.single().isAttention)
-        val sendingSoon = mapTransfersToState(listOf(transfer(action = MigrationTransferAction.BROADCAST)), now, false)
-        assertFalse(sendingSoon.single().isAttention)
+    fun transferRowDisplay_future_not_last_row_has_no_in_prefix() {
+        // A span comfortably above either network's privacy floor (10 min testnet / 1 hour
+        // mainnet) so this test isn't coupled to formatMigrationDuration's own floor behavior —
+        // that's covered separately in MigrationDurationFormatTest.
+        val t = transfer(scheduledAt = now + 2.hours)
+        assertEquals("~2 h", transferRowDisplay(t, now, isLastRowOverall = false).label.asString())
     }
 
     @Test
-    fun mapping_transfer_synclabel_presence_follows_debug_flag() {
-        val on = mapTransfersToState(listOf(transfer(isProved = true, isSent = true)), now, debugSyncEnabled = true)
-        assertNotNull(on.single().syncLabel)
-        val off = mapTransfersToState(listOf(transfer(isProved = true, isSent = true)), now, debugSyncEnabled = false)
-        assertNull(off.single().syncLabel)
+    fun transferRowDisplay_future_last_row_overall_gets_in_prefix() {
+        val t = transfer(scheduledAt = now + 2.hours)
+        assertEquals("in ~2 h", transferRowDisplay(t, now, isLastRowOverall = true).label.asString())
     }
 
-    // ── per-row time hint (PRIMARY as of 2026-08-01): relative time, or a status-derived ─────
-    // ── phrase instead of the bare "proved"/"pending" debug jargon words ──────────────────────
+    // ── preparationRowDisplay: same priority shape, "Done" not "Sent"/"Confirmed" ─────────────
 
     @Test
-    fun transferSyncLabel_proved_falls_back_to_status_derived_phrase_not_bare_proved() {
-        // No action/blocker set beyond isProved: transferLabel(t) falls through to "Waiting".
-        assertEquals("Waiting", transferSyncLabel(transfer(isProved = true), now).asString())
-    }
-
-    @Test
-    fun transferSyncLabel_proved_with_broadcast_action_shows_sending_soon_not_bare_proved() {
-        val t = transfer(isProved = true, action = MigrationTransferAction.BROADCAST)
-        assertEquals("Sending soon", transferSyncLabel(t, now).asString())
+    fun preparationRowDisplay_sent_shows_done_not_sent() {
+        val display = preparationRowDisplay(prep(isSent = true), now, false)
+        assertEquals("Done", display.label.asString())
+        assertFalse(display.isReadyNow)
     }
 
     @Test
-    fun transferSyncLabel_unproved_past_due_falls_back_to_status_derived_phrase_not_bare_pending() {
-        val t = transfer(isProved = false, action = MigrationTransferAction.PROVE).copy(scheduledAt = now - 1.minutes)
-        assertEquals("Preparing", transferSyncLabel(t, now).asString())
+    fun preparationRowDisplay_signature_blocker_shows_awaiting_signature() {
+        val display = preparationRowDisplay(prep(blocker = MigrationTransferBlocker.SIGNATURE), now, false)
+        assertEquals("Awaiting signature", display.label.asString())
     }
 
     @Test
-    fun transferSyncLabel_future_scheduled_shows_relative_time() {
-        val t = transfer(isProved = false).copy(scheduledAt = now + 5.minutes)
-        assertEquals("~5 min", transferSyncLabel(t, now).asString())
+    fun preparationRowDisplay_dependencies_blocker_shows_waiting_for_previous_split() {
+        val display = preparationRowDisplay(prep(blocker = MigrationTransferBlocker.DEPENDENCIES), now, false)
+        assertEquals("Waiting for previous split", display.label.asString())
     }
 
     @Test
-    fun preparationSyncLabel_proved_falls_back_to_status_derived_phrase_not_bare_proved() {
-        assertEquals("Waiting", preparationSyncLabel(prep(isProved = true), now).asString())
+    fun preparationRowDisplay_not_sent_past_due_no_blocker_shows_ready_now() {
+        val display = preparationRowDisplay(prep(scheduledAt = now - 1.minutes), now, false)
+        assertEquals("Ready now", display.label.asString())
+        assertTrue(display.isReadyNow)
     }
 
     @Test
-    fun preparationSyncLabel_proved_with_broadcast_action_shows_sending_soon_not_bare_proved() {
-        val p = prep(isProved = true, action = MigrationTransferAction.BROADCAST)
-        assertEquals("Sending soon", preparationSyncLabel(p, now).asString())
+    fun preparationRowDisplay_future_last_row_overall_gets_in_prefix() {
+        val display = preparationRowDisplay(prep(scheduledAt = now + 10.minutes), now, isLastRowOverall = true)
+        assertEquals("in ~10 min", display.label.asString())
+    }
+
+    @Test
+    fun preparationRowDisplay_future_not_last_row_has_no_in_prefix() {
+        val display = preparationRowDisplay(prep(scheduledAt = now + 10.minutes), now, isLastRowOverall = false)
+        assertEquals("~10 min", display.label.asString())
+    }
+
+    // ── sentRowDisplay directly ────────────────────────────────────────────────
+
+    @Test
+    fun sentRowDisplay_no_mined_time_is_plain_sent() {
+        assertEquals("Sent", sentRowDisplay(minedAt = null, now = now).label.asString())
+    }
+
+    @Test
+    fun sentRowDisplay_with_mined_time_appends_relative_ago() {
+        val display = sentRowDisplay(minedAt = now - 2.minutes, now = now)
+        assertTrue(display.label.asString().startsWith("Sent "))
+        assertTrue(display.label.asString().endsWith(" ago"))
+    }
+
+    // ── isAttention: unchanged, explicitly out of scope for this finalization ────────────────
+
+    @Test
+    fun isAttention_only_for_expired_and_unprovable_anchor() {
+        fun isAttention(blocker: MigrationTransferBlocker?) =
+            blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR || blocker == MigrationTransferBlocker.EXPIRED
+        assertTrue(isAttention(MigrationTransferBlocker.EXPIRED))
+        assertTrue(isAttention(MigrationTransferBlocker.UNPROVABLE_ANCHOR))
+        assertFalse(isAttention(MigrationTransferBlocker.SIGNATURE))
+        assertFalse(isAttention(MigrationTransferBlocker.SCHEDULE))
+        assertFalse(isAttention(null))
     }
 
     // ── migrationProgressSubtitle: header static-span vs. remaining-time countdown ───────────
@@ -279,11 +263,13 @@ class MigrationProgressVMTest {
         val transfers =
             listOf(
                 transfer(index = 0, id = 1, isSent = true).copy(scheduledAt = now - 5.minutes),
-                transfer(index = 1, id = 2).copy(scheduledAt = now + 8.minutes),
+                // Comfortably above the testnet privacy floor (10 min) so this isn't coupled to
+                // formatMigrationDuration's own floor behavior (covered in MigrationDurationFormatTest).
+                transfer(index = 1, id = 2).copy(scheduledAt = now + 25.minutes),
             )
         val snapshot = LiveMigrationSnapshot(transfers = transfers, preparations = emptyList(), tipHeight = 1_000L)
         val subtitle = migrationProgressSubtitle(snapshot, now)
-        assertTrue(subtitle.contains("~8 min remaining"), subtitle)
+        assertTrue(subtitle.contains("~25 min remaining"), subtitle)
         assertFalse(subtitle.contains("over ~"), subtitle)
     }
 
@@ -291,10 +277,10 @@ class MigrationProgressVMTest {
     fun migrationProgressSubtitle_overdue_header_never_shows_floored_lying_duration() {
         // Regression test for the bug adversarial (Fable) review caught in an earlier draft:
         // once `now >= lastScheduled` (a normal, expected late-but-healthy engine state, not
-        // stuck/broken), formatMigrationDuration's `coerceAtLeast(60L)` floor would make a naive
-        // `formatMigrationDuration(remaining)` call print a permanently-lying "~1 min" forever.
-        // The header must instead switch to non-time copy without calling formatMigrationDuration
-        // on a zero/negative span at all.
+        // stuck/broken), formatMigrationDuration's floor would make a naive
+        // `formatMigrationDuration(remaining)` call print a permanently-lying floored duration
+        // forever. The header must instead switch to non-time copy without calling
+        // formatMigrationDuration on a zero/negative span at all.
         val transfers =
             listOf(
                 transfer(index = 0, id = 1, isSent = true).copy(scheduledAt = now - 20.minutes),
@@ -302,8 +288,8 @@ class MigrationProgressVMTest {
             )
         val snapshot = LiveMigrationSnapshot(transfers = transfers, preparations = emptyList(), tipHeight = 1_000L)
         val subtitle = migrationProgressSubtitle(snapshot, now)
-        assertFalse(subtitle.contains("~1 min"), "must never show the floored, permanently-lying duration: $subtitle")
         assertFalse(subtitle.contains("min remaining"), "must not claim a duration once running late: $subtitle")
+        assertFalse(subtitle.contains("Overdue", ignoreCase = true), subtitle)
         assertTrue(subtitle.contains("Finishing up"), subtitle)
     }
 
@@ -328,53 +314,3 @@ class MigrationProgressVMTest {
             }
         }
 }
-
-/**
- * Replicates the preparation-mapping logic from [MigrationProgressVM.createState] as a pure
- * top-level function so tests can drive it without constructing the full VM. Any change to the
- * VM's mapping must be reflected here to keep the test honest.
- */
-internal fun mapPreparationsToState(
-    preparations: List<LiveMigrationPreparation>,
-    now: Instant,
-    debugSyncEnabled: Boolean,
-): List<MigrationProgressPreparationState> =
-    preparations.mapIndexed { i, p ->
-        MigrationProgressPreparationState(
-            number = i + 1,
-            // PRIMARY, all builds: the per-row time hint.
-            statusLabel = preparationSyncLabel(p, now),
-            isSent = p.isSent,
-            // DEBUG-only diagnostic suffix: the raw engine status word.
-            syncLabel = if (debugSyncEnabled) preparationStatusLabel(p) else null,
-        )
-    }
-
-/**
- * Replicates the transfer-mapping logic from [MigrationProgressVM.createState] as a pure top-level
- * function so tests can drive it without constructing the full VM.
- */
-internal fun mapTransfersToState(
-    transfers: List<LiveMigrationTransfer>,
-    now: Instant,
-    debugSyncEnabled: Boolean,
-): List<MigrationProgressTransferState> =
-    transfers.map { t ->
-        MigrationProgressTransferState(
-            index = t.index + 1,
-            amount =
-                co.electriccoin.zcash.ui.design.util
-                    .stringRes(
-                        cash.z.ecc.android.sdk.model
-                            .Zatoshi(t.amountZatoshi)
-                    ),
-            // PRIMARY, all builds: the per-row time hint.
-            statusLabel = transferSyncLabel(t, now),
-            isAttention =
-                t.blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR ||
-                    t.blocker == MigrationTransferBlocker.EXPIRED,
-            isSent = t.isSent,
-            // DEBUG-only diagnostic suffix: the raw engine status word.
-            syncLabel = if (debugSyncEnabled) transferLabel(t) else null,
-        )
-    }

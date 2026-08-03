@@ -306,13 +306,35 @@ private fun previewProgressStateInProgress() =
         totalAmount = stringRes("10.858 ZEC"),
         transfers =
             listOf(
-                MigrationProgressTransferState(1, stringRes("1.348 ZEC"), stringRes("Sent"), isAttention = false, isSent = true),
-                MigrationProgressTransferState(2, stringRes("1.052 ZEC"), stringRes("Sending soon"), isAttention = false, isSent = false),
-                MigrationProgressTransferState(3, stringRes("2.105 ZEC"), stringRes("Scheduled"), isAttention = false, isSent = false),
+                MigrationProgressTransferState(
+                    1,
+                    stringRes("1.348 ZEC"),
+                    stringRes("Sent"),
+                    isReadyNow = false,
+                    isAttention = false,
+                    isSent = true
+                ),
+                MigrationProgressTransferState(
+                    2,
+                    stringRes("1.052 ZEC"),
+                    stringRes("Ready now"),
+                    isReadyNow = true,
+                    isAttention = false,
+                    isSent = false
+                ),
+                MigrationProgressTransferState(
+                    3,
+                    stringRes("2.105 ZEC"),
+                    stringRes("~2 h"),
+                    isReadyNow = false,
+                    isAttention = false,
+                    isSent = false
+                ),
                 MigrationProgressTransferState(
                     4,
                     stringRes("1.897 ZEC"),
-                    stringRes("Waiting for anchor window"),
+                    stringRes("~5 h"),
+                    isReadyNow = false,
                     isAttention = false,
                     isSent = false
                 ),
@@ -320,6 +342,7 @@ private fun previewProgressStateInProgress() =
                     5,
                     stringRes("4.456 ZEC"),
                     stringRes("Needs reschedule"),
+                    isReadyNow = false,
                     isAttention = true,
                     isSent = false
                 ),

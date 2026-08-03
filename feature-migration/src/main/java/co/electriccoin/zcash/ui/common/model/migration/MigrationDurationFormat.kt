@@ -12,21 +12,33 @@ import co.electriccoin.zcash.migration.BuildConfig
  * [fineGrained] (default: testnet builds) keeps minute resolution above one hour ("~1 h 15 min")
  * — the whole testnet plan spans ~1-2 h (12-block buckets), so integer-hour bucketing collapsed
  * most transfers into an identical "~1 hours" label. Mainnet keeps the coarse hour display.
+ *
+ * Every duration this formats — a transfer's own "sent/due in" hint or the header's total-span/
+ * remaining estimate — is floored at [TESTNET_PRIVACY_FLOOR_SECONDS]/[MAINNET_PRIVACY_FLOOR_SECONDS]
+ * (2026-08-03, decision with the user): never reveal a migration timing more precise than that,
+ * on either side of "now" (an "ago" as well as an upcoming estimate) — a tighter number could help
+ * correlate this wallet's broadcasts across the network. [fineGrained] doubles as the network
+ * selector for which floor applies, matching its own existing default derivation, so callers that
+ * pin [fineGrained] for a deterministic test get a deterministic floor for free.
  */
 fun formatMigrationDuration(
     totalSeconds: Long,
     fineGrained: Boolean = isTestnetBuildFlavor(),
 ): String {
-    val seconds = totalSeconds.coerceAtLeast(60L)
+    val floorSeconds = if (fineGrained) TESTNET_PRIVACY_FLOOR_SECONDS else MAINNET_PRIVACY_FLOOR_SECONDS
+    val seconds = totalSeconds.coerceAtLeast(floorSeconds)
     val hours = seconds / 3600
     val minutesPastHour = (seconds % 3600) / 60
     return when {
         seconds < 3600 -> "~${seconds / 60} min"
-        !fineGrained -> "~$hours hours"
+        !fineGrained -> "~$hours ${if (hours == 1L) "hour" else "hours"}"
         minutesPastHour == 0L -> "~$hours h"
         else -> "~$hours h $minutesPastHour min"
     }
 }
+
+private const val TESTNET_PRIVACY_FLOOR_SECONDS = 600L // 10 minutes
+private const val MAINNET_PRIVACY_FLOOR_SECONDS = 3600L // 1 hour
 
 internal fun isTestnetBuildFlavor(): Boolean = BuildConfig.FLAVOR.contains("testnet", ignoreCase = true)
 

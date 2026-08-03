@@ -57,13 +57,27 @@ class MigrationDurationFormatTest {
 
     @Test
     fun formatMigrationDuration_uses_coarse_hours_when_not_fine_grained() {
-        assertEquals("~1 hours", formatMigrationDuration(totalSeconds = 4_500L, fineGrained = false))
+        assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 4_500L, fineGrained = false))
+        assertEquals("~2 hours", formatMigrationDuration(totalSeconds = 8_000L, fineGrained = false))
     }
 
     @Test
-    fun formatMigrationDuration_shows_minutes_below_an_hour_in_both_modes() {
+    fun formatMigrationDuration_shows_minutes_below_an_hour_only_when_fine_grained() {
         assertEquals("~15 min", formatMigrationDuration(totalSeconds = 900L, fineGrained = true))
-        assertEquals("~15 min", formatMigrationDuration(totalSeconds = 900L, fineGrained = false))
+        // Not fine-grained (mainnet): floored at 1 hour, so a 15-minute span never surfaces as minutes.
+        assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 900L, fineGrained = false))
+    }
+
+    @Test
+    fun formatMigrationDuration_never_reveals_a_duration_below_the_networks_privacy_floor() {
+        // Never show anything more precise than 10 min on testnet / 1 hour on mainnet, in either
+        // direction (an "ago" duration or an upcoming estimate) — 2026-08-03 privacy requirement.
+        assertEquals("~10 min", formatMigrationDuration(totalSeconds = 1L, fineGrained = true))
+        assertEquals("~10 min", formatMigrationDuration(totalSeconds = 599L, fineGrained = true))
+        assertEquals("~10 min", formatMigrationDuration(totalSeconds = 600L, fineGrained = true))
+        assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 1L, fineGrained = false))
+        assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 3_599L, fineGrained = false))
+        assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 3_600L, fineGrained = false))
     }
 
     @Test

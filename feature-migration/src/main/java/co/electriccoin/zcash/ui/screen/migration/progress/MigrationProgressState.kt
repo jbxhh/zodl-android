@@ -19,32 +19,31 @@ data class MigrationProgressState(
 /**
  * One note-split (preparation) transaction row in the Migration Progress timeline.
  *
- * [number] is 1-based display order (broadcast/schedule order).
- * [statusLabel] is the PRIMARY label shown to ALL users (reinstated 2026-08-01, decision with
- * Dominik) — a soft, non-deadline-implying per-row time hint ("~5 min" or a status-derived phrase
- * like "Preparing" when no honest duration remains), never styled as a countdown-to-deadline.
- * [syncLabel] is non-null only in DEBUG builds — the raw engine status word, demoted to a
- * diagnostic suffix, appended in the UI as "· status $syncLabel" when present (inverse of the
- * pre-2026-08-01 priority).
+ * [number] is 1-based display order (broadcast/schedule order). [statusLabel] is the row's only
+ * label (2026-08-03 finalization: the DEBUG-only raw engine status suffix is gone) — a soft,
+ * non-deadline-implying per-row time hint ("~5 min" / "in ~5 min" for the last row overall),
+ * "Ready now", "Done", or a blocked-row phrase ("Awaiting signature" / "Waiting for previous
+ * split"); never styled as a countdown-to-deadline, never "Overdue". [isReadyNow] is true only for
+ * the "Ready now" state, which Figma renders in the primary text color instead of the muted gray
+ * every other subtitle uses.
  */
 data class MigrationProgressPreparationState(
     val number: Int,
     val statusLabel: StringResource,
+    val isReadyNow: Boolean,
     val isSent: Boolean,
-    val syncLabel: StringResource? = null,
 )
 
 data class MigrationProgressTransferState(
     val index: Int,
     val amount: StringResource,
-    // PRIMARY label shown to ALL users — see [MigrationProgressPreparationState.statusLabel] doc.
+    // The row's only label — see [MigrationProgressPreparationState.statusLabel] doc.
     val statusLabel: StringResource,
+    // True only for the "Ready now" state — primary text color instead of muted gray.
+    val isReadyNow: Boolean,
     // Attention paint (orange) — genuine cannot-heal states only (expired / unprovable anchor),
     // never a merely-late-but-healthy transfer.
     val isAttention: Boolean,
     val isSent: Boolean,
     val fiatAmount: StringResource? = null,
-    // Non-null only in DEBUG builds — the raw engine status word, demoted to a diagnostic suffix.
-    // See [MigrationProgressPreparationState.syncLabel] doc.
-    val syncLabel: StringResource? = null,
 )

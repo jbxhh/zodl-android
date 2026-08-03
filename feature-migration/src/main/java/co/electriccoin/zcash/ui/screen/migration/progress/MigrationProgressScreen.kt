@@ -99,16 +99,6 @@ fun MigrationProgressView(state: MigrationProgressState) {
                 // this block renders nothing and the transfers start immediately.
                 val firstUnsentPrepIndex = state.preparations.indexOfFirst { !it.isSent }
                 state.preparations.forEachIndexed { i, prep ->
-                    // statusLabel is the PRIMARY, all-builds time hint. When the DEBUG-only
-                    // syncLabel (raw engine status word) is present, append it as a diagnostic
-                    // suffix "· status <label>" — inverse of the pre-2026-08-01 format — so the
-                    // row composable needs no new parameter.
-                    val rowStatusLabel =
-                        if (prep.syncLabel != null) {
-                            prep.statusLabel + stringRes(" · status ") + prep.syncLabel
-                        } else {
-                            prep.statusLabel
-                        }
                     // Preparation rows never surface an attention state.
                     val rowState =
                         when {
@@ -118,7 +108,8 @@ fun MigrationProgressView(state: MigrationProgressState) {
                         }
                     TransferProgressTimelineRow(
                         title = "Split balance ${prep.number}",
-                        statusLabel = rowStatusLabel,
+                        statusLabel = prep.statusLabel,
+                        isReadyNow = prep.isReadyNow,
                         amount = null,
                         fiatAmount = null,
                         state = rowState,
@@ -127,16 +118,6 @@ fun MigrationProgressView(state: MigrationProgressState) {
                 }
                 val activeIndex = state.transfers.indexOfFirst { !it.isSent }
                 state.transfers.forEachIndexed { i, transfer ->
-                    // statusLabel is the PRIMARY, all-builds time hint. When the DEBUG-only
-                    // syncLabel (raw engine status word) is present, append it as a diagnostic
-                    // suffix "· status <label>" — inverse of the pre-2026-08-01 format — so the
-                    // row composable needs no new parameter.
-                    val rowStatus =
-                        if (transfer.syncLabel != null) {
-                            transfer.statusLabel + stringRes(" · status ") + transfer.syncLabel
-                        } else {
-                            transfer.statusLabel
-                        }
                     // Priority mirrors the row painter: sent wins, then genuine attention, then active.
                     val rowState =
                         when {
@@ -147,7 +128,8 @@ fun MigrationProgressView(state: MigrationProgressState) {
                         }
                     TransferProgressTimelineRow(
                         title = "Transfer ${transfer.index}",
-                        statusLabel = rowStatus,
+                        statusLabel = transfer.statusLabel,
+                        isReadyNow = transfer.isReadyNow,
                         amount = transfer.amount,
                         fiatAmount = transfer.fiatAmount,
                         index = transfer.index,
@@ -186,6 +168,7 @@ private enum class TransferRowState { DONE, ATTENTION, ACTIVE, IDLE }
 private fun TransferProgressTimelineRow(
     title: String,
     statusLabel: StringResource,
+    isReadyNow: Boolean,
     amount: StringResource?,
     fiatAmount: StringResource?,
     state: TransferRowState,
@@ -285,10 +268,14 @@ private fun TransferProgressTimelineRow(
                 text = statusLabel.getValue(),
                 style = ZashiTypography.textXs,
                 color =
-                    if (state == TransferRowState.ATTENTION) {
-                        ZashiColors.Utility.WarningYellow.utilityOrange500
-                    } else {
-                        ZashiColors.Text.textTertiary
+                    when {
+                        state == TransferRowState.ATTENTION -> ZashiColors.Utility.WarningYellow.utilityOrange500
+
+                        // "Ready now" is the one row subtitle Figma renders in the primary text
+                        // color instead of the muted gray every other row uses.
+                        isReadyNow -> ZashiColors.Text.textPrimary
+
+                        else -> ZashiColors.Text.textTertiary
                     },
             )
         }
@@ -325,38 +312,50 @@ private fun PreviewInProgress() =
                     totalFiatAmount = stringRes("$4,053.46"),
                     transfers =
                         listOf(
-                            MigrationProgressTransferState(1, stringRes("1.348 ZEC"), stringRes("Sent"), false, true, stringRes("$521.30")),
                             MigrationProgressTransferState(
-                                2,
-                                stringRes("1.052 ZEC"),
-                                stringRes("Sending soon"),
-                                false,
-                                false,
-                                stringRes("$406.86")
+                                index = 1,
+                                amount = stringRes("1.348 ZEC"),
+                                statusLabel = stringRes("Sent"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = true,
+                                fiatAmount = stringRes("$521.30"),
                             ),
                             MigrationProgressTransferState(
-                                3,
-                                stringRes("2.105 ZEC"),
-                                stringRes("Scheduled"),
-                                false,
-                                false,
-                                stringRes("$813.74")
+                                index = 2,
+                                amount = stringRes("1.052 ZEC"),
+                                statusLabel = stringRes("Ready now"),
+                                isReadyNow = true,
+                                isAttention = false,
+                                isSent = false,
+                                fiatAmount = stringRes("$406.86"),
                             ),
                             MigrationProgressTransferState(
-                                4,
-                                stringRes("1.897 ZEC"),
-                                stringRes("Waiting for anchor window"),
-                                false,
-                                false,
-                                stringRes("$733.51")
+                                index = 3,
+                                amount = stringRes("2.105 ZEC"),
+                                statusLabel = stringRes("~2 h"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = false,
+                                fiatAmount = stringRes("$813.74"),
                             ),
                             MigrationProgressTransferState(
-                                5,
-                                stringRes("4.056 ZEC"),
-                                stringRes("Needs reschedule"),
-                                true,
-                                false,
-                                stringRes("$1,568.05")
+                                index = 4,
+                                amount = stringRes("1.897 ZEC"),
+                                statusLabel = stringRes("~5 h"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = false,
+                                fiatAmount = stringRes("$733.51"),
+                            ),
+                            MigrationProgressTransferState(
+                                index = 5,
+                                amount = stringRes("4.056 ZEC"),
+                                statusLabel = stringRes("Needs reschedule"),
+                                isReadyNow = false,
+                                isAttention = true,
+                                isSent = false,
+                                fiatAmount = stringRes("$1,568.05"),
                             ),
                         ),
                     isComplete = false,
@@ -379,44 +378,49 @@ private fun PreviewComplete() =
                     transfers =
                         listOf(
                             MigrationProgressTransferState(
-                                1,
-                                stringRes("1.348 ZEC"),
-                                stringRes("Sent 24h ago"),
-                                false,
-                                true,
-                                stringRes("$521.30")
+                                index = 1,
+                                amount = stringRes("1.348 ZEC"),
+                                statusLabel = stringRes("Sent ~24 h ago"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = true,
+                                fiatAmount = stringRes("$521.30"),
                             ),
                             MigrationProgressTransferState(
-                                2,
-                                stringRes("1.052 ZEC"),
-                                stringRes("Sent 18h ago"),
-                                false,
-                                true,
-                                stringRes("$406.86")
+                                index = 2,
+                                amount = stringRes("1.052 ZEC"),
+                                statusLabel = stringRes("Sent ~18 h ago"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = true,
+                                fiatAmount = stringRes("$406.86"),
                             ),
                             MigrationProgressTransferState(
-                                3,
-                                stringRes("2.105 ZEC"),
-                                stringRes("Sent 12h ago"),
-                                false,
-                                true,
-                                stringRes("$813.74")
+                                index = 3,
+                                amount = stringRes("2.105 ZEC"),
+                                statusLabel = stringRes("Sent ~12 h ago"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = true,
+                                fiatAmount = stringRes("$813.74"),
                             ),
                             MigrationProgressTransferState(
-                                4,
-                                stringRes("1.897 ZEC"),
-                                stringRes("Sent 6h ago"),
-                                false,
-                                true,
-                                stringRes("$733.51")
+                                index = 4,
+                                amount = stringRes("1.897 ZEC"),
+                                statusLabel = stringRes("Sent ~6 h ago"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = true,
+                                fiatAmount = stringRes("$733.51"),
                             ),
                             MigrationProgressTransferState(
-                                5,
-                                stringRes("4.056 ZEC"),
-                                stringRes("Sent 18 min ago"),
-                                false,
-                                true,
-                                stringRes("$1,568.05")
+                                index = 5,
+                                amount = stringRes("4.056 ZEC"),
+                                statusLabel = stringRes("Sent"),
+                                isReadyNow = false,
+                                isAttention = false,
+                                isSent = true,
+                                fiatAmount = stringRes("$1,568.05"),
                             ),
                         ),
                     isComplete = true,

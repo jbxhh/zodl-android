@@ -4,14 +4,12 @@ import androidx.lifecycle.ViewModel
 import cash.z.ecc.android.sdk.MigrationTransferStates
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
 import cash.z.ecc.android.sdk.model.Zatoshi
-import co.electriccoin.zcash.migration.BuildConfig
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.LceState
 import co.electriccoin.zcash.ui.common.model.guardLoading
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationPreparation
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationTransfer
-import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferAction
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferBlocker
 import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
 import co.electriccoin.zcash.ui.common.model.migration.toSnapshot
@@ -97,31 +95,31 @@ class MigrationProgressVM(
             totalFiatAmount = fiatAmount(Zatoshi(totalZatoshi), exchangeRateState),
             preparations =
                 snapshot.preparations.mapIndexed { i, p ->
+                    // The last row overall (across the combined preparations+transfers timeline)
+                    // gets the "in ~X" phrasing; every earlier not-yet-due row gets bare "~X".
+                    // Preparations always schedule before the transfers that depend on them, so
+                    // this display order (preparations, then transfers) already matches schedule
+                    // order — the last preparation is only the overall-last row when there are no
+                    // transfers at all.
+                    val isLastRowOverall = i == snapshot.preparations.lastIndex && snapshot.transfers.isEmpty()
+                    val display = preparationRowDisplay(p, now, isLastRowOverall)
                     MigrationProgressPreparationState(
                         number = i + 1,
-                        // PRIMARY, all builds: a soft, non-deadline-implying time hint (never a
-                        // countdown-to-deadline, never "Overdue"/attention-painted — see
-                        // preparationSyncLabel doc). Inverse of this field's old priority.
-                        statusLabel = preparationSyncLabel(p, now),
+                        statusLabel = display.label,
+                        isReadyNow = display.isReadyNow,
                         isSent = p.isSent,
-                        // BuildConfig.DEBUG read inline (matching the codebase's other VMs) rather than
-                        // injected — a `Boolean` constructor param breaks Koin's `viewModelOf` reflective
-                        // resolution (NoDefinitionFoundException at screen open).
-                        // DEBUG-only diagnostic suffix: the raw engine status word, demoted from
-                        // its old PRIMARY spot.
-                        syncLabel = if (BuildConfig.DEBUG) preparationStatusLabel(p) else null,
                     )
                 },
             transfers =
-                snapshot.transfers.map { t ->
+                snapshot.transfers.mapIndexed { i, t ->
+                    val isLastRowOverall = i == snapshot.transfers.lastIndex
+                    val display = transferRowDisplay(t, now, isLastRowOverall)
                     MigrationProgressTransferState(
                         index = t.index + 1,
                         amount = stringRes(Zatoshi(t.amountZatoshi)),
                         fiatAmount = fiatAmount(Zatoshi(t.amountZatoshi), exchangeRateState),
-                        // PRIMARY, all builds: a soft, non-deadline-implying time hint (never a
-                        // countdown-to-deadline, never "Overdue"/attention-painted — see
-                        // transferSyncLabel doc). Inverse of this field's old priority.
-                        statusLabel = transferSyncLabel(t, now),
+                        statusLabel = display.label,
+                        isReadyNow = display.isReadyNow,
                         // Attention paint (orange) ONLY for genuine, cannot-heal-on-its-own states —
                         // never for a merely-late-but-healthy transfer (the old "overdue" false
                         // alarm). Expired and the synthetic unprovable-anchor are the only two.
@@ -129,9 +127,6 @@ class MigrationProgressVM(
                             t.blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR ||
                                 t.blocker == MigrationTransferBlocker.EXPIRED,
                         isSent = t.isSent,
-                        // DEBUG-only diagnostic suffix: the raw engine status word, demoted from
-                        // its old PRIMARY spot.
-                        syncLabel = if (BuildConfig.DEBUG) transferLabel(t) else null,
                     )
                 },
             isComplete = snapshot.isComplete,
@@ -180,13 +175,14 @@ class MigrationProgressVM(
  * Once in progress (`completedCount > 0` — a concrete, checkable condition, decision with Dominik
  * 2026-08-01), the header instead counts down the REMAINING time to the last scheduled moment.
  * This MUST branch explicitly on `remaining > 0` vs `remaining <= 0`: [formatMigrationDuration]
- * floors its input at 60 seconds, so once the migration runs late (`now >= lastScheduled` — a
- * normal, expected state for this engine, not stuck/broken), a naive
- * `formatMigrationDuration(remaining)` call on a negative/zero span would silently floor to a
- * permanently-lying "~1 min" forever. That is exactly the "healthy-but-late state painted as
- * broken" bug class commit `33cff6883` fixed for the per-row labels — this header must not
- * reintroduce it via a different code path, so the `remaining <= 0` branch switches to non-time
- * copy that never calls [formatMigrationDuration] on that value.
+ * floors its input at a network-dependent privacy floor (10 min testnet / 1 hour mainnet, decision
+ * 2026-08-03), so once the migration runs late (`now >= lastScheduled` — a normal, expected state
+ * for this engine, not stuck/broken), a naive `formatMigrationDuration(remaining)` call on a
+ * negative/zero span would silently floor to a permanently-lying "~10 min"/"~1 hour" forever. That
+ * is exactly the "healthy-but-late state painted as broken" bug class commit `33cff6883` fixed for
+ * the per-row labels — this header must not reintroduce it via a different code path, so the
+ * `remaining <= 0` branch switches to non-time copy that never calls [formatMigrationDuration] on
+ * that value.
  *
  * Top-level and internal for unit-testability without Android, Koin, or a live SDK/ViewModel.
  */
@@ -230,101 +226,128 @@ internal fun migrationProgressSubtitle(
 }
 
 /**
- * Raw engine status word for a crossing transfer row, rendered PURELY from the engine's
- * per-transaction status (`ready`/`action`/`blocker` from `transaction_statuses`) — NO
- * wall-clock, NO "overdue", NO countdown. The engine has no notion of "overdue": a proved
- * transfer waiting for the engine to reach its broadcast (proving is prioritised) is a normal
- * state, not a failure. Showing a projected countdown that we then don't strictly honour — and
- * painting late-but-healthy rows "Overdue" — made correct engine execution look broken (decision
- * with Dominik 2026-07-31), so both are gone. Every branch maps 1:1 onto
- * `state.rs::transaction_statuses`.
+ * The finalized, production-only render for one timeline row (2026-08-03): [label] is the only
+ * text shown, [isReadyNow] flags the one state Figma paints in the primary text color instead of
+ * the muted gray every other row uses. No debug-only raw engine word is surfaced anywhere anymore.
+ */
+internal data class MigrationRowDisplay(
+    val label: StringResource,
+    val isReadyNow: Boolean,
+)
+
+/**
+ * Row state for a crossing transfer, in Figma's priority order (2026-08-03 finalization, decision
+ * with Dominik — replaces the old debug/primary split from 2026-08-01):
  *
- * DEBUG-only diagnostic suffix as of 2026-08-01 (decision with Dominik): the friendly per-row
- * time hint from [transferSyncLabel] is now the PRIMARY, all-builds label; this raw word is
- * demoted to a debug diagnostic appended after it.
+ * 1. A genuinely blocked row (`EXPIRED`/`UNPROVABLE_ANCHOR`/`SIGNATURE` — the only three blockers
+ *    that can never self-resolve) keeps its own explicit copy, regardless of schedule time.
+ * 2. [sentRowDisplay] — broadcast (`isSent`), Figma's "Confirmed" vs "Sent" split collapses into
+ *    one state.
+ * 3. "Sending now" has no real backing signal in this passively-polled snapshot (see
+ *    `spec/2026-08-03-progress-screen-row-states-plan.md`) and folds into state 4.
+ * 4. "Ready now" — not sent, no blocker or only a self-resolving one (`DEPENDENCIES`,
+ *    `ANCHOR_BOUNDARY`, `SCHEDULE`), and [LiveMigrationTransfer.scheduledAt] has already passed.
+ *    Figma renders this in the primary text color, not muted — [MigrationRowDisplay.isReadyNow].
+ * 5/6. Future: a relative estimate via [formatMigrationDuration] — bare "~X" for every row except
+ *    [isLastRowOverall], which gets "in ~X" (Figma is consistent: only the last row on screen ever
+ *    gets the "in" prefix).
+ *
+ * Never reintroduces "Overdue" or a countdown-to-deadline (decision with Dominik 2026-07-31,
+ * reaffirmed 2026-08-03) — a late-but-healthy transfer just reads "Ready now".
  *
  * Top-level and internal for unit-testability without Android or Koin.
  */
-internal fun transferLabel(t: LiveMigrationTransfer): StringResource =
+internal fun transferRowDisplay(
+    t: LiveMigrationTransfer,
+    now: Instant,
+    isLastRowOverall: Boolean,
+): MigrationRowDisplay =
     when {
-        t.isSent && t.minedHeight != null -> stringRes("Confirmed")
-        t.isSent -> stringRes("Sent")
-        t.blocker == MigrationTransferBlocker.EXPIRED -> stringRes("Expired")
-        t.blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR -> stringRes("Needs reschedule")
-        t.blocker == MigrationTransferBlocker.SIGNATURE -> stringRes("Awaiting signature")
-        t.blocker == MigrationTransferBlocker.DEPENDENCIES -> stringRes("Waiting for note split")
-        t.blocker == MigrationTransferBlocker.ANCHOR_BOUNDARY -> stringRes("Waiting for anchor window")
-        t.blocker == MigrationTransferBlocker.SCHEDULE -> stringRes("Scheduled")
-        t.action == MigrationTransferAction.PROVE -> stringRes("Preparing")
-        t.action == MigrationTransferAction.BROADCAST -> stringRes("Sending soon")
-        else -> stringRes("Waiting")
-    }
+        t.blocker == MigrationTransferBlocker.EXPIRED -> {
+            MigrationRowDisplay(stringRes("Expired"), isReadyNow = false)
+        }
 
-/**
- * Raw engine status word for a preparation row — same pure-status mapping as [transferLabel].
- * Preparations are internal note-split plumbing, so the copy is deliberately plain ("Preparing" /
- * "Sending soon" / "Waiting" / "Sent"). No wall-clock, no overdue.
- *
- * DEBUG-only diagnostic suffix as of 2026-08-01 (see [transferLabel] doc) — [preparationSyncLabel]
- * is now the PRIMARY, all-builds label.
- *
- * Top-level and internal for testability.
- */
-internal fun preparationStatusLabel(p: LiveMigrationPreparation): StringResource =
-    when {
-        p.isSent -> stringRes("Sent")
-        p.blocker == MigrationTransferBlocker.SIGNATURE -> stringRes("Awaiting signature")
-        p.blocker == MigrationTransferBlocker.DEPENDENCIES -> stringRes("Waiting for previous split")
-        p.action == MigrationTransferAction.PROVE -> stringRes("Preparing")
-        p.action == MigrationTransferAction.BROADCAST -> stringRes("Sending soon")
-        else -> stringRes("Waiting")
-    }
+        t.blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR -> {
+            MigrationRowDisplay(stringRes("Needs reschedule"), isReadyNow = false)
+        }
 
-/**
- * PRIMARY, all-builds per-row time hint for a preparation row (reintroduced 2026-08-01, decision
- * with Dominik) — a soft, non-deadline-implying estimate, e.g. "~5 min", NEVER styled as a
- * countdown-to-deadline and NEVER triggering "Overdue"/attention-paint (that regression is exactly
- * what commit `33cff6883` fixed; this only changes what's primary vs. debug-suffix).
- *
- * When there IS a meaningful future estimate ([now] is still before [LiveMigrationPreparation.scheduledAt]),
- * this formats the relative time with [formatMigrationDuration]. Otherwise — the row is already
- * proved, or its scheduled moment has passed (the common case for an active/due row) — there is no
- * honest duration left to show, so this falls back to the row's own status-derived phrase (the
- * same text [preparationStatusLabel] renders, e.g. "Preparing" / "Sending soon") instead of the
- * bare, uninformative "proved"/"pending" words that leaked debug jargon in an earlier draft.
- *
- * Top-level and internal for unit-testability.
- */
-internal fun preparationSyncLabel(p: LiveMigrationPreparation, now: Instant): StringResource {
-    val scheduledAt = p.scheduledAt
-    return when {
-        p.isProved || scheduledAt <= now -> {
-            preparationStatusLabel(p)
+        t.blocker == MigrationTransferBlocker.SIGNATURE -> {
+            MigrationRowDisplay(stringRes("Awaiting signature"), isReadyNow = false)
+        }
+
+        t.isSent -> {
+            sentRowDisplay(t.minedAt, now)
+        }
+
+        t.scheduledAt <= now -> {
+            MigrationRowDisplay(stringRes("Ready now"), isReadyNow = true)
         }
 
         else -> {
-            val secondsLeft = (scheduledAt - now).inWholeSeconds
-            stringRes(formatMigrationDuration(secondsLeft))
+            futureRowDisplay(t.scheduledAt, now, isLastRowOverall)
         }
     }
-}
 
 /**
- * PRIMARY, all-builds per-row time hint for a transfer row, mirroring [preparationSyncLabel]: a
- * relative estimate via [formatMigrationDuration] while a meaningful future estimate exists,
- * otherwise the row's own status-derived phrase ([transferLabel]'s output) instead of the bare
- * "proved"/"pending" words. Top-level and internal for unit-testability.
+ * Row state for a preparation (note-split) row — same priority shape as [transferRowDisplay], but
+ * restricted to the blockers the engine actually produces for preparations (`SIGNATURE` /
+ * `DEPENDENCIES` — preparations never surface an attention state or the other blockers), and
+ * "Done" instead of "Sent"/"Confirmed" for the terminal state, matching Figma's "Split Balance"
+ * summary row copy. No mined-time relative label: preparations carry no mined height at all.
  */
-internal fun transferSyncLabel(t: LiveMigrationTransfer, now: Instant): StringResource {
-    val scheduledAt = t.scheduledAt
-    return when {
-        t.isProved || scheduledAt <= now -> {
-            transferLabel(t)
+internal fun preparationRowDisplay(
+    p: LiveMigrationPreparation,
+    now: Instant,
+    isLastRowOverall: Boolean,
+): MigrationRowDisplay =
+    when {
+        p.isSent -> {
+            MigrationRowDisplay(stringRes("Done"), isReadyNow = false)
+        }
+
+        p.blocker == MigrationTransferBlocker.SIGNATURE -> {
+            MigrationRowDisplay(stringRes("Awaiting signature"), isReadyNow = false)
+        }
+
+        p.blocker == MigrationTransferBlocker.DEPENDENCIES -> {
+            MigrationRowDisplay(stringRes("Waiting for previous split"), isReadyNow = false)
+        }
+
+        p.scheduledAt <= now -> {
+            MigrationRowDisplay(stringRes("Ready now"), isReadyNow = true)
         }
 
         else -> {
-            val secondsLeft = (scheduledAt - now).inWholeSeconds
-            stringRes(formatMigrationDuration(secondsLeft))
+            futureRowDisplay(p.scheduledAt, now, isLastRowOverall)
         }
     }
+
+/**
+ * Collapses Figma's "Confirmed"/"Sent" split into a single broadcast state (2026-08-03, decision
+ * with Dominik): [LiveMigrationTransfer] carries no broadcast timestamp, only an optional mined
+ * height/time, so "Sent {relative} ago" is only shown once [minedAt] is known; until then this
+ * reads plain "Sent" rather than inventing a broadcast time the model doesn't have.
+ */
+internal fun sentRowDisplay(minedAt: Instant?, now: Instant): MigrationRowDisplay =
+    if (minedAt != null) {
+        val secondsAgo = (now - minedAt).inWholeSeconds.coerceAtLeast(0L)
+        MigrationRowDisplay(stringRes("Sent ${formatMigrationDuration(secondsAgo)} ago"), isReadyNow = false)
+    } else {
+        MigrationRowDisplay(stringRes("Sent"), isReadyNow = false)
+    }
+
+/**
+ * The not-yet-due relative estimate shared by [transferRowDisplay]/[preparationRowDisplay]: bare
+ * "~X" normally, "in ~X" only for [isLastRowOverall] (Figma's consistent convention across all 4
+ * reference screens).
+ */
+private fun futureRowDisplay(
+    scheduledAt: Instant,
+    now: Instant,
+    isLastRowOverall: Boolean,
+): MigrationRowDisplay {
+    val secondsLeft = (scheduledAt - now).inWholeSeconds
+    val relative = formatMigrationDuration(secondsLeft)
+    val label = if (isLastRowOverall) "in $relative" else relative
+    return MigrationRowDisplay(stringRes(label), isReadyNow = false)
 }

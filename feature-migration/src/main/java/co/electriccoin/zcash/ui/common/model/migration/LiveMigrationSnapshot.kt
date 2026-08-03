@@ -48,6 +48,8 @@ data class LiveMigrationTransfer(
     /** Wall-clock estimate of the ZIP 203 expiry; null = never expires. */
     val expiryAt: Instant?,
     val minedHeight: Long?,
+    /** Wall-clock estimate of [minedHeight]; null until mined. Defaults for existing test call sites. */
+    val minedAt: Instant? = null,
 )
 
 /** One preparation (note-split) transaction, live from the engine. */
@@ -93,6 +95,7 @@ fun MigrationTransferStates.toSnapshot(
                         blocker = t.blocker?.toAppBlocker(),
                         expiryAt = t.expiryHeight?.let { at(it) },
                         minedHeight = t.minedHeight,
+                        minedAt = t.minedHeight?.let { at(it) },
                     )
                 },
         preparations =
