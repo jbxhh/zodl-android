@@ -43,9 +43,6 @@ data class AccountMetadataV3(
     @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("swaps")
     val swaps: SwapsMetadataV3 = SwapsMetadataV3(swapIds = emptyList(), lastUsedAssetHistory = emptySet()),
-    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
-    @SerialName("migrations")
-    val migrations: List<MigrationTxMetadataV3> = emptyList(),
 )
 
 @JsonIgnoreUnknownKeys
@@ -123,28 +120,3 @@ data class MetadataSimpleSwapAssetV3(
     val token: String,
     val chain: String
 )
-
-@JsonIgnoreUnknownKeys
-@Serializable
-data class MigrationTxMetadataV3(
-    @SerialName("txId")
-    val txId: String,
-    @Serializable(MigrationTxKindSerializer::class)
-    @SerialName("kind")
-    val kind: MigrationTxKindV3,
-    @SerialName("lastUpdated")
-    @Serializable(InstantSerializer::class)
-    val lastUpdated: Instant,
-)
-
-/**
- * How a migration-related transaction was produced: a [PREP_SPLIT] note-split preparation, or a
- * real [TRANSFER] crossing. Persisted so the Activity screen can badge these rows; a plain
- * "Migration" label is shown for both today, but the kind is stored for future granularity.
- */
-enum class MigrationTxKindV3(
-    val value: String
-) {
-    PREP_SPLIT("prepSplit"),
-    TRANSFER("transfer"),
-}

@@ -7,5 +7,4 @@
     <string name="ironwood_announcement_body_guide">If you\'d rather not wait, our guide explains how to move funds manually.</string>
     <string name="ironwood_announcement_body_guide_link">our guide</string>
     <string name="ironwood_announcement_primary_button">Go to Zodl</string>
-    <string name="activity_migration_badge">Migration</string>
 </resources>

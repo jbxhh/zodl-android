@@ -30,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -120,10 +119,6 @@ fun Activity(
                             contentDescription = null
                         )
                     }
-                    if (state.isMigration) {
-                        Spacer(Modifier.width(8.dp))
-                        MigrationBadge()
-                    }
                 }
 
                 Spacer(Modifier.height(2.dp))
@@ -151,24 +146,6 @@ fun Activity(
     }
 }
 
-@Composable
-private fun MigrationBadge(modifier: Modifier = Modifier) {
-    Box(
-        modifier =
-            modifier
-                .background(ZashiColors.Tags.surfacePrimary, RoundedCornerShape(6.dp))
-                .border(1.dp, ZashiColors.Tags.surfaceStroke, RoundedCornerShape(6.dp))
-                .padding(horizontal = 6.dp, vertical = 1.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.activity_migration_badge),
-            color = ZashiColors.Text.textPrimary,
-            style = ZashiTypography.textXs,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
 data class ActivityState(
     override val key: Any,
     @field:DrawableRes val bigIcon: Int,
@@ -178,7 +155,6 @@ data class ActivityState(
     val isShielded: Boolean,
     val value: StyledStringResource?,
     val isUnread: Boolean,
-    val isMigration: Boolean = false,
     val onClick: () -> Unit,
     val onDisplayed: () -> Unit
 ) : Itemizable {
