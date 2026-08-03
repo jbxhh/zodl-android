@@ -218,9 +218,10 @@ class ZashiEndpointTextFieldParserTest {
     @Test
     @SmallTest
     fun onionEndpointIsInsecureTest() {
-        val result = ZashiEndpointTextFieldParser.toEndpointOrNull(
-            "zodllo6te2kegjkrqtluiucuymyrpqxrrz37afuzi6f7jcy6rxlpgzqd.onion:9067"
-        )
+        val result =
+            ZashiEndpointTextFieldParser.toEndpointOrNull(
+                "zodllo6te2kegjkrqtluiucuymyrpqxrrz37afuzi6f7jcy6rxlpgzqd.onion:9067"
+            )
         MatcherAssert.assertThat(".onion endpoint should be valid", result, CoreMatchers.notNullValue())
         MatcherAssert.assertThat(
             ".onion host should be parsed",
