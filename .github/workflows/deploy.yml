@@ -220,7 +220,7 @@ jobs:
         run: |
           unzip binaries.zip
       - name: Upload to Play Store
-        timeout-minutes: 10
+        timeout-minutes: 25
         env:
           # TODO [#1033]: Use token-based authorization on Google Play for automated deployment
           # TODO [#1033]: https://github.com/Electric-Coin-Company/zashi-android/issues/1033
