@@ -82,10 +82,18 @@ class MigrationWorker(
             }
         }
 
-        // status is a Flow<Status> — timeout if cold; null synchronizer is non-syncing.
-        // timeout → assume SYNCING → defer (privacy-safe default; production status is a StateFlow and answers immediately).
+        /*
+         * status is a Flow<Status> — timeout if cold; null synchronizer is non-syncing.
+         * timeout → assume SYNCING → defer (privacy-safe default; production status is a StateFlow
+         * and answers immediately). INITIALIZING is skipped rather than read: the synchronizer now
+         * returns from its factory before its own preparation finishes, so its first emission is a
+         * placeholder that says nothing about whether a sync source is live — waiting for the first
+         * real status (and falling back to SYNCING on timeout) keeps the privacy-safe default.
+         */
         val syncing = synchronizerProvider.synchronizer.value?.let { synchronizer ->
-            withTimeoutOrNull(STATUS_READ_TIMEOUT) { synchronizer.status.first() } ?: Synchronizer.Status.SYNCING
+            withTimeoutOrNull(STATUS_READ_TIMEOUT) {
+                synchronizer.status.first { it != Synchronizer.Status.INITIALIZING }
+            } ?: Synchronizer.Status.SYNCING
         } == Synchronizer.Status.SYNCING
 
         val lastActivity = lastNetworkActivity.get()

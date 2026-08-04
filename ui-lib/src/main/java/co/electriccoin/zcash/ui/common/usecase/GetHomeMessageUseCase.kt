@@ -29,11 +29,11 @@ import co.electriccoin.zcash.ui.common.repository.HomeMessageData
 import co.electriccoin.zcash.ui.common.repository.MigrationPlanRepository
 import co.electriccoin.zcash.ui.common.repository.RuntimeMessage
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
-import kotlin.time.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
@@ -45,8 +45,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -136,7 +136,8 @@ class GetHomeMessageUseCase(
                     plan = plan,
                     hasSeenComplete = hasSeenComplete,
                     orchardBalanceZatoshi = orchardBalance?.value ?: 0L,
-                    dustThresholdZatoshi = sdk?.migrationDustThresholdZatoshi() ?: MIGRATION_DUST_THRESHOLD_ZATOSHI,
+                    dustThresholdZatoshi = sdk?.migrationDustThresholdZatoshi()
+                        ?: MIGRATION_DUST_THRESHOLD_ZATOSHI,
                     isBackgroundExecutionAvailable = readyToSendSignal.isBackgroundExecutionAvailable,
                     hasOverdueTransfers = readyToSendSignal.hasOverdueTransfers,
                     attentionKind = attentionKind,
@@ -164,7 +165,8 @@ class GetHomeMessageUseCase(
                 runCatching {
                     ReadyToSendSignal(
                         isBackgroundExecutionAvailable = isBackgroundExecutionAvailableProvider.isAvailable(),
-                        hasOverdueTransfers = getOrchardMigrationSdk()?.hasOverdueTransfers() ?: false,
+                        hasOverdueTransfers = getOrchardMigrationSdk()?.hasOverdueTransfers()
+                            ?: false,
                     )
                 }.onSuccess { emit(it) }
                 delay(READY_TO_SEND_RECHECK_INTERVAL)
@@ -235,7 +237,11 @@ class GetHomeMessageUseCase(
                     val account = inputs.account
                     val walletSnapshot = inputs.walletSnapshot
 
-                    if (walletSnapshot.status in listOf(Synchronizer.Status.STOPPED, Synchronizer.Status.INITIALIZING)) {
+                    if (walletSnapshot.status in listOf(
+                            Synchronizer.Status.STOPPED,
+                            Synchronizer.Status.INITIALIZING
+                        )
+                    ) {
                         return@collect
                     }
 
@@ -244,14 +250,14 @@ class GetHomeMessageUseCase(
                     // act on the migration banner while the wallet is disconnected, erroring, or
                     // still syncing, so those states take priority over it.
                     val message = createDisconnectedMessage(walletSnapshot)
-                            ?: createSynchronizerErrorMessage(walletSnapshot)
-                            ?: createSyncingMessage(
-                                walletSnapshot,
-                                syncMessageShownBefore = firstSyncingMessage != null,
-                                someBalance = (account?.spendableShieldedBalance?.value ?: 0) > 0
-                            )
-                            ?: migrationMessage
-                            ?: shieldFundsMessage
+                        ?: createSynchronizerErrorMessage(walletSnapshot)
+                        ?: createSyncingMessage(
+                            walletSnapshot,
+                            syncMessageShownBefore = firstSyncingMessage != null,
+                            someBalance = (account?.spendableShieldedBalance?.value ?: 0) > 0
+                        )
+                        ?: migrationMessage
+                        ?: shieldFundsMessage
 
                     if (message is HomeMessageData.Syncing && firstSyncingMessage == null) {
                         firstSyncingMessage = message
@@ -288,10 +294,13 @@ class GetHomeMessageUseCase(
     }
 
     private fun prioritizeMessage(message: HomeMessageData?): HomeMessageData? {
-        val isSameMessageUpdate = message?.priority == cache.lastMessage?.priority // same but updated
-        val someMessageBeenShown = cache.lastShownMessage != null // has any message been shown while app in fg
+        val isSameMessageUpdate =
+            message?.priority == cache.lastMessage?.priority // same but updated
+        val someMessageBeenShown =
+            cache.lastShownMessage != null // has any message been shown while app in fg
         val hasNoMessageBeenShownLately = cache.lastMessage == null // has no message been shown
-        val isHigherPriorityMessage = (message?.priority ?: 0) > (cache.lastShownMessage?.priority ?: 0)
+        val isHigherPriorityMessage =
+            (message?.priority ?: 0) > (cache.lastShownMessage?.priority ?: 0)
         val result =
             when {
                 message == null -> {
@@ -339,9 +348,9 @@ class GetHomeMessageUseCase(
     private fun createSynchronizerErrorMessage(walletSnapshot: WalletSnapshot): HomeMessageData.Error? {
         if (walletSnapshot.synchronizerError == null ||
             (
-                walletSnapshot.synchronizerError is SynchronizerError.Processor &&
-                    walletSnapshot.synchronizerError.cause is CancellationException
-            )
+                    walletSnapshot.synchronizerError is SynchronizerError.Processor &&
+                            walletSnapshot.synchronizerError.cause is CancellationException
+                    )
         ) {
             return null
         }
@@ -416,8 +425,8 @@ internal fun migrationMessageFor(
         // falling through lets the ordinary InProgress / no-message branches decide. This mirrors
         // CheckMigrationRecoveryUseCase, which likewise does not route on this reason.
         sdkState is MigrationState.RequiresAttention &&
-            sdkState.reason != AttentionReason.SyncRequiredBeforeNext &&
-            plan != null ->
+                sdkState.reason != AttentionReason.SyncRequiredBeforeNext &&
+                plan != null ->
             HomeMessageData.Migration(
                 plan,
                 attentionKind = attentionKind ?: sdkState.reason.toUiKind(),
@@ -425,10 +434,10 @@ internal fun migrationMessageFor(
             )
 
         sdkState is MigrationState.InProgress &&
-            next != null &&
-            !isBackgroundExecutionAvailable &&
-            !hasOverdueTransfers &&
-            next.scheduledAt <= now ->
+                next != null &&
+                !isBackgroundExecutionAvailable &&
+                !hasOverdueTransfers &&
+                next.scheduledAt <= now ->
             HomeMessageData.Migration(plan, isReadyToSend = true)
 
         sdkState is MigrationState.InProgress -> HomeMessageData.Migration(plan)
@@ -442,9 +451,9 @@ internal fun migrationMessageFor(
         // counts as "complete": there is no further round to run, so the completion/residue screen
         // (lock / migrate-anyway) is the correct destination.
         sdkState == MigrationState.Complete &&
-            plan != null &&
-            !hasSeenComplete &&
-            orchardBalanceZatoshi < MIGRATION_RESIDUAL_MIN_ZATOSHI ->
+                plan != null &&
+                !hasSeenComplete &&
+                orchardBalanceZatoshi < MIGRATION_RESIDUAL_MIN_ZATOSHI ->
             // Stays visible until the user actually engages with it — marked seen in
             // MigrationCompleteVM.onDone(), not just for having been displayed.
             HomeMessageData.Migration(plan, isComplete = true)
@@ -460,8 +469,8 @@ internal fun migrationMessageFor(
         // not spendable_value), so once the user locks the residue this branch stops firing on its
         // own — no separate locked-state signal is needed to make the prompt go away.
         plan == null &&
-            orchardBalanceZatoshi > dustThresholdZatoshi &&
-            orchardBalanceZatoshi < MIGRATION_RESIDUAL_MIN_ZATOSHI ->
+                orchardBalanceZatoshi > dustThresholdZatoshi &&
+                orchardBalanceZatoshi < MIGRATION_RESIDUAL_MIN_ZATOSHI ->
             HomeMessageData.Migration(plan = null, isComplete = true)
 
         // Real Orchard-only balance (not the combined Sapling+Orchard spendableShieldedBalance —
@@ -471,7 +480,9 @@ internal fun migrationMessageFor(
         // Gated on the migratable minimum, not the dust threshold: only fire "Migrate now" when the
         // balance is genuinely migratable (>= MIGRATION_RESIDUAL_MIN_ZATOSHI). Anything in the
         // [dust, min) gap is a residue and was already handled by the RESIDUE branch above.
-        orchardBalanceZatoshi >= MIGRATION_RESIDUAL_MIN_ZATOSHI && plan == null -> HomeMessageData.Migration(null)
+        orchardBalanceZatoshi >= MIGRATION_RESIDUAL_MIN_ZATOSHI && plan == null -> HomeMessageData.Migration(
+            null
+        )
 
         else -> null
     }
