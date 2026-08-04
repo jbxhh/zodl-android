@@ -57,7 +57,6 @@ import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
-import co.electriccoin.zcash.ui.screen.common.PrivacyDisclaimerCard
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIcons
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIconsState
 import org.koin.androidx.compose.koinViewModel
@@ -129,35 +128,20 @@ fun MigrationSetupView(state: MigrationSetupState) {
             Spacer(Modifier.weight(1f))
             when (state.mode) {
                 MigrationMode.IMMEDIATE -> {
-                    PrivacyDisclaimerCard(
-                        body = "All funds transferred in this transaction will be revealed on-chain.",
+                    MigrationDisclaimerRow(
+                        text = "All funds transferred in this transaction will be revealed on-chain.",
+                        tint = ZashiColors.Utility.WarningYellow.utilityOrange700,
                     )
-                    Spacer(Modifier.height(20.dp))
                 }
 
                 MigrationMode.AUTOMATIC -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Icon(
-                            painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_info),
-                            contentDescription = null,
-                            tint = ZashiColors.Text.textTertiary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "The amount of an individual transfer across pools is revealed on-chain.",
-                            style = ZashiTypography.textXs,
-                            fontWeight = FontWeight.Medium,
-                            color = ZashiColors.Text.textTertiary,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    Spacer(Modifier.height(20.dp))
+                    MigrationDisclaimerRow(
+                        text = "The amount of an individual transfer across pools is revealed on-chain.",
+                        tint = ZashiColors.Text.textTertiary,
+                    )
                 }
             }
+            Spacer(Modifier.height(20.dp))
             ZashiButton(
                 state =
                     ButtonState(
@@ -183,6 +167,32 @@ private fun buildMigrationBodyText(zecAmount: String, fiatAmount: String?, empha
         }
         append(" from the Orchard pool to the new Ironwood pool. Your funds are safe.")
     }
+
+@Composable
+private fun MigrationDisclaimerRow(
+    text: String,
+    tint: Color,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_info),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = text,
+            style = ZashiTypography.textXs,
+            fontWeight = FontWeight.Medium,
+            color = tint,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
 
 @Composable
 private fun MigrationModeSelector(
