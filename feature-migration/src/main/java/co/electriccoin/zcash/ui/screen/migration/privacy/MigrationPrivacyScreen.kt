@@ -117,6 +117,7 @@ fun MigrationPrivacyView(
 @Composable
 private fun TorToggleCard(state: CheckboxState) {
     Surface(
+        color = ZashiColors.Surfaces.bgSecondary,
         border = BorderStroke(1.dp, Color.Transparent),
         shape = RoundedCornerShape(ZashiDimensions.Radius.radiusXl),
         onClick = state.onClick,
