@@ -129,5 +129,3 @@ class MoreVM(
 
     private fun onWhatsNewClick() = navigationRouter.forward(WHATS_NEW)
 }
-
-internal const val VOTING_ENABLED = false
