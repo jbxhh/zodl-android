@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cash.z.ecc.android.sdk.model.TransactionPool
 import cash.z.ecc.android.sdk.model.WalletAddress
+import cash.z.ecc.android.sdk.model.Zip318Kind
 import cash.z.ecc.sdk.ANDROID_STATE_FLOW_TIMEOUT
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.R
@@ -450,7 +451,7 @@ class TransactionDetailVM(
         sendTransactionAgain(transaction)
     }
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "NestedBlockDepth")
     private fun createTransactionHeaderState(
         data: DetailedTransactionData,
         info: TransactionDetailInfoState
@@ -484,10 +485,36 @@ class TransactionDetailVM(
 
                     is SendTransaction -> {
                         if (data.metadata.swapMetadata == null) {
-                            when (transaction) {
-                                is SendTransaction.Success -> stringRes(R.string.transaction_sent)
-                                is SendTransaction.Pending -> stringRes(R.string.transaction_sending)
-                                is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
+                            // ZIP 318 migration copy: mirrors ActivityMapper.getTransactionTitle —
+                            // only PREPARATION (note-split) and TRANSFER (the actual pool
+                            // crossing) get their own title, everything else keeps the ordinary
+                            // Sent/Sending copy. See Zip318Kind.TRANSFER doc: librustzcash cannot
+                            // honestly distinguish our own migration transfers from an ordinary
+                            // third-party payment sharing the same shape.
+                            when (transaction.overview.zip318Kind) {
+                                Zip318Kind.PREPARATION -> {
+                                    when (transaction) {
+                                        is SendTransaction.Success -> stringRes(R.string.transaction_noteSplit)
+                                        is SendTransaction.Pending -> stringRes(R.string.transaction_noteSplitting)
+                                        is SendTransaction.Failed -> stringRes(R.string.transaction_noteSplitFailed)
+                                    }
+                                }
+
+                                Zip318Kind.TRANSFER -> {
+                                    when (transaction) {
+                                        is SendTransaction.Success -> stringRes(R.string.transaction_migrated)
+                                        is SendTransaction.Pending -> stringRes(R.string.transaction_migrating)
+                                        is SendTransaction.Failed -> stringRes(R.string.transaction_migrationFailed)
+                                    }
+                                }
+
+                                Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING -> {
+                                    when (transaction) {
+                                        is SendTransaction.Success -> stringRes(R.string.transaction_sent)
+                                        is SendTransaction.Pending -> stringRes(R.string.transaction_sending)
+                                        is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
+                                    }
+                                }
                             }
                         } else {
                             if (transaction is SendTransaction.Failed) {

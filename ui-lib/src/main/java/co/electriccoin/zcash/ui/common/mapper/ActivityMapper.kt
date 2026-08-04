@@ -208,18 +208,19 @@ class ActivityMapper {
 
             is SendTransaction -> {
                 if (data.metadata.swapMetadata == null) {
-                    // ZIP 318 migration copy (2026-08-03): only PREPARATION (note-split) and
+                    // ZIP 318 migration copy (2026-08-04): only PREPARATION (note-split) and
                     // TRANSFER (the actual pool crossing) get their own title — everything else
-                    // (NOT_CLASSIFIED, NONCONFORMING, CROSSING_PAYMENT) keeps the ordinary
-                    // Sent/Sending copy below. Failed keeps the ordinary copy too: a failed
-                    // migration step is rebuilt/retried by the engine, not surfaced to the user
-                    // as a distinct failure state here.
+                    // (NOT_CLASSIFIED, NONCONFORMING) keeps the ordinary Sent/Sending copy below.
+                    // NOTE: librustzcash cannot honestly distinguish our own migration transfers
+                    // from an ordinary third-party payment sharing the same shape (see
+                    // Zip318Kind.TRANSFER doc) — such a payment gets this "Migrated" copy too,
+                    // not a false positive we can currently avoid.
                     when (transaction.overview.zip318Kind) {
                         Zip318Kind.PREPARATION -> {
                             when (transaction) {
                                 is SendTransaction.Success -> stringRes(R.string.transaction_noteSplit)
                                 is SendTransaction.Pending -> stringRes(R.string.transaction_history_noteSplitting)
-                                is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
+                                is SendTransaction.Failed -> stringRes(R.string.transaction_noteSplitFailed)
                             }
                         }
 
@@ -227,11 +228,11 @@ class ActivityMapper {
                             when (transaction) {
                                 is SendTransaction.Success -> stringRes(R.string.transaction_migrated)
                                 is SendTransaction.Pending -> stringRes(R.string.transaction_history_migrating)
-                                is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
+                                is SendTransaction.Failed -> stringRes(R.string.transaction_migrationFailed)
                             }
                         }
 
-                        Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING, Zip318Kind.CROSSING_PAYMENT -> {
+                        Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING -> {
                             when (transaction) {
                                 is SendTransaction.Success -> stringRes(R.string.transaction_sent)
                                 is SendTransaction.Pending -> stringRes(R.string.transaction_history_sending)
