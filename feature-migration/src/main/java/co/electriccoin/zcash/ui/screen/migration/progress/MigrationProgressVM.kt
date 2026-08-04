@@ -22,9 +22,9 @@ import co.electriccoin.zcash.ui.common.model.mutableLce
 import co.electriccoin.zcash.ui.common.model.stateIn
 import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
+import co.electriccoin.zcash.ui.common.usecase.BalancePools
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
-import co.electriccoin.zcash.ui.common.usecase.GetIronwoodBalanceUseCase
-import co.electriccoin.zcash.ui.common.usecase.GetOrchardBalanceUseCase
+import co.electriccoin.zcash.ui.common.usecase.GetBalancePoolsUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
@@ -49,8 +49,7 @@ class MigrationProgressVM(
     private val navigationRouter: NavigationRouter,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val errorStateMapper: ErrorMapperUseCase,
-    private val getOrchardBalance: GetOrchardBalanceUseCase,
-    private val getIronwoodBalance: GetIronwoodBalanceUseCase,
+    private val getBalancePools: GetBalancePoolsUseCase,
 ) : ViewModel() {
     private val sendLce = mutableLce<Unit>()
 
@@ -58,9 +57,8 @@ class MigrationProgressVM(
         combine(
             exchangeRateRepository.state,
             liveTransferStatesFlow(),
-            getOrchardBalance.observe(),
-            getIronwoodBalance.observe(),
-        ) { rate, liveStates, orchardBalance, ironwoodBalance ->
+            getBalancePools.observe(),
+        ) { rate, liveStates, balancePools ->
             // Everything on this screen derives LIVE from the engine's persisted states — no plan
             // cache to diverge, and no app-side "overdue"/countdown: each row renders purely from
             // the engine's per-transaction status (decision with Dominik 2026-07-31). The measured
@@ -72,7 +70,7 @@ class MigrationProgressVM(
                     estimatedTip = if (est >= 0) est else liveStates.tipHeight,
                     secondsPerBlock = secondsPerBlock,
                     nowEpochSeconds = Clock.System.now().epochSeconds,
-                )?.let { createState(it, rate, orchardBalance, ironwoodBalance) }
+                )?.let { createState(it, rate, balancePools) }
         }.withLce(sendLce, errorStateMapper::mapToState)
             .stateIn(this)
 
@@ -94,8 +92,7 @@ class MigrationProgressVM(
     private fun createState(
         snapshot: LiveMigrationSnapshot,
         exchangeRateState: ExchangeRateState,
-        orchardBalance: Zatoshi?,
-        ironwoodBalance: Zatoshi?,
+        balancePools: BalancePools?,
     ): MigrationProgressState {
         val now = Clock.System.now()
         val subtitle = migrationProgressSubtitle(snapshot, now)
@@ -110,13 +107,21 @@ class MigrationProgressVM(
             // Figma "PR App Designs Q3'26" node 3480:7638: a balance-tracker card showing the
             // live Orchard (source) → Ironwood (destination) split, so the user sees the
             // migration's real-time progress at a glance, not just the transfer list below it.
+            //
+            // Reads GetBalancePoolsUseCase (per-pool `.total`), NOT GetOrchardBalanceUseCase's
+            // `.available` — `.available` deliberately excludes notes locked/pending as part of
+            // the migration's own scheduled-but-not-yet-broadcast transfers (WalletBalance's
+            // changePending/valuePending), so during an active migration it under-reports how
+            // much value still physically sits in Orchard by the full locked amount (observed
+            // live: a 10 ZEC balance showing as "1.000" while 9 ZEC sat locked in the schedule).
+            // This card's whole purpose is showing the TOTAL pool split, not spendable-right-now.
             balanceTracker =
-                if (orchardBalance != null && ironwoodBalance != null) {
+                if (balancePools != null) {
                     MigrationProgressBalanceTracker(
-                        orchardAmount = stringRes(orchardBalance),
-                        orchardFiatAmount = fiatAmount(orchardBalance, exchangeRateState),
-                        ironwoodAmount = stringRes(ironwoodBalance),
-                        ironwoodFiatAmount = fiatAmount(ironwoodBalance, exchangeRateState),
+                        orchardAmount = stringRes(balancePools.orchard),
+                        orchardFiatAmount = fiatAmount(balancePools.orchard, exchangeRateState),
+                        ironwoodAmount = stringRes(balancePools.ironwood),
+                        ironwoodFiatAmount = fiatAmount(balancePools.ironwood, exchangeRateState),
                     )
                 } else {
                     null
