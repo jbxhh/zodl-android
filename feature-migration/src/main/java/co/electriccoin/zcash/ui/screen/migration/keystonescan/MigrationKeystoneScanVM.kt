@@ -166,6 +166,17 @@ class MigrationKeystoneScanVM(
                 // More rounds remain — carry the accumulated signatures forward and hand off to a
                 // fresh sign-screen instance for the next round. replace() keeps the back stack at
                 // a constant depth regardless of how many rounds a large migration needs.
+                //
+                // isProcessing deliberately stays true from here on: the Keystone device doesn't
+                // rotate/clear its response QR after being scanned, and ImageAnalysis keeps
+                // re-decoding that still-visible frame every frame. navigationRouter.replace()
+                // isn't synchronous, so without this guard a re-entrant onScanned during the
+                // transition would re-fetch `pending` with roundIndex already advanced past this
+                // round, hand keystoneBatchRoundSlice an out-of-range index, and silently apply the
+                // real signature against an all-empty slice — or on the last round, crash Rust's
+                // apply_batch_signatures with "expected 0" for a response that still carries one.
+                // This VM instance is being navigated away from either way, so it should never
+                // process another scan.
                 pendingKeystonePczts.set(
                     accountKeyId,
                     pending.copy(
@@ -175,7 +186,6 @@ class MigrationKeystoneScanVM(
                         accumulatedTransferSigned = accumulatedTransferSigned,
                     )
                 )
-                isProcessing = false
                 migrationLog(
                     "KeystoneScan: round ${pending.roundIndex} done — handing off to round ${pending.roundIndex + 1} of $totalRounds"
                 )
@@ -187,7 +197,10 @@ class MigrationKeystoneScanVM(
             // round's slice) and hand off to MigrationScheduledVM, which performs the actual
             // network/JNI work (Tor submit, schedule storage, finalize) while rendering its own
             // loading state — this screen has no more feedback to give once scanning is done.
-            isProcessing = false
+            //
+            // isProcessing deliberately stays true — see the comment above the other hand-off
+            // branch; the same still-visible-QR re-entrancy is what produced the "expected 0"
+            // crash this guard exists to prevent.
             pendingKeystonePczts.set(
                 accountKeyId,
                 pending.copy(

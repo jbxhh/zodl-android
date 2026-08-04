@@ -20,6 +20,7 @@ import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.screen.migration.scheduled.MigrationScheduledArgs
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -151,6 +152,34 @@ class MigrationKeystoneScanVMTest {
             advanceUntilIdle()
 
             assertNull(vm.failureSheet.value)
+            assertEquals(listOf<Any>(MigrationScheduledArgs), router.forwardedRoutes)
+        }
+
+    @Test
+    fun reEntrantScanAfterCompletedRoundIsIgnored() =
+        runTest {
+            // The Keystone device doesn't rotate/clear its response QR after being scanned, and
+            // the camera's ImageAnalysis keeps re-decoding that still-visible frame. A round that
+            // already completed successfully must not process a second identical scan — see the
+            // isProcessing comment in MigrationKeystoneScanVM's hand-off branches for why: the
+            // real-world failure this guards against crashed Rust's apply_batch_signatures with
+            // "expected 0" when a stale, past-the-end roundIndex produced an all-empty slice.
+            val sdk = fakeSdk(firmwareVersion = byteArrayOf(3, 0, 2))
+            val pendingSchedule =
+                PendingMigrationScheduleRepositoryImpl()
+                    .apply { set(testAccountKeyId, schedule()) }
+            val pendingPczts =
+                PendingKeystoneMigrationPcztsRepositoryImpl()
+                    .apply { set(testAccountKeyId, pending(roundIndex = 0)) }
+            val router = FakeNavigationRouter()
+            val vm = vm(sdk, pendingSchedule, pendingPczts, router)
+
+            vm.onScanned("frame")
+            advanceUntilIdle()
+            vm.onScanned("frame")
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { sdk.applyKeystoneBatchSignatures(any(), any(), any()) }
             assertEquals(listOf<Any>(MigrationScheduledArgs), router.forwardedRoutes)
         }
 
