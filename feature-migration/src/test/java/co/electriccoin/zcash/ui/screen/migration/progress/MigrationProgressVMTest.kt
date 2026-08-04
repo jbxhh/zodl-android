@@ -1,5 +1,6 @@
 package co.electriccoin.zcash.ui.screen.migration.progress
 
+import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationPreparation
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationTransfer
@@ -241,6 +242,57 @@ class MigrationProgressVMTest {
         assertFalse(isAttention(MigrationTransferBlocker.SIGNATURE))
         assertFalse(isAttention(MigrationTransferBlocker.SCHEDULE))
         assertFalse(isAttention(null))
+    }
+
+    // ── ironwoodCrossedZatoshi / orchardRemainingZatoshi: plan-derived, always conserve total ──
+
+    @Test
+    fun ironwoodCrossedZatoshi_counts_only_mined_transfers() {
+        val transfers =
+            listOf(
+                // Mined: landed in Ironwood.
+                transfer(index = 0, id = 1, isSent = true, minedAt = now, amountZatoshi = 50_000_000L),
+                // Broadcast but not yet mined: NOT counted — could still expire back to Orchard.
+                transfer(index = 1, id = 2, isSent = true, minedAt = null, amountZatoshi = 20_000_000L),
+                // Merely proved, not even broadcast yet: NOT counted.
+                transfer(index = 2, id = 3, isSent = false, amountZatoshi = 5_000_000L),
+            )
+        assertEquals(50_000_000L, ironwoodCrossedZatoshi(transfers))
+    }
+
+    @Test
+    fun orchardRemainingZatoshi_and_ironwoodCrossedZatoshi_always_sum_to_the_total() {
+        // Pure conservation, independent of any wallet-balance read — this is the property the
+        // earlier wallet-balance-based version of this card violated (observed live: Orchard
+        // 9.5056 + Ironwood 7.740 = 17.25 ZEC shown against a real ~10 ZEC balance, from
+        // GetBalancePoolsUseCase staleness/double-counting).
+        val transfers =
+            listOf(
+                transfer(index = 0, id = 1, isSent = true, minedAt = now, amountZatoshi = 50_000_000L),
+                transfer(index = 1, id = 2, isSent = true, minedAt = null, amountZatoshi = 20_000_000L),
+                transfer(index = 2, id = 3, isSent = false, amountZatoshi = 5_000_000L),
+            )
+        val total = transfers.sumOf { it.amountZatoshi }
+        val orchard = orchardRemainingZatoshi(total, transfers)
+        val ironwood = ironwoodCrossedZatoshi(transfers)
+        assertEquals(Zatoshi(total), orchard + Zatoshi(ironwood))
+    }
+
+    @Test
+    fun orchardRemainingZatoshi_nothing_mined_equals_the_full_total() {
+        val transfers = listOf(transfer(index = 0, id = 1, isSent = false, amountZatoshi = 100_000_000L))
+        assertEquals(Zatoshi(100_000_000L), orchardRemainingZatoshi(100_000_000L, transfers))
+    }
+
+    @Test
+    fun orchardRemainingZatoshi_everything_mined_is_zero() {
+        val transfers = listOf(transfer(index = 0, id = 1, isSent = true, minedAt = now, amountZatoshi = 100_000_000L))
+        assertEquals(Zatoshi(0L), orchardRemainingZatoshi(100_000_000L, transfers))
+    }
+
+    @Test
+    fun orchardRemainingZatoshi_no_transfers_is_zero() {
+        assertEquals(Zatoshi(0L), orchardRemainingZatoshi(0L, emptyList()))
     }
 
     // ── migrationProgressSubtitle: header static-span vs. remaining-time countdown ───────────

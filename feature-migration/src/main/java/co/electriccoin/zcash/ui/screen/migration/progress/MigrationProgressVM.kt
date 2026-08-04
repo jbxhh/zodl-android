@@ -22,9 +22,7 @@ import co.electriccoin.zcash.ui.common.model.mutableLce
 import co.electriccoin.zcash.ui.common.model.stateIn
 import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
-import co.electriccoin.zcash.ui.common.usecase.BalancePools
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
-import co.electriccoin.zcash.ui.common.usecase.GetBalancePoolsUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
@@ -49,7 +47,6 @@ class MigrationProgressVM(
     private val navigationRouter: NavigationRouter,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val errorStateMapper: ErrorMapperUseCase,
-    private val getBalancePools: GetBalancePoolsUseCase,
 ) : ViewModel() {
     private val sendLce = mutableLce<Unit>()
 
@@ -57,8 +54,7 @@ class MigrationProgressVM(
         combine(
             exchangeRateRepository.state,
             liveTransferStatesFlow(),
-            getBalancePools.observe(),
-        ) { rate, liveStates, balancePools ->
+        ) { rate, liveStates ->
             // Everything on this screen derives LIVE from the engine's persisted states — no plan
             // cache to diverge, and no app-side "overdue"/countdown: each row renders purely from
             // the engine's per-transaction status (decision with Dominik 2026-07-31). The measured
@@ -70,7 +66,7 @@ class MigrationProgressVM(
                     estimatedTip = if (est >= 0) est else liveStates.tipHeight,
                     secondsPerBlock = secondsPerBlock,
                     nowEpochSeconds = Clock.System.now().epochSeconds,
-                )?.let { createState(it, rate, balancePools) }
+                )?.let { createState(it, rate) }
         }.withLce(sendLce, errorStateMapper::mapToState)
             .stateIn(this)
 
@@ -92,7 +88,6 @@ class MigrationProgressVM(
     private fun createState(
         snapshot: LiveMigrationSnapshot,
         exchangeRateState: ExchangeRateState,
-        balancePools: BalancePools?,
     ): MigrationProgressState {
         val now = Clock.System.now()
         val subtitle = migrationProgressSubtitle(snapshot, now)
@@ -108,23 +103,31 @@ class MigrationProgressVM(
             // live Orchard (source) → Ironwood (destination) split, so the user sees the
             // migration's real-time progress at a glance, not just the transfer list below it.
             //
-            // Reads GetBalancePoolsUseCase (per-pool `.total`), NOT GetOrchardBalanceUseCase's
-            // `.available` — `.available` deliberately excludes notes locked/pending as part of
-            // the migration's own scheduled-but-not-yet-broadcast transfers (WalletBalance's
-            // changePending/valuePending), so during an active migration it under-reports how
-            // much value still physically sits in Orchard by the full locked amount (observed
-            // live: a 10 ZEC balance showing as "1.000" while 9 ZEC sat locked in the schedule).
-            // This card's whole purpose is showing the TOTAL pool split, not spendable-right-now.
+            // Derived ENTIRELY from the engine's own live transfer states (same source as the row
+            // list below, already fetched — no extra SDK call), not from GetBalancePoolsUseCase's
+            // wallet balance. Two reasons wallet balance doesn't work for this card:
+            // (1) `.total` excludes notes locked/spent by the migration's OWN not-yet-mined
+            // transfers, so it under-reports how much value still physically sits in Orchard —
+            // those notes are still ON CHAIN until the transfer actually mines.
+            // (2) `synchronizer.walletBalances` is driven by the same Slipstream engine polling
+            // loop as the Activity list, which the migration write path never pokes via
+            // `notifyTxChange()` — so it can be STALE by an unpredictable amount, sometimes already
+            // reflecting a lock and sometimes not. Combining it with a live-computed adjustment
+            // (as an earlier version of this fix did) double-counted unpredictably depending on
+            // that staleness (observed live: Orchard 9.5056 + Ironwood 7.740 = 17.25 ZEC shown
+            // against a real ~10 ZEC balance).
+            // ironwoodZatoshi + orchardRemainingZatoshi always sums to exactly totalZatoshi — pure
+            // conservation, no dependency on any wallet-balance read at all.
             balanceTracker =
-                if (balancePools != null) {
+                run {
+                    val ironwood = Zatoshi(ironwoodCrossedZatoshi(snapshot.transfers))
+                    val orchardRemaining = orchardRemainingZatoshi(totalZatoshi, snapshot.transfers)
                     MigrationProgressBalanceTracker(
-                        orchardAmount = stringRes(balancePools.orchard),
-                        orchardFiatAmount = fiatAmount(balancePools.orchard, exchangeRateState),
-                        ironwoodAmount = stringRes(balancePools.ironwood),
-                        ironwoodFiatAmount = fiatAmount(balancePools.ironwood, exchangeRateState),
+                        orchardAmount = stringRes(orchardRemaining),
+                        orchardFiatAmount = fiatAmount(orchardRemaining, exchangeRateState),
+                        ironwoodAmount = stringRes(ironwood),
+                        ironwoodFiatAmount = fiatAmount(ironwood, exchangeRateState),
                     )
-                } else {
-                    null
                 },
             preparations =
                 if (snapshot.preparations.size > 1) {
@@ -261,6 +264,33 @@ class MigrationProgressVM(
         private val OVERDUE_RECHECK_INTERVAL = 15.seconds
     }
 }
+
+/**
+ * How much of the migration's total crossing amount has actually landed in Ironwood: the sum of
+ * every transfer's [LiveMigrationTransfer.amountZatoshi] whose [LiveMigrationTransfer.minedHeight]
+ * is set. Only a MINED transfer counts as landed — a merely proved or even broadcast-but-unmined
+ * transfer's crossing could still expire and its value return to Orchard, so `isSent` alone is not
+ * enough here (unlike the row labels, which treat "Sent" as the terminal display state).
+ *
+ * Top-level and internal for unit-testability without Android, Koin, or a live SDK/ViewModel.
+ */
+internal fun ironwoodCrossedZatoshi(transfers: List<LiveMigrationTransfer>): Long =
+    transfers.filter { it.minedHeight != null }.sumOf { it.amountZatoshi }
+
+/**
+ * The true chain-confirmed remaining Orchard balance for the balance-tracker card: [totalZatoshi]
+ * (the migration's full committed crossing amount) minus whatever has actually mined into Ironwood
+ * ([ironwoodCrossedZatoshi]). A not-yet-mined transfer's notes are still on chain in Orchard —
+ * merely proving or even broadcasting a transfer doesn't move the value until it mines — so this
+ * always sums with [ironwoodCrossedZatoshi] to exactly [totalZatoshi]: pure conservation, no
+ * dependency on any (potentially stale) wallet-balance read.
+ *
+ * Top-level and internal for unit-testability without Android, Koin, or a live SDK/ViewModel.
+ */
+internal fun orchardRemainingZatoshi(
+    totalZatoshi: Long,
+    transfers: List<LiveMigrationTransfer>,
+): Zatoshi = Zatoshi(totalZatoshi - ironwoodCrossedZatoshi(transfers))
 
 /**
  * Header subtitle for the Migration Progress screen.
