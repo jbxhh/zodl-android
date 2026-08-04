@@ -2,12 +2,10 @@ package co.electriccoin.zcash.ui.common.usecase
 
 import cash.z.ecc.android.sdk.MigrationSchedule
 import co.electriccoin.zcash.migration.migrationLog
-import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
 import co.electriccoin.zcash.ui.common.model.migration.estimatedSecondsBetweenHeights
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
-import co.electriccoin.zcash.ui.screen.migration.scheduled.MigrationScheduledArgs
 import co.electriccoin.zcash.work.MigrationLiveDriver
 import co.electriccoin.zcash.work.MigrationScheduler
 import kotlin.time.Duration
@@ -15,9 +13,11 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Persists a signed [MigrationSchedule] and schedules the background worker for its first
- * transfer, then navigates to [MigrationScheduledArgs]. Shared by both the hot-wallet confirm path
- * (MigrationReviewVM) and the post-Keystone-scan path (MigrationKeystoneScanVM) so the scheduling
- * logic isn't duplicated.
+ * transfer. Shared by both the hot-wallet confirm path (MigrationReviewVM, which navigates to
+ * MigrationScheduledArgs itself right after calling this) and the post-Keystone-scan path
+ * (MigrationScheduledVM, reached already-navigated in its own loading state) so the scheduling
+ * logic isn't duplicated. Deliberately does NOT navigate — a caller reached this from within the
+ * destination it would navigate to would otherwise self-navigate redundantly.
  *
  * Background delivery is scheduled unconditionally, regardless of whether the user granted the
  * Battery-optimization-exemption permission — declining it only makes background execution less
@@ -29,7 +29,6 @@ import kotlin.time.Duration.Companion.seconds
  */
 class FinalizeMigrationScheduleUseCase(
     private val migrationScheduler: MigrationScheduler,
-    private val navigationRouter: NavigationRouter,
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
     private val synchronizerProvider: SynchronizerProvider,
@@ -57,7 +56,6 @@ class FinalizeMigrationScheduleUseCase(
         // restart, the exact mechanism that exists to prevent a permanent AnchorNotFound on the
         // plan's first bucket.
         migrationLiveDriver.startIfNotRunning(accountKeyId)
-        navigationRouter.forward(MigrationScheduledArgs)
     }
 
     /**

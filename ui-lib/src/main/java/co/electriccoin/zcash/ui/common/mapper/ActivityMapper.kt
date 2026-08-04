@@ -215,26 +215,29 @@ class ActivityMapper {
                     // migration step is rebuilt/retried by the engine, not surfaced to the user
                     // as a distinct failure state here.
                     when (transaction.overview.zip318Kind) {
-                        Zip318Kind.PREPARATION ->
+                        Zip318Kind.PREPARATION -> {
                             when (transaction) {
                                 is SendTransaction.Success -> stringRes(R.string.transaction_noteSplit)
                                 is SendTransaction.Pending -> stringRes(R.string.transaction_history_noteSplitting)
                                 is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
                             }
+                        }
 
-                        Zip318Kind.TRANSFER ->
+                        Zip318Kind.TRANSFER -> {
                             when (transaction) {
                                 is SendTransaction.Success -> stringRes(R.string.transaction_migrated)
                                 is SendTransaction.Pending -> stringRes(R.string.transaction_history_migrating)
                                 is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
                             }
+                        }
 
-                        Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING, Zip318Kind.CROSSING_PAYMENT ->
+                        Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING, Zip318Kind.CROSSING_PAYMENT -> {
                             when (transaction) {
                                 is SendTransaction.Success -> stringRes(R.string.transaction_sent)
                                 is SendTransaction.Pending -> stringRes(R.string.transaction_history_sending)
                                 is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
                             }
+                        }
                     }
                 } else {
                     if (transaction is SendTransaction.Failed) {

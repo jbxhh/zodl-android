@@ -29,6 +29,7 @@ import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.GradientBgScaffold
 import co.electriccoin.zcash.ui.design.component.ZashiButton
+import co.electriccoin.zcash.ui.design.component.ZashiTextOrShimmer
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
@@ -38,6 +39,7 @@ import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
+import co.electriccoin.zcash.ui.screen.migration.component.MigrationFailureBottomSheet
 import org.koin.androidx.compose.koinViewModel
 
 data class MigrationScheduledState(
@@ -52,7 +54,107 @@ data class MigrationScheduledState(
 fun MigrationScheduledScreen() {
     val vm = koinViewModel<MigrationScheduledVM>()
     val state by vm.state.collectAsStateWithLifecycle()
-    LceRenderer(state) { MigrationScheduledView(it) }
+    val isFinalizing by vm.isFinalizing.collectAsStateWithLifecycle()
+    val failureSheet by vm.failureSheet.collectAsStateWithLifecycle()
+    if (isFinalizing) {
+        MigrationSchedulingView()
+    } else {
+        LceRenderer(state) { MigrationScheduledView(it) }
+    }
+    MigrationFailureBottomSheet(failureSheet)
+}
+
+// Figma node 5058:10456 — shown while a Keystone-signed batch is still being stored and
+// finalized (Tor submit, schedule commit). Same layout as [MigrationScheduledView]'s summary
+// card, but every value is a shimmer placeholder since the schedule isn't committed yet.
+@Composable
+private fun MigrationSchedulingView() {
+    GradientBgScaffold(
+        startColor = ZashiColors.Utility.SuccessGreen.utilitySuccess100,
+        endColor = ZashiColors.Surfaces.bgPrimary,
+    ) { padding ->
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .scaffoldPadding(padding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_fist_punch),
+                    contentDescription = null,
+                    modifier = Modifier.size(120.dp),
+                )
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    text = "Scheduling...",
+                    style = ZashiTypography.header5,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ZashiColors.Text.textPrimary,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Your ZEC migration schedule is getting confirmed.",
+                    style = ZashiTypography.textSm,
+                    color = ZashiColors.Text.textTertiary,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(24.dp))
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(ZashiColors.Surfaces.bgSecondary)
+                            .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    SkeletonSummaryRow(label = "Total to transfer")
+                    SkeletonSummaryRow(label = "Pool")
+                    SkeletonSummaryRow(label = "Transfers")
+                    SkeletonSummaryRow(label = "Duration")
+                }
+            }
+            ZashiButton(
+                state =
+                    ButtonState(
+                        text = stringRes("Scheduling..."),
+                        isEnabled = false,
+                        isLoading = true,
+                        onClick = {},
+                    ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SkeletonSummaryRow(label: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = ZashiTypography.textSm,
+            color = ZashiColors.Text.textTertiary,
+            modifier = Modifier.weight(1f),
+        )
+        ZashiTextOrShimmer(
+            text = null as String?,
+            shimmerWidth = 64.dp,
+            style = ZashiTypography.textSm,
+            fontWeight = FontWeight.Medium,
+        )
+    }
 }
 
 @Composable

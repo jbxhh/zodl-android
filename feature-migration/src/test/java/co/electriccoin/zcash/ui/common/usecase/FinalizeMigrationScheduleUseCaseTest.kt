@@ -3,7 +3,6 @@ package co.electriccoin.zcash.ui.common.usecase
 import cash.z.ecc.android.sdk.MigrationSchedule
 import cash.z.ecc.android.sdk.PreparationStep
 import cash.z.ecc.android.sdk.TransferProposal
-import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
 import co.electriccoin.zcash.work.MigrationScheduler
@@ -35,7 +34,6 @@ class FinalizeMigrationScheduleUseCaseTest {
     private fun useCase(scheduler: MigrationScheduler = mockk(relaxed = true)) =
         FinalizeMigrationScheduleUseCase(
             migrationScheduler = scheduler,
-            navigationRouter = mockk<NavigationRouter>(relaxed = true),
             getOrchardMigrationSdk = mockk<GetOrchardMigrationSdkUseCase>(relaxed = true),
             getSelectedWalletAccount =
                 mockk<GetSelectedWalletAccountUseCase> {

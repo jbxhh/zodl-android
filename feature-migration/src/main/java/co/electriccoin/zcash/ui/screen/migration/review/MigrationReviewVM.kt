@@ -50,6 +50,7 @@ import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
 import co.electriccoin.zcash.ui.screen.migration.keystonesign.MigrationKeystoneSignArgs
+import co.electriccoin.zcash.ui.screen.migration.scheduled.MigrationScheduledArgs
 import co.electriccoin.zcash.ui.screen.signkeystonetransaction.SignKeystoneTransactionArgs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -349,6 +350,7 @@ class MigrationReviewVM(
         try {
             sdk.signAndStoreMigrationSchedule(scheduleToSign, zashiSpendingKeyDataSource.getZashiSpendingKey())
             finalizeMigrationSchedule(scheduleToSign, args.mode)
+            navigationRouter.forward(MigrationScheduledArgs)
         } catch (e: RuntimeException) {
             val retryable =
                 e.message?.contains("StalePlan") == true ||
@@ -366,6 +368,7 @@ class MigrationReviewVM(
             val fresh = sdk.proposeMigrationTransfers()
             sdk.signAndStoreMigrationSchedule(fresh, zashiSpendingKeyDataSource.getZashiSpendingKey())
             finalizeMigrationSchedule(fresh, args.mode)
+            navigationRouter.forward(MigrationScheduledArgs)
         }
     }
 
