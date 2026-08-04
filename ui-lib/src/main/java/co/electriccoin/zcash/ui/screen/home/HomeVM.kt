@@ -9,7 +9,6 @@ import co.electriccoin.zcash.ui.common.model.migration.MigrationAttentionKind
 import co.electriccoin.zcash.ui.common.model.migration.MigrationPlan
 import co.electriccoin.zcash.ui.common.model.voting.VotingRound
 import co.electriccoin.zcash.ui.common.model.voting.VotingSession
-import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageProvider
 import co.electriccoin.zcash.ui.common.provider.ShieldFundsInfoProvider
 import co.electriccoin.zcash.ui.common.repository.HomeMessageData
 import co.electriccoin.zcash.ui.common.repository.VotingApiRepository
@@ -18,7 +17,6 @@ import co.electriccoin.zcash.ui.common.repository.VotingRecoveryRepository
 import co.electriccoin.zcash.ui.common.repository.VotingRecoverySnapshot
 import co.electriccoin.zcash.ui.common.repository.VotingSessionStore
 import co.electriccoin.zcash.ui.common.repository.toVotingAccountScopeId
-import co.electriccoin.zcash.ui.common.usecase.CheckMigrationRecoveryUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetHomeMessageUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.usecase.IsRestoreSuccessDialogVisibleUseCase
@@ -36,18 +34,14 @@ import co.electriccoin.zcash.ui.screen.error.ErrorArgs
 import co.electriccoin.zcash.ui.screen.error.NavigateToErrorUseCase
 import co.electriccoin.zcash.ui.screen.exchangerate.optin.ExchangeRateOptInArgs
 import co.electriccoin.zcash.ui.screen.home.backup.SeedBackupInfo
-import co.electriccoin.zcash.ui.screen.home.migration.MigrationBannerPhase
-import co.electriccoin.zcash.ui.screen.home.migration.MigrationMessageState
-import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteArgs
-import co.electriccoin.zcash.ui.screen.migration.invalid.MigrationTransferInvalidArgs
-import co.electriccoin.zcash.ui.screen.migration.progress.MigrationProgressArgs
-import co.electriccoin.zcash.ui.screen.migration.setup.MigrationSetupArgs
 import co.electriccoin.zcash.ui.screen.home.backup.WalletBackupDetail
 import co.electriccoin.zcash.ui.screen.home.backup.WalletBackupMessageState
 import co.electriccoin.zcash.ui.screen.home.currency.EnableCurrencyConversionMessageState
 import co.electriccoin.zcash.ui.screen.home.disconnected.WalletDisconnectedInfo
 import co.electriccoin.zcash.ui.screen.home.disconnected.WalletDisconnectedMessageState
 import co.electriccoin.zcash.ui.screen.home.error.WalletErrorMessageState
+import co.electriccoin.zcash.ui.screen.home.migration.MigrationBannerPhase
+import co.electriccoin.zcash.ui.screen.home.migration.MigrationMessageState
 import co.electriccoin.zcash.ui.screen.home.reporting.CrashReportMessageState
 import co.electriccoin.zcash.ui.screen.home.reporting.CrashReportOptIn
 import co.electriccoin.zcash.ui.screen.home.restoring.WalletRestoringInfo
@@ -62,6 +56,10 @@ import co.electriccoin.zcash.ui.screen.home.updating.WalletUpdatingInfo
 import co.electriccoin.zcash.ui.screen.home.updating.WalletUpdatingMessageState
 import co.electriccoin.zcash.ui.screen.keepopen.KeepOpenArgs
 import co.electriccoin.zcash.ui.screen.keepopen.KeepOpenFlow
+import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteArgs
+import co.electriccoin.zcash.ui.screen.migration.invalid.MigrationTransferInvalidArgs
+import co.electriccoin.zcash.ui.screen.migration.progress.MigrationProgressArgs
+import co.electriccoin.zcash.ui.screen.migration.setup.MigrationSetupArgs
 import co.electriccoin.zcash.ui.screen.more.VOTING_ENABLED
 import co.electriccoin.zcash.ui.screen.tor.optin.TorOptInArgs
 import co.electriccoin.zcash.ui.screen.voting.confirmsubmission.VoteConfirmSubmissionArgs
@@ -102,8 +100,6 @@ class HomeVM(
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
     private val refreshActiveVotingSession: RefreshActiveVotingSessionUseCase,
     private val votingShareTrackingScheduler: VotingShareTrackingScheduler,
-    private val checkMigrationRecovery: CheckMigrationRecoveryUseCase,
-    private val hasSeenMigrationCompleteStorageProvider: HasSeenMigrationCompleteStorageProvider,
 ) : ViewModel() {
     private var hasSyncErrorBeenShown = false
     private var hasRestoreSuccessBeenShown = false
@@ -149,11 +145,8 @@ class HomeVM(
 
     val state: StateFlow<HomeState?> =
         messageState
-            .map { messageState ->
-                createState(
-                    messageState = messageState
-                )
-            }.stateIn(
+            .map { createState(it) }
+            .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(ANDROID_STATE_FLOW_TIMEOUT),
                 initialValue = null
@@ -403,14 +396,20 @@ class HomeVM(
                 }
                 // See MigrationKeystoneRound's kdoc — only ever non-null for a Keystone account's
                 // plan, prefixed onto the in-progress subtitle when present.
-                val roundPrefix = plan?.keystoneRound?.let { "Round ${it.current} of ${it.total} · " }.orEmpty()
+                val roundPrefix =
+                    plan?.keystoneRound?.let { "Round ${it.current} of ${it.total} · " }.orEmpty()
                 // Spec §6.2/§6.3 — takes priority over the ordinary phases below: a plan needing
                 // re-confirmation is more actionable than its last-known progress/completion state.
                 // Title carries the exact required copy ("Update migration plan." / "Transfer 3–5
                 // expired.") since that IS the home message per spec, not just a phase label.
                 val (phase, title, subtitle) = when (data.attentionKind) {
                     MigrationAttentionKind.PLAN_UPDATE ->
-                        Triple(MigrationBannerPhase.ATTENTION, "Update migration plan", "Tap to review the details")
+                        Triple(
+                            MigrationBannerPhase.ATTENTION,
+                            "Update migration plan",
+                            "Tap to review the details"
+                        )
+
                     MigrationAttentionKind.TRANSFER_EXPIRED -> {
                         val range = data.attentionRangeText
                         Triple(
@@ -419,8 +418,13 @@ class HomeVM(
                             "Tap to review the details",
                         )
                     }
+
                     null -> when {
-                        data.isComplete -> Triple(MigrationBannerPhase.COMPLETE, null, "Tap to review the details")
+                        data.isComplete -> Triple(
+                            MigrationBannerPhase.COMPLETE,
+                            null,
+                            "Tap to review the details"
+                        )
                         // Spec §6.4: numbered per the due transfer, matching the convention used
                         // elsewhere (e.g. MigrationProgressVM's "Transfer ${completedCount + 1}").
                         data.isReadyToSend ->
@@ -429,9 +433,15 @@ class HomeVM(
                                 null,
                                 "Transfer ${(plan?.completedCount ?: 0) + 1} is ready to send",
                             )
+
                         plan == null -> Triple(MigrationBannerPhase.REQUIRED, null, null)
                         plan.completedCount == 0 ->
-                            Triple(MigrationBannerPhase.IN_PROGRESS, null, "${roundPrefix}First transfer sending…")
+                            Triple(
+                                MigrationBannerPhase.IN_PROGRESS,
+                                null,
+                                "${roundPrefix}First transfer sending…"
+                            )
+
                         else ->
                             Triple(
                                 MigrationBannerPhase.IN_PROGRESS,
@@ -489,6 +499,7 @@ class HomeVM(
             isReadyToSend -> navigationRouter.forward(
                 co.electriccoin.zcash.ui.screen.migration.transferreview.MigrationTransferReviewArgs
             )
+
             plan != null -> navigationRouter.forward(MigrationProgressArgs)
             else -> navigationRouter.forward(MigrationSetupArgs)
         }
@@ -522,15 +533,18 @@ class HomeVM(
 
     private fun onEnableCurrencyConversionClick() = navigationRouter.forward(ExchangeRateOptInArgs)
 
-    private fun onWalletDisconnectedMessageClick() = navigationRouter.forward(WalletDisconnectedInfo)
+    private fun onWalletDisconnectedMessageClick() =
+        navigationRouter.forward(WalletDisconnectedInfo)
 
     private fun onWalletBackupMessageClick() = navigationRouter.forward(SeedBackupInfo)
 
-    private fun onWalletBackupMessageButtonClick() = navigationRouter.forward(WalletBackupDetail(false))
+    private fun onWalletBackupMessageButtonClick() =
+        navigationRouter.forward(WalletBackupDetail(false))
 
     private fun onShieldFundsMessageClick() = viewModelScope.launch { shieldFundsFromMessage() }
 
-    private fun onShieldFundsMessageButtonClick() = viewModelScope.launch { shieldFundsFromMessage() }
+    private fun onShieldFundsMessageButtonClick() =
+        viewModelScope.launch { shieldFundsFromMessage() }
 
     private fun onWalletErrorMessageClick(homeMessageData: HomeMessageData.Error) =
         navigateToError(ErrorArgs.SyncError(homeMessageData.synchronizerError))
