@@ -41,8 +41,9 @@ import kotlin.time.Duration.Companion.seconds
  *    kills the durable WorkManager chain (nothing else will re-arm it). The live driver just
  *    waits [retryDelay] and tries again.
  *  - [Terminal]: the migration reached `Complete`, or a state that intentionally never
- *    self-schedules (`Rebuild`, `InvalidNote`, `Expired`, `NetworkError`) — see the Global
- *    Constraints list for the exact set. Neither caller should re-arm; the live driver stops.
+ *    self-schedules (`Rebuild`, `Replan`, `InvalidNote`, `Expired`, `NetworkError`) — all of
+ *    these need a user-driven reschedule/re-plan (or are simply done), so nothing here re-arms.
+ *    Neither caller should re-arm; the live driver stops.
  */
 sealed class DriveOnceResult {
     data class ReArmed(
@@ -112,6 +113,11 @@ class MigrationDriveOnce(
 
                 is MigrationAdvanceStep.Rebuild -> {
                     rebuildRun(sdk, accountKeyId, step.transferId)
+                    DriveOnceResult.Terminal
+                }
+
+                MigrationAdvanceStep.Replan -> {
+                    replanRun(sdk, accountKeyId)
                     DriveOnceResult.Terminal
                 }
 
@@ -471,6 +477,24 @@ class MigrationDriveOnce(
     private suspend fun rebuildRun(sdk: OrchardMigrationSdk, accountKeyId: String, transferId: Long) {
         val snapshot = sdk.snapshot()
         migrationLog("MigrationDriveOnce: engine requests Rebuild{$transferId} — user-driven reschedule required.")
+        migrationNotifier.notifyRescheduleRequired(
+            accountKeyId,
+            (snapshot?.nextPending?.index?.plus(1)) ?: 1,
+            snapshot?.totalCount ?: 0,
+        )
+    }
+
+    /**
+     * The engine says the WHOLE plan is dead (past the committed replan threshold — see
+     * [MigrationAdvanceStep.Replan]'s doc), not just one transfer. Unlike [rebuildRun] there is no
+     * single [transferId][MigrationAdvanceStep.Rebuild.transferId] to point at; the entire plan
+     * needs a user-driven re-plan/reschedule. Same terminal handling as a rebuild: surface the
+     * attention notification and stop re-arming — the home banner and the app-open router take it
+     * from here.
+     */
+    private suspend fun replanRun(sdk: OrchardMigrationSdk, accountKeyId: String) {
+        val snapshot = sdk.snapshot()
+        migrationLog("MigrationDriveOnce: engine requests Replan — the whole plan is dead, user-driven reschedule required.")
         migrationNotifier.notifyRescheduleRequired(
             accountKeyId,
             (snapshot?.nextPending?.index?.plus(1)) ?: 1,
