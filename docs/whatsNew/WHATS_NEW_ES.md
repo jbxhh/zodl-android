@@ -12,6 +12,11 @@ directly impact users rather than highlighting other key architectural updates.*
 
 ## [Unreleased]
 
+## [3.8.1 (2027)] - 2026-07-30
+
+### Corregido:
+- Corregimos varios problemas que afectaban a la visualización del saldo y los detalles de las transacciones. Tus fondos están seguros: esto solo corrige cómo la billetera muestra los valores.
+
 ## [3.8.1 (2025)] - 2026-07-29
 
 ### Corregido:

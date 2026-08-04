@@ -9,6 +9,11 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 ### Fixed:
 - Transferring to a new phone via device-to-device setup no longer copies the app's local data, including the undecryptable encrypted preferences file, which previously forced a manual seed re-restore on the new device. Only the address book and metadata backups are carried over, matching cloud backup.
 
+## [3.8.1 (2027)] - 2026-07-30
+
+### Fixed:
+- Corrected several issues affecting how balances and transaction details were displayed. Your funds are safe, this only fixes how the wallet shows the values.
+
 ## [3.8.1 (2025)] - 2026-07-29
 
 ### Fixed:
