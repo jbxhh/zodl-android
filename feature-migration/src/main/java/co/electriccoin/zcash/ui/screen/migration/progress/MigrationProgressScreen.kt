@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -96,6 +97,10 @@ fun MigrationProgressView(state: MigrationProgressState) {
                 color = ZashiColors.Text.textTertiary,
             )
             Spacer(Modifier.height(24.dp))
+            state.balanceTracker?.let { tracker ->
+                MigrationBalanceTrackerCard(tracker)
+                Spacer(Modifier.height(20.dp))
+            }
 
             Column(
                 Modifier
@@ -190,6 +195,77 @@ fun MigrationProgressView(state: MigrationProgressState) {
                 ?.takeIf { isShowingPreparationDetails }
                 ?.copy(onDismiss = { isShowingPreparationDetails = false }),
     )
+}
+
+/**
+ * The live Orchard → Ironwood balance-tracker card (Figma "PR App Designs Q3'26" node 3480:7638),
+ * shown above the transfer timeline so the migration's real-time progress is visible at a glance.
+ */
+@Composable
+private fun MigrationBalanceTrackerCard(tracker: MigrationProgressBalanceTracker) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(ZashiColors.Surfaces.bgSecondary, RoundedCornerShape(16.dp))
+                .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Orchard",
+                style = ZashiTypography.textXs,
+                fontWeight = FontWeight.Medium,
+                color = ZashiColors.Text.textTertiary,
+            )
+            Text(
+                text = tracker.orchardAmount.getValue(),
+                style = ZashiTypography.textMd,
+                fontWeight = FontWeight.SemiBold,
+                color = ZashiColors.Text.textPrimary,
+            )
+            tracker.orchardFiatAmount?.let {
+                Text(
+                    text = it.getValue(),
+                    style = ZashiTypography.textXs,
+                    color = ZashiColors.Text.textTertiary,
+                )
+            }
+        }
+        Icon(
+            painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_arrow_right),
+            contentDescription = null,
+            tint = ZashiColors.Text.textTertiary,
+            modifier =
+                Modifier
+                    .padding(horizontal = 12.dp)
+                    .size(16.dp),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.End,
+        ) {
+            Text(
+                text = "Ironwood",
+                style = ZashiTypography.textXs,
+                fontWeight = FontWeight.Medium,
+                color = ZashiColors.Text.textTertiary,
+            )
+            Text(
+                text = tracker.ironwoodAmount.getValue(),
+                style = ZashiTypography.textMd,
+                fontWeight = FontWeight.SemiBold,
+                color = ZashiColors.Text.textPrimary,
+            )
+            tracker.ironwoodFiatAmount?.let {
+                Text(
+                    text = it.getValue(),
+                    style = ZashiTypography.textXs,
+                    color = ZashiColors.Text.textTertiary,
+                )
+            }
+        }
+    }
 }
 
 /**

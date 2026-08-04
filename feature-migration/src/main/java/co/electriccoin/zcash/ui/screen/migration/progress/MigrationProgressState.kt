@@ -18,10 +18,21 @@ data class MigrationProgressState(
     val preparations: List<MigrationProgressPreparationState> = emptyList(),
     val preparationsSummary: MigrationProgressPreparationSummary? = null,
     val preparationDetails: MigrationPreparationDetails? = null,
+    // Live Orchard → Ironwood balance-tracker card (Figma "PR App Designs Q3'26" node 3480:7638).
+    // Null only until both live balances have resolved at least once.
+    val balanceTracker: MigrationProgressBalanceTracker? = null,
     val transfers: List<MigrationProgressTransferState>,
     val isComplete: Boolean,
     val onBack: () -> Unit,
     val onDone: (() -> Unit)? = null,
+)
+
+/** The live Orchard (source) → Ironwood (destination) balance split shown above the timeline. */
+data class MigrationProgressBalanceTracker(
+    val orchardAmount: StringResource,
+    val orchardFiatAmount: StringResource?,
+    val ironwoodAmount: StringResource,
+    val ironwoodFiatAmount: StringResource?,
 )
 
 /**

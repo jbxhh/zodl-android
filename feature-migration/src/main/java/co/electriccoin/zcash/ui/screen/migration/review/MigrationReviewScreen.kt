@@ -315,7 +315,9 @@ private fun PrivacyReviewContent(
         ZashiButton(
             state =
                 ButtonState(
-                    text = stringRes(if (state.isConfirming) "Signing..." else "Confirm"),
+                    // Figma node 5596:55122: "Start Migration" for the idle state (AUTOMATIC
+                    // mode only — ImmediateReviewContent's "Confirm" is a different screen/copy).
+                    text = stringRes(if (state.isConfirming) "Signing..." else "Start Migration"),
                     isEnabled = !state.isConfirming,
                     isLoading = state.isConfirming,
                     onClick = state.onConfirm,
