@@ -318,7 +318,19 @@ class ActivityMapper {
                 is SendTransaction.Success,
                 is SendTransaction.Failed,
                 is SendTransaction.Pending -> {
-                    stringRes("- ") + stringRes(data.transaction.amount)
+                    // A migration note-split/crossing is a same-account, same-device self-send —
+                    // funds move pools, they aren't leaving the wallet. Prepending "-" here reads
+                    // as a loss (Harry, live testing: a migration crossing showed "-0.9998 ZEC",
+                    // which looks like the wallet lost ~1 ZEC when only the fee was actually
+                    // spent). Every other send keeps the "-" since real value does leave the
+                    // wallet there.
+                    if (data.transaction.overview.zip318Kind == Zip318Kind.TRANSFER ||
+                        data.transaction.overview.zip318Kind == Zip318Kind.PREPARATION
+                    ) {
+                        stringRes(data.transaction.amount)
+                    } else {
+                        stringRes("- ") + stringRes(data.transaction.amount)
+                    }
                 }
 
                 is ShieldTransaction.Success,
