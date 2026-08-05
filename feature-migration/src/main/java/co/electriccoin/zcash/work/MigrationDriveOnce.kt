@@ -185,6 +185,11 @@ class MigrationDriveOnce(
         migrationLog("MigrationDriveOnce: syncToTip result=$burst")
         val proved = sdk.finalizeReadyTransfers()
         migrationLog("MigrationDriveOnce: proved=$proved")
+        // Post Pass-3-removal (2026-08-05 migration-engine-delegation work): this can now only report
+        // true for a migration that was ALREADY Failed by a prior recordTransferResult tag=2/3 call —
+        // there is no live foreign-spend detection path left here (advance_migration's own candidate
+        // checks own that now, reached through nextStep()). Kept because "was this plan already dead"
+        // is still a correct, cheap early-exit for this function.
         if (sdk.reconcileInvalidations()) {
             // The plan is invalid (input notes spent externally) — notify and do NOT re-arm; the
             // app-open router (CheckMigrationRecoveryUseCase) takes over from here.
