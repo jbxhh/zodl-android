@@ -169,9 +169,15 @@ class MigrationSendingVM(
                 }
             }
 
-            // NothingDue or AwaitingProof after max attempts: the transfer isn't ready yet.
+            // NothingDue or AwaitingProof after max attempts: the transfer isn't ready yet — no
+            // send was even attempted, so this can't be (another) Tor failure. Clear a pending
+            // Tor-failure flag here too (CheckMigrationRecoveryUseCase already checks this before
+            // routing here, but a user can also reach this screen by other means): otherwise it
+            // would survive to keep re-triggering the app-open Sending redirect for a transfer
+            // that was never going to attempt a network send in the first place.
             // The foreground sync + Lane A hook will prove it; the user can retry later.
             else -> {
+                pendingMigrationTorFailureStorageProvider.store(false)
                 failure.value = SendFailure.NotReady
             }
         }

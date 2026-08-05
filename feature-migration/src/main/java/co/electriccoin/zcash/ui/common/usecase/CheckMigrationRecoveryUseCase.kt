@@ -3,6 +3,7 @@ package co.electriccoin.zcash.ui.common.usecase
 import android.content.Context
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import cash.z.ecc.android.sdk.MigrationNextAction
 import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.migration.migrationLog
@@ -120,15 +121,41 @@ class CheckMigrationRecoveryUseCase(
         }
 
         if (pendingMigrationTorFailureStorageProvider.get()) {
-            // A background attempt failed specifically because of Tor — route through the Sending
-            // screen first rather than straight to MigrationProgressArgs/MigrationTorFailureArgs:
-            // MigrationSendingVM's init{} always attempts a send immediately on construction,
-            // reproducing the exact condition that failed in the background using the current
-            // migration Tor setting. If it fails again, MigrationSendingVM's own existing
-            // sendOnce() logic already forwards to MigrationTorFailureArgs — no need to duplicate
-            // that routing here.
-            migrationLog("MigrationRecovery: pending background Tor failure — redirecting to Sending.")
-            navigationRouter.replaceAll(HomeArgs, MigrationSendingArgs)
+            // The flag only records THAT a background attempt once failed on Tor, not what the
+            // engine's next due transfer needs NOW — the plan moves on (proving, dependency
+            // mining, rescheduling) between when it was set and the next app open, and the flag
+            // is never invalidated by any of that. Re-verify against the engine's live state
+            // before trusting it: only navigate when the earliest not-yet-sent transfer is
+            // actually broadcast-ready. Otherwise this flag is stale (observed live: the flag
+            // survived from an old Tor failure while the actual next-due transfer was stuck
+            // needing PROVE for an unrelated reason) — MigrationSendingVM would immediately hit
+            // AwaitingProof/NothingDue and show a "Couldn't Send" sheet whose message has nothing
+            // to do with Tor, on every single app open, for a transfer that was never going to
+            // attempt a network send in the first place. Clear it instead; the transfer's actual
+            // blocker is already covered by the normal Migration Progress home banner.
+            val nextTransfer =
+                sdk
+                    .getMigrationTransferStates()
+                    ?.transfers
+                    ?.filter { it.isTransfer && !it.isSent }
+                    ?.minByOrNull { it.scheduledHeight }
+            if (nextTransfer?.action == MigrationNextAction.BROADCAST) {
+                // A background attempt failed specifically because of Tor — route through the Sending
+                // screen first rather than straight to MigrationProgressArgs/MigrationTorFailureArgs:
+                // MigrationSendingVM's init{} always attempts a send immediately on construction,
+                // reproducing the exact condition that failed in the background using the current
+                // migration Tor setting. If it fails again, MigrationSendingVM's own existing
+                // sendOnce() logic already forwards to MigrationTorFailureArgs — no need to duplicate
+                // that routing here.
+                migrationLog("MigrationRecovery: pending background Tor failure — redirecting to Sending.")
+                navigationRouter.replaceAll(HomeArgs, MigrationSendingArgs)
+            } else {
+                migrationLog(
+                    "MigrationRecovery: pending background Tor failure flag is stale " +
+                        "(next transfer action=${nextTransfer?.action}) — clearing."
+                )
+                pendingMigrationTorFailureStorageProvider.store(false)
+            }
         }
         // No stale write-ahead plan clearing anymore: nothing plan-shaped is persisted app-side —
         // the engine's own state is the single, authoritative record (a commit that never happened

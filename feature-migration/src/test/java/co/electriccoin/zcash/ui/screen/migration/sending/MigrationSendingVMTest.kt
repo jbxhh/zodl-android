@@ -252,6 +252,24 @@ class MigrationSendingVMTest {
         }
 
     @Test
+    fun notReadyAfterMaxAttemptsAlsoClearsPendingTorFailureFlag() =
+        runTest {
+            // Regression: NotReady (AwaitingProof/NothingDue after retries) means no send was even
+            // attempted, so it can't be a (renewed) Tor failure — a stale flag left set here would
+            // keep re-triggering CheckMigrationRecoveryUseCase's app-open Sending redirect for a
+            // transfer that was never going to attempt a network send in the first place.
+            val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
+            coEvery { sdk.executeNextPendingTransfer(any(), any()) } returns TransferAttemptOutcome.NothingDue
+            val router = FakeNavigationRouter()
+            val pendingTorFailure = mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true)
+
+            vm(sdk = sdk, router = router, pendingMigrationTorFailureStorageProvider = pendingTorFailure)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { pendingTorFailure.store(false) }
+        }
+
+    @Test
     fun networkErrorDoesNotClearPendingTorFailureFlag() =
         runTest {
             val sdk = mockk<OrchardMigrationSdk>(relaxed = true)

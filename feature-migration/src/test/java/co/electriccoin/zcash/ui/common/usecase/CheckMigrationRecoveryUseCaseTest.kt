@@ -2,7 +2,10 @@ package co.electriccoin.zcash.ui.common.usecase
 
 import android.content.Context
 import cash.z.ecc.android.sdk.AttentionReason
+import cash.z.ecc.android.sdk.MigrationNextAction
 import cash.z.ecc.android.sdk.MigrationState
+import cash.z.ecc.android.sdk.MigrationTransferState
+import cash.z.ecc.android.sdk.MigrationTransferStates
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
@@ -26,10 +29,27 @@ class CheckMigrationRecoveryUseCaseTest {
         CheckMigrationRecoveryUseCase.resetRunThrottleForTests()
     }
 
+    /** A single not-yet-sent transfer, [action] controlling whether it reads as broadcast-ready. */
+    private fun transferState(action: MigrationNextAction?) =
+        MigrationTransferState(
+            id = 1L,
+            isTransfer = true,
+            isSent = false,
+            isProved = action == MigrationNextAction.BROADCAST,
+            scheduledHeight = 100L,
+            anchorBoundaryHeight = null,
+            ready = action != null,
+            action = action,
+        )
+
     private fun useCase(
         sdk: OrchardMigrationSdk?,
         navigationRouter: NavigationRouter,
         pendingMigrationTorFailure: Boolean = false,
+        pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider =
+            mockk(relaxed = true) {
+                coEvery { get() } returns pendingMigrationTorFailure
+            },
         // Default: the worker is already RUNNING in tests so the reconciliation branch is a no-op,
         // keeping existing test behaviour unchanged. Override to test reconciliation explicitly.
         getWorkerRunState: suspend (String) -> MigrationWorkerRunState = { MigrationWorkerRunState.RUNNING },
@@ -41,10 +61,7 @@ class CheckMigrationRecoveryUseCaseTest {
                 coEvery { this@mockk() } returns sdk
             },
         navigationRouter = navigationRouter,
-        pendingMigrationTorFailureStorageProvider =
-            mockk<PendingMigrationTorFailureStorageProvider> {
-                coEvery { get() } returns pendingMigrationTorFailure
-            },
+        pendingMigrationTorFailureStorageProvider = pendingMigrationTorFailureStorageProvider,
         getSelectedWalletAccount = mockk<GetSelectedWalletAccountUseCase>(relaxed = true),
         context = mockk<Context>(relaxed = true),
         getWorkerRunState = getWorkerRunState,
@@ -72,13 +89,20 @@ class CheckMigrationRecoveryUseCaseTest {
         }
 
     @Test
-    fun pendingTorFailureStillAutoNavigatesToMigrationSending() =
+    fun pendingTorFailureStillAutoNavigatesToMigrationSending_whenNextTransferIsBroadcastReady() =
         runTest {
-            // The Tor-failure branch is the ONE auto-navigation kept after Task 6.
+            // The Tor-failure branch is the ONE auto-navigation kept after Task 6 — but only when
+            // the engine's next due transfer is actually broadcast-ready right now (see the
+            // staleness tests below for why this is re-checked rather than trusted blindly).
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationTransferStates() } returns
+                        MigrationTransferStates(
+                            transfers = listOf(transferState(MigrationNextAction.BROADCAST)),
+                            tipHeight = 100L,
+                        )
                 }
             val router = mockk<NavigationRouter>(relaxed = true)
 
@@ -94,6 +118,11 @@ class CheckMigrationRecoveryUseCaseTest {
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationTransferStates() } returns
+                        MigrationTransferStates(
+                            transfers = listOf(transferState(MigrationNextAction.BROADCAST)),
+                            tipHeight = 100L,
+                        )
                 }
             val router = mockk<NavigationRouter>(relaxed = true)
 
@@ -102,6 +131,64 @@ class CheckMigrationRecoveryUseCaseTest {
             coVerify(exactly = 0) { router.replaceAll(HomeArgs, MigrationTransferInvalidArgs) }
             coVerify(exactly = 0) { router.replaceAll(HomeArgs, MigrationProgressArgs) }
             coVerify(exactly = 0) { router.replaceAll(HomeArgs, MigrationCompleteArgs) }
+        }
+
+    @Test
+    fun pendingTorFailureIsStale_whenNextTransferStillNeedsProof_clearsFlagInsteadOfNavigating() =
+        runTest {
+            // Regression: the flag only records THAT a background attempt once failed on Tor, not
+            // what the engine's next due transfer needs NOW. Observed live: the flag survived from
+            // an old Tor failure while the actual next-due transfer was stuck needing PROVE for an
+            // unrelated reason (a stale anchor checkpoint) — navigating to Sending here just hits a
+            // guaranteed AwaitingProof and shows a "Couldn't Send" sheet on every app open.
+            val storageProvider = mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true) {
+                coEvery { get() } returns true
+            }
+            val sdk =
+                mockk<OrchardMigrationSdk>(relaxed = true) {
+                    coEvery { hasOverdueTransfers() } returns true
+                    coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationTransferStates() } returns
+                        MigrationTransferStates(
+                            transfers = listOf(transferState(MigrationNextAction.PROVE)),
+                            tipHeight = 100L,
+                        )
+                }
+            val router = mockk<NavigationRouter>(relaxed = true)
+
+            useCase(
+                sdk = sdk,
+                navigationRouter = router,
+                pendingMigrationTorFailureStorageProvider = storageProvider,
+            ).invoke()
+
+            coVerify(exactly = 0) { router.replaceAll(HomeArgs, MigrationSendingArgs) }
+            coVerify(exactly = 1) { storageProvider.store(false) }
+        }
+
+    @Test
+    fun pendingTorFailureIsStale_whenNothingIsDue_clearsFlagInsteadOfNavigating() =
+        runTest {
+            val storageProvider = mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true) {
+                coEvery { get() } returns true
+            }
+            val sdk =
+                mockk<OrchardMigrationSdk>(relaxed = true) {
+                    coEvery { hasOverdueTransfers() } returns true
+                    coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationTransferStates() } returns
+                        MigrationTransferStates(transfers = emptyList(), tipHeight = 100L)
+                }
+            val router = mockk<NavigationRouter>(relaxed = true)
+
+            useCase(
+                sdk = sdk,
+                navigationRouter = router,
+                pendingMigrationTorFailureStorageProvider = storageProvider,
+            ).invoke()
+
+            coVerify(exactly = 0) { router.replaceAll(HomeArgs, MigrationSendingArgs) }
+            coVerify(exactly = 1) { storageProvider.store(false) }
         }
 
     @Test
