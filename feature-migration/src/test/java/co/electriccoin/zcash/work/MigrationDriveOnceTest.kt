@@ -219,141 +219,50 @@ class MigrationDriveOnceTest {
         assertFalse(broadcastDueByEstimate(states(tx(1, scheduled = 150)), estimatedTip = -1))
     }
 
-    // ── computeEngineWakeDelay (the engine-only "when?" projection) ─────────────────────────
+    // ── computeEngineWakeDelay (core sync call §2.4's end-state: the engine's own peek-ahead,
+    //    with NO home-grown merge of a sync-wakeup schedule and a due-height scan) ────────────
 
     @Test
-    fun `the earliest of wakeup and due height wins`() {
+    fun `the peek height converts to a wall-clock delay at the measured block rate`() {
         val delay =
             computeEngineWakeDelay(
-                states = states(tx(1, scheduled = 300, isProved = false, blocker = MigrationBlocker.ANCHOR_BOUNDARY)),
-                wakeups = listOf(MigrationSyncWakeup(height = 250, covers = listOf(1L))),
                 est = 100,
                 secondsPerBlock = 10,
+                peek = MigrationPeek(height = 250, kind = MigrationStepKind.BROADCAST),
             )
-        // Wakeup at 250 beats the due height 300: (250-100)*10 = 1500s.
+        // (250-100)*10 = 1500s.
         assertEquals(1500.seconds, delay)
     }
 
     @Test
-    fun `a past target floors at the minimum re-arm`() {
+    fun `a past or near peek height floors at the minimum re-arm`() {
         val delay =
             computeEngineWakeDelay(
-                states = states(tx(1, scheduled = 90)),
-                wakeups = emptyList(),
                 est = 100,
                 secondsPerBlock = 10,
+                peek = MigrationPeek(height = 90, kind = MigrationStepKind.PROVE),
             )
         assertEquals(MIN_REARM_SECONDS.seconds, delay)
-    }
-
-    @Test
-    fun `wakeups covering only unprovable transactions are ignored`() {
-        val stuck = tx(9, scheduled = 90, isProved = false, blocker = MigrationBlocker.UNPROVABLE_ANCHOR)
-        val delay =
-            computeEngineWakeDelay(
-                states = states(stuck),
-                wakeups = listOf(MigrationSyncWakeup(height = 100, covers = listOf(9L))),
-                est = 100,
-                secondsPerBlock = 10,
-            )
-        // The stuck tx is the ONLY pending work → nothing relevant → cadence fallback (null).
-        assertNull(delay)
-    }
-
-    @Test
-    fun `a wakeup covering a healthy transaction alongside a stuck one is honored`() {
-        val stuck = tx(9, scheduled = 90, isProved = false, blocker = MigrationBlocker.UNPROVABLE_ANCHOR)
-        val healthy = tx(10, scheduled = 300, isProved = false, blocker = MigrationBlocker.ANCHOR_BOUNDARY)
-        val delay =
-            computeEngineWakeDelay(
-                states = states(stuck, healthy),
-                wakeups = listOf(MigrationSyncWakeup(height = 250, covers = listOf(9L, 10L))),
-                est = 100,
-                secondsPerBlock = 10,
-            )
-        assertEquals(1500.seconds, delay)
     }
 
     @Test
     fun `an unavailable estimate falls back to the cadence`() {
         assertNull(
             computeEngineWakeDelay(
-                states = states(tx(1, scheduled = 300)),
-                wakeups = emptyList(),
                 est = -1,
                 secondsPerBlock = 10,
+                peek = MigrationPeek(height = 300, kind = MigrationStepKind.BROADCAST),
             )
         )
     }
 
     @Test
-    fun `nothing pending falls back to the cadence`() {
-        assertNull(
-            computeEngineWakeDelay(
-                states = states(tx(1, scheduled = 90, isSent = true)),
-                wakeups = emptyList(),
-                est = 100,
-                secondsPerBlock = 10,
-            )
-        )
+    fun `no peek falls back to the cadence`() {
+        assertNull(computeEngineWakeDelay(est = 100, secondsPerBlock = 10, peek = null))
     }
 
-    // ── computeEngineWakeDelay: the engine's own peek-ahead as a third candidate ──
-
-    @Test
-    fun `a nearer peek height beats both the wakeup and the due height`() {
-        val delay =
-            computeEngineWakeDelay(
-                states = states(tx(1, scheduled = 300, isProved = false, blocker = MigrationBlocker.ANCHOR_BOUNDARY)),
-                wakeups = listOf(MigrationSyncWakeup(height = 250, covers = listOf(1L))),
-                est = 100,
-                secondsPerBlock = 10,
-                peek = MigrationPeek(height = 180, kind = MigrationStepKind.BROADCAST),
-            )
-        // Peek at 180 beats both the wakeup (250) and the due height (300): (180-100)*10 = 800s.
-        assertEquals(800.seconds, delay)
-    }
-
-    @Test
-    fun `a farther peek height loses to the nearer wakeup and due height`() {
-        val delay =
-            computeEngineWakeDelay(
-                states = states(tx(1, scheduled = 300, isProved = false, blocker = MigrationBlocker.ANCHOR_BOUNDARY)),
-                wakeups = listOf(MigrationSyncWakeup(height = 250, covers = listOf(1L))),
-                est = 100,
-                secondsPerBlock = 10,
-                peek = MigrationPeek(height = 400, kind = MigrationStepKind.WAITING),
-            )
-        assertEquals(1500.seconds, delay)
-    }
-
-    @Test
-    fun `a peek is the only candidate when nothing else is pending`() {
-        val delay =
-            computeEngineWakeDelay(
-                states = null,
-                wakeups = null,
-                est = 100,
-                secondsPerBlock = 10,
-                peek = MigrationPeek(height = 150, kind = MigrationStepKind.PROVE),
-            )
-        assertEquals(500.seconds, delay)
-    }
-
-    @Test
-    fun `a null peek falls back to the existing engine-only candidates unchanged`() {
-        val delay =
-            computeEngineWakeDelay(
-                states = states(tx(1, scheduled = 300)),
-                wakeups = emptyList(),
-                est = 100,
-                secondsPerBlock = 10,
-                peek = null,
-            )
-        assertEquals(2000.seconds, delay)
-    }
-
-    // ── nextWake (engine schedule folded with the app privacy gap) ────────────
+    // ── nextWake (engine peek folded with the app privacy gap; §3's gap term is untouched by
+    //    the peek-ahead adoption — see its doc) ────────────────────────────────────────────
 
     @Test
     fun `a ready-but-gapped broadcast re-arms to the quiet expiry`() {
@@ -361,30 +270,29 @@ class MigrationDriveOnceTest {
         val delay =
             nextWake(
                 states = states(tx(1, scheduled = 1000)),
-                wakeups = emptyList(),
                 est = 1000,
                 secondsPerBlock = 3,
                 lastActivityEpochSeconds = 1_000_000L,
                 privacyBufferSeconds = 180L,
                 nowEpochSeconds = 1_000_060L,
+                peek = null,
             )
         assertEquals(120.seconds, delay)
     }
 
     @Test
-    fun `an earlier engine proving wake wins over the gap`() {
+    fun `an earlier engine peek wins over the gap`() {
         val delay =
             nextWake(
                 states = states(tx(1, scheduled = 1000)),
-                wakeups = listOf(MigrationSyncWakeup(height = 1100, covers = listOf(4L))),
                 est = 1000,
                 secondsPerBlock = 1,
                 lastActivityEpochSeconds = 1_000_000L,
                 privacyBufferSeconds = 600L,
                 nowEpochSeconds = 1_000_100L,
+                peek = MigrationPeek(height = 1100, kind = MigrationStepKind.PROVE),
             )
-        // engine proving wake at 1100: (1100-1000)*1 = 100s < 500s gap remaining -> 100s wins.
-        // (tx1 itself is excluded from the engine due-height calc since it's the gapped one.)
+        // engine peek at 1100: (1100-1000)*1 = 100s < 500s gap remaining -> 100s wins.
         assertEquals(100.seconds, delay)
     }
 
@@ -393,15 +301,15 @@ class MigrationDriveOnceTest {
         val delay =
             nextWake(
                 states = states(tx(1, scheduled = 2000, isProved = false, blocker = MigrationBlocker.ANCHOR_BOUNDARY)),
-                wakeups = emptyList(),
                 est = 1000,
                 secondsPerBlock = 3,
                 lastActivityEpochSeconds = 1_000_000L,
                 privacyBufferSeconds = 180L,
                 nowEpochSeconds = 1_000_178L, // if the gap applied, only 2s would remain
+                peek = MigrationPeek(height = 2000, kind = MigrationStepKind.PROVE),
             )
-        // Unproved -> not broadcast-ready -> gap term is inert; falls through to the engine-only
-        // due-height delay (2000-1000)*3 = 3000s, wildly different from the near-elapsed gap.
+        // Unproved -> not broadcast-ready -> gap term is inert; falls through to the engine
+        // peek's own delay (2000-1000)*3 = 3000s, wildly different from the near-elapsed gap.
         assertEquals(3000.seconds, delay)
     }
 
@@ -410,12 +318,12 @@ class MigrationDriveOnceTest {
         val delay =
             nextWake(
                 states = states(tx(1, scheduled = 1000)),
-                wakeups = emptyList(),
                 est = 1000,
                 secondsPerBlock = 3,
                 lastActivityEpochSeconds = 1_000_000L,
                 privacyBufferSeconds = 180L,
                 nowEpochSeconds = 1_000_500L, // 500s since last activity, buffer only 180s
+                peek = null,
             )
         assertEquals(0.seconds, delay)
     }

@@ -5,7 +5,6 @@ import cash.z.ecc.android.sdk.MigrationAdvanceStep
 import cash.z.ecc.android.sdk.MigrationBlocker
 import cash.z.ecc.android.sdk.MigrationPeek
 import cash.z.ecc.android.sdk.MigrationState
-import cash.z.ecc.android.sdk.MigrationSyncWakeup
 import cash.z.ecc.android.sdk.MigrationTransferState
 import cash.z.ecc.android.sdk.MigrationTransferStates
 import cash.z.ecc.android.sdk.NetworkPrivacyOptions
@@ -136,7 +135,7 @@ class MigrationDriveOnce(
                 }
 
                 is MigrationAdvanceStep.Broadcast -> {
-                    broadcastRun(sdk, accountKeyId, allowForcedBroadcastWindow)
+                    broadcastRun(sdk, accountKeyId, step.transferId, allowForcedBroadcastWindow)
                 }
 
                 MigrationAdvanceStep.Waiting -> {
@@ -226,7 +225,7 @@ class MigrationDriveOnce(
                 val prep = isPreparationTransfer(sdk.getMigrationTransferStates(), nextStep.transferId)
                 if (prep) {
                     migrationLog("MigrationDriveOnce: sync done, next=$nextStep (preparation) — broadcasting same-beat.")
-                    broadcastRun(sdk, accountKeyId, allowForcedBroadcastWindow)
+                    broadcastRun(sdk, accountKeyId, nextStep.transferId, allowForcedBroadcastWindow)
                 } else {
                     val chainDelay = sdk.privacySyncBufferDuration()
                     MigrationScheduler(applicationContext).schedule(accountKeyId, chainDelay)
@@ -267,14 +266,15 @@ class MigrationDriveOnce(
     private suspend fun broadcastRun(
         sdk: OrchardMigrationSdk,
         accountKeyId: String,
+        transferId: Long,
         allowForcedBroadcastWindow: Boolean,
     ): DriveOnceResult {
         val states = sdk.getMigrationTransferStates()
         val est = sdk.estimatedChainTip()
-        // Capture the transaction the ENGINE will actually serve (vec/id order among proved+due —
-        // review L2), falling back to schedule order when nothing is broadcastable yet, so the
-        // fast-track preflight AND the post-send notification attribute the right kind.
-        val nextCandidate = engineBroadcastCandidate(states, est) ?: earliestUnsent(states)
+        // The transaction the ENGINE already named via nextStep()'s own Broadcast(transferId) —
+        // looked up by id, not re-predicted locally (core sync call §2.4: no local mirror of
+        // next_broadcastable) — for the fast-track preflight and the post-send notification kind.
+        val nextCandidate = states?.transfers?.firstOrNull { it.id == transferId }
         val prepFastTrack =
             nextCandidate != null &&
                 !nextCandidate.isTransfer &&
@@ -323,12 +323,19 @@ class MigrationDriveOnce(
                         migrationLog("MigrationDriveOnce: waiting privacy quiet gap $gap before broadcast.")
                         delay(gap)
                     }
-                    // Re-derive the candidate — up to a full privacy buffer may have elapsed during the
-                    // wait above, and the engine may now be ready to serve a different transaction than
-                    // the one captured before the wait.
+                    // Re-ask the engine — up to a full privacy buffer may have elapsed during the
+                    // wait above, and it may no longer report Broadcast at all (something changed),
+                    // or name a different transaction than the one that triggered this run.
+                    val freshStep = sdk.nextStep()?.step
+                    if (freshStep !is MigrationAdvanceStep.Broadcast) {
+                        migrationLog(
+                            "MigrationDriveOnce: after the wait, engine no longer reports Broadcast " +
+                                "(now=$freshStep) — re-arming."
+                        )
+                        return DriveOnceResult.ReArmed(reArm(sdk, accountKeyId))
+                    }
                     val freshStates = sdk.getMigrationTransferStates()
-                    val freshEst = sdk.estimatedChainTip()
-                    val freshCandidate = engineBroadcastCandidate(freshStates, freshEst) ?: earliestUnsent(freshStates)
+                    val freshCandidate = freshStates?.transfers?.firstOrNull { it.id == freshStep.transferId }
                     return attemptBroadcast(sdk, accountKeyId, freshCandidate)
                 } finally {
                     closeable.resume()
@@ -591,26 +598,23 @@ class MigrationDriveOnce(
     }
 
     /**
-     * The "when?" half of the loop: one future run at the earliest relevant moment — the engine's
-     * next sync wake-up ([OrchardMigrationSdk.syncWakeupSchedule]) or the next unsent
-     * transaction's scheduled height, whichever comes first, projected height→wall-clock at the
-     * measured block rate. Falls back to a flat cadence when neither is available. Returns the
-     * concrete delay it armed, so the caller (`run`) can report [DriveOnceResult.ReArmed] with it.
+     * The "when?" half of the loop (core sync call 2026-08-05 §2.4's end-state): one future run
+     * at the engine's own next execution point ([MigrationPeek], from a fresh [OrchardMigrationSdk.nextStep]
+     * call) folded with the app's privacy quiet-gap term — see [nextWake]. Falls back to a flat
+     * cadence when the peek is unavailable. Returns the concrete delay it armed, so the caller
+     * (`run`) can report [DriveOnceResult.ReArmed] with it.
+     *
+     * The peek is fetched fresh here (not threaded from the caller's own `nextStep()` read) so it
+     * always reflects state as of THIS re-arm decision, per [MigrationPeek]'s "holds only as of
+     * the call that returned it" doc.
      */
     private suspend fun reArm(sdk: OrchardMigrationSdk, accountKeyId: String, floor: Duration = Duration.ZERO): Duration {
         val states = sdk.getMigrationTransferStates()
-        val wakeups = sdk.syncWakeupSchedule()
         val est = sdk.estimatedChainTip()
-        // The engine's own peek-ahead at the next execution point (core sync call 2026-08-05 §1/
-        // §2.4) — a third, authoritative candidate alongside the sync-wakeup schedule and the next
-        // unsent due height. Fetched fresh here (not threaded from the caller's own nextStep()
-        // read) so it always reflects state as of THIS re-arm decision, per MigrationPeek's
-        // "holds only as of the call that returned it" doc.
         val peek = sdk.nextStep()?.next
         val delay =
             nextWake(
                 states,
-                wakeups,
                 est,
                 sdk.estimatedSecondsPerBlock(),
                 lastActivityEpochSeconds = lastNetworkActivity.get()?.epochSecond,
@@ -620,14 +624,11 @@ class MigrationDriveOnce(
             )
         val armed = maxOf(delay ?: migrationCadence(), floor)
         MigrationScheduler(applicationContext).schedule(accountKeyId, armed)
-        // The full "why" of the chosen wake, so timing is diagnosable from logs alone: every
-        // engine wake-up height, the next unsent due height, the engine's own peek, the tip
-        // estimate, and the floor.
+        // The full "why" of the chosen wake, so timing is diagnosable from logs alone: the
+        // engine's own peek, the tip estimate, and the floor.
         migrationLog(
             "MigrationDriveOnce: re-armed in $armed " +
-                "(engineWakeups=${wakeups?.map { "${it.height}->${it.covers}" }}, " +
-                "nextDue=${states?.transfers?.filter { !it.isSent }?.minOfOrNull { it.scheduledHeight }}, " +
-                "peek=${peek?.let { "${it.height}/${it.kind}" }}, " +
+                "(peek=${peek?.let { "${it.height}/${it.kind}" }}, " +
                 "estimatedTip=$est, floor=$floor" +
                 if (delay == null) ", cadence fallback)" else ")"
         )
@@ -765,17 +766,6 @@ internal fun decideBroadcastPreflight(
 }
 
 /**
- * The transaction the engine's `next_broadcastable` will actually serve: the first proved, unsent,
- * due transaction in VEC (id) order — the engine iterates its transactions vector, not the
- * schedule (documented in the engine change request §3). Null when nothing is broadcastable yet.
- */
-internal fun engineBroadcastCandidate(states: MigrationTransferStates?, estimatedTip: Long): MigrationTransferState? =
-    states
-        ?.transfers
-        ?.filter { !it.isSent && it.isProved && it.scheduledHeight <= estimatedTip }
-        ?.minByOrNull { it.id }
-
-/**
  * The earliest unsent transaction in schedule order (id as tiebreak) — the "what comes next"
  * display/pacing candidate when nothing is broadcastable yet.
  */
@@ -874,74 +864,54 @@ internal fun waitingDisposition(allSent: Boolean, hasUnprovableBlocker: Boolean)
     }
 
 /**
- * The engine-side "when?" projection: the earliest relevant future height — the engine's next
- * sync wake-up or the next unsent transaction's scheduled height — converted to a wall-clock
+ * The engine-side "when?" projection (core sync call 2026-08-05 §1/§2.4's end-state): the
+ * engine's own peek-ahead at the next execution point ([MigrationPeek], from
+ * [OrchardMigrationSdk.nextStep]'s [MigrationAdvanceResult.next]), converted to a wall-clock
  * delay at the measured block rate, floored at [MIN_REARM_SECONDS] (WorkManager slack / hot-loop
- * guard).
+ * guard). Returns `null` (cadence fallback) when the tip estimate or the peek is unavailable.
  *
- * Wake-ups covering ONLY unprovable-anchor transactions are excluded: the engine keeps emitting
- * immediate wake-ups for them forever (engine change request, GAP 2) and syncing can never produce
- * their proof — honoring them would hot-loop the worker at the floor delay. Returns `null` (cadence
- * fallback) when the tip estimate is unavailable or nothing relevant remains.
- *
- * [peek] is the engine's own peek-ahead at the next execution point (core sync call 2026-08-05
- * §1/§2.4, [MigrationPeek]) — a third candidate alongside the sync-wakeup schedule and the next
- * unsent due height, folded in unfiltered: unlike [wakeups]/the due-height scan, it needs no
- * unprovable-anchor exclusion, because it is re-verified against the store's satisfiability oracle
- * on every call (see [MigrationPeek]'s "holds only as of the call that returned it" doc) rather
- * than accumulating stale entries the way the app's own wake-up bookkeeping could.
+ * This is now the SOLE source of the engine-side wake height — no home-grown merge of
+ * [OrchardMigrationSdk.syncWakeupSchedule] and a due-height scan over
+ * [OrchardMigrationSdk.getMigrationTransferStates]. The peek needs no unprovable-anchor
+ * exclusion the way that scan used to: it is re-verified against the store's satisfiability
+ * oracle on every call (see [MigrationPeek]'s "holds only as of the call that returned it" doc)
+ * rather than accumulating stale entries the way the app's own wake-up bookkeeping could.
  *
  * Engine-only — does not know about the app's privacy quiet gap; see [nextWake], which folds this
  * in with the gap term and is what callers should use.
  */
 internal fun computeEngineWakeDelay(
-    states: MigrationTransferStates?,
-    wakeups: List<MigrationSyncWakeup>?,
     est: Long,
     secondsPerBlock: Long,
-    peek: MigrationPeek? = null,
+    peek: MigrationPeek?,
 ): Duration? {
-    if (est < 0L) return null
-    val unprovable =
-        states
-            ?.transfers
-            ?.filter { it.blocker == MigrationBlocker.UNPROVABLE_ANCHOR }
-            ?.map { it.id }
-            ?.toSet()
-            .orEmpty()
-    val nextWakeHeight =
-        wakeups
-            ?.filter { wakeup -> wakeup.covers.any { it !in unprovable } }
-            ?.minOfOrNull { it.height }
-    val nextDueHeight =
-        states
-            ?.transfers
-            ?.filter { !it.isSent && it.id !in unprovable }
-            ?.minOfOrNull { it.scheduledHeight }
-    val target = listOfNotNull(nextWakeHeight, nextDueHeight, peek?.height).minOrNull() ?: return null
-    return ((target - est).coerceAtLeast(0L) * secondsPerBlock)
+    if (est < 0L || peek == null) return null
+    return ((peek.height - est).coerceAtLeast(0L) * secondsPerBlock)
         .coerceAtLeast(MIN_REARM_SECONDS)
         .seconds
 }
 
 /**
- * The single re-arm source of truth (spec §5): `min(engine schedule, app privacy-gap expiry)`.
+ * The single re-arm source of truth (spec §5): `min(engine peek, app privacy-gap expiry)`.
  * The gap is an app concept the clock-free engine cannot express — a proved, unsent transaction
  * that is already due by estimate is broadcast-ready, but if we are inside the post-sync/
  * post-broadcast quiet window, the earliest it can actually go out is `quietUntil`. Re-arming to
- * the engine height alone would ignore that wait; re-arming to the gap alone would ignore a
- * nearer engine wake (e.g. a cheaper prove). Do NOT sync while only the gap is pending — that
- * would reset it and starve the due broadcast (spec §4).
+ * the engine peek alone would ignore that wait; re-arming to the gap alone would ignore a nearer
+ * engine wake (e.g. a cheaper prove). Do NOT sync while only the gap is pending — that would
+ * reset it and starve the due broadcast (spec §4).
+ *
+ * The gap term ([states]/[broadcastDueByEstimate]) is deliberately untouched by the peek-ahead
+ * adoption — core sync call §3 rules privacy-timing/quiet-gap heuristics a SEPARATE, not-yet-
+ * scoped follow-up, not something the engine's execution-point peek is meant to replace.
  */
 internal fun nextWake(
     states: MigrationTransferStates?,
-    wakeups: List<MigrationSyncWakeup>?,
     est: Long,
     secondsPerBlock: Long,
     lastActivityEpochSeconds: Long?,
     privacyBufferSeconds: Long,
     nowEpochSeconds: Long,
-    peek: MigrationPeek? = null,
+    peek: MigrationPeek?,
 ): Duration? {
     val broadcastReadyGapped = states != null && broadcastDueByEstimate(states, est)
     val gapDelay =
@@ -951,21 +921,6 @@ internal fun nextWake(
         } else {
             null
         }
-    // When the gap term applies, it is the precise re-arm for the already-due, broadcast-ready
-    // transfer(s) — exclude them from the engine's due-height floor (computeEngineWakeDelay floors
-    // an already-due height at MIN_REARM_SECONDS, which could otherwise beat a longer, more
-    // precise gap wait and starve it, spec §4).
-    val engineStates =
-        if (gapDelay != null && states != null) {
-            states.copy(
-                transfers =
-                    states.transfers.filterNot {
-                        !it.isSent && it.isProved && it.blocker != MigrationBlocker.UNPROVABLE_ANCHOR && it.scheduledHeight <= est
-                    }
-            )
-        } else {
-            states
-        }
-    val engineDelay = computeEngineWakeDelay(engineStates, wakeups, est, secondsPerBlock, peek)
+    val engineDelay = computeEngineWakeDelay(est, secondsPerBlock, peek)
     return listOfNotNull(engineDelay, gapDelay).minOrNull()
 }
