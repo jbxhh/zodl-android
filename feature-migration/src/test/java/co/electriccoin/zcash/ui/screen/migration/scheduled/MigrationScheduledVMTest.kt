@@ -13,6 +13,7 @@ import co.electriccoin.zcash.ui.common.model.WalletAccount
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
 import co.electriccoin.zcash.ui.common.provider.IsMigrationTorEnabledStorageProvider
+import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.PendingKeystoneMigrationPczts
 import co.electriccoin.zcash.ui.common.repository.PendingKeystoneMigrationPcztsRepositoryImpl
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleRepositoryImpl
@@ -215,6 +216,7 @@ class MigrationScheduledVMTest {
         pendingKeystonePczts: PendingKeystoneMigrationPcztsRepositoryImpl = PendingKeystoneMigrationPcztsRepositoryImpl(),
         finalizeMigrationSchedule: FinalizeMigrationScheduleUseCase = mockk(relaxed = true),
         isMigrationTorEnabledStorageProvider: IsMigrationTorEnabledStorageProvider = mockk(relaxed = true),
+        synchronizerProvider: SynchronizerProvider = mockk(relaxed = true),
     ) = MigrationScheduledVM(
         getMigrationSnapshot = getMigrationSnapshot,
         navigationRouter = navigationRouter,
@@ -226,6 +228,7 @@ class MigrationScheduledVMTest {
         pendingKeystonePczts = pendingKeystonePczts,
         finalizeMigrationSchedule = finalizeMigrationSchedule,
         isMigrationTorEnabledStorageProvider = isMigrationTorEnabledStorageProvider,
+        synchronizerProvider = synchronizerProvider,
     )
 
     private fun schedule() =

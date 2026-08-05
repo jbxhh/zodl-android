@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cash.z.ecc.android.sdk.NetworkPrivacyOptions
 import cash.z.ecc.android.sdk.TransferResult
+import cash.z.ecc.android.sdk.model.TransactionId
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -18,6 +19,7 @@ import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
 import co.electriccoin.zcash.ui.common.provider.IsMigrationTorEnabledStorageProvider
+import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.PendingKeystoneMigrationPcztsRepository
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleRepository
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
@@ -48,6 +50,7 @@ class MigrationScheduledVM(
     private val pendingKeystonePczts: PendingKeystoneMigrationPcztsRepository,
     private val finalizeMigrationSchedule: FinalizeMigrationScheduleUseCase,
     private val isMigrationTorEnabledStorageProvider: IsMigrationTorEnabledStorageProvider,
+    private val synchronizerProvider: SynchronizerProvider,
 ) : ViewModel() {
     private val loadLce = mutableLce<Unit>()
 
@@ -94,6 +97,11 @@ class MigrationScheduledVM(
                 }
                 return
             }
+            // Classify zip318_kind (PREPARATION) immediately — this broadcast's raw bytes are
+            // already stored locally, so without this the normal enhancement queue would skip it
+            // forever and the Activity row would stay "Sent" instead of "Note split"/"Migrated".
+            // See MigrationDriveOnce.handleExecuted's identical call for transfers.
+            synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(splitResult.txId))
         }
         // Kind-agnostic per-id signature application — extra PREPARATIONS of the note-split tree
         // go through the same call as the transfers.

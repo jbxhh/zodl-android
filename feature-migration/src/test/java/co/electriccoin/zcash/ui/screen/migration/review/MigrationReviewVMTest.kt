@@ -17,6 +17,7 @@ import co.electriccoin.zcash.ui.common.datasource.ZashiSpendingKeyDataSource
 import co.electriccoin.zcash.ui.common.model.KeystoneAccount
 import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
+import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.BiometricRepository
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
 import co.electriccoin.zcash.ui.common.repository.KeystoneProposalRepository
@@ -331,6 +332,7 @@ class MigrationReviewVMTest {
         mode: MigrationMode = MigrationMode.IMMEDIATE,
         restartMigrationScheduleRepository: RestartMigrationScheduleRepository =
             mockk<RestartMigrationScheduleRepository>(relaxed = true) { every { consume(any()) } returns null },
+        synchronizerProvider: SynchronizerProvider = mockk(relaxed = true),
     ) = MigrationReviewVM(
         args = MigrationReviewArgs(mode = mode),
         getOrchardMigrationSdk = getOrchardMigrationSdk,
@@ -350,6 +352,7 @@ class MigrationReviewVMTest {
         zashiProposalRepository = zashiProposalRepository,
         keystoneProposalRepository = keystoneProposalRepository,
         submitProposal = submitProposal,
+        synchronizerProvider = synchronizerProvider,
     )
 
     private class FakeNavigationRouter : NavigationRouter {

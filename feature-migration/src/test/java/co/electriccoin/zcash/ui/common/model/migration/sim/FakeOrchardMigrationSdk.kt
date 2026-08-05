@@ -2,6 +2,7 @@ package co.electriccoin.zcash.ui.common.model.migration.sim
 
 import cash.z.ecc.android.sdk.KeystoneBatchDecodeResult
 import cash.z.ecc.android.sdk.KeystoneBatchSignedPczts
+import cash.z.ecc.android.sdk.MigrationAdvanceResult
 import cash.z.ecc.android.sdk.MigrationAdvanceStep
 import cash.z.ecc.android.sdk.MigrationBlocker
 import cash.z.ecc.android.sdk.MigrationNextAction
@@ -298,21 +299,25 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
      * (guard-filtered) → Prove; earliest broadcastable → Broadcast; all mined → Complete, else
      * Waiting. No expiry model in the sim yet, so Rebuild is never emitted here.
      */
-    override suspend fun nextStep(): MigrationAdvanceStep? {
+    override suspend fun nextStep(): MigrationAdvanceResult? {
         if (txs.isEmpty()) return null
-        if (invalidTransfersPresent) return MigrationAdvanceStep.Waiting
+        // The sim doesn't model the engine's peek-ahead (MigrationPeek) at all — every step
+        // below reports next = null (nothing schedulable), a safe default that leaves
+        // reArm()'s existing wakeup/due-height sources as the only candidates in tests that
+        // drive through this fake.
+        if (invalidTransfersPresent) return MigrationAdvanceResult(MigrationAdvanceStep.Waiting, next = null)
         // VEC (id) order for prove, matching the engine's iteration order.
         txs.sortedBy { it.id }.firstOrNull { isProvable(it) && !isUnprovableAnchor(it) }?.let {
-            return MigrationAdvanceStep.Prove(it.id)
+            return MigrationAdvanceResult(MigrationAdvanceStep.Prove(it.id), next = null)
         }
         // VEC (id) order among proved+due — the engine's next_broadcastable iterates its
         // transactions vector, NOT the schedule (engine change request §3; golden-trace parity).
         txs
             .filter { it.proved && !it.sent && it.minedHeight == null && isDue(it) }
             .minByOrNull { it.id }
-            ?.let { return MigrationAdvanceStep.Broadcast(it.id) }
-        if (txs.all { it.minedHeight != null }) return MigrationAdvanceStep.Complete
-        return MigrationAdvanceStep.Waiting
+            ?.let { return MigrationAdvanceResult(MigrationAdvanceStep.Broadcast(it.id), next = null) }
+        if (txs.all { it.minedHeight != null }) return MigrationAdvanceResult(MigrationAdvanceStep.Complete, next = null)
+        return MigrationAdvanceResult(MigrationAdvanceStep.Waiting, next = null)
     }
 
     /**

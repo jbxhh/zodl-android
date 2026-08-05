@@ -6,6 +6,7 @@ import cash.z.ecc.android.sdk.TransferProposal
 import cash.z.ecc.android.sdk.TransferResult
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
 import cash.z.ecc.android.sdk.model.Proposal
+import cash.z.ecc.android.sdk.model.TransactionId
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -36,6 +37,7 @@ import co.electriccoin.zcash.ui.common.repository.BiometricsCancelledException
 import co.electriccoin.zcash.ui.common.repository.BiometricsFailureException
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
 import co.electriccoin.zcash.ui.common.repository.KeystoneProposalRepository
+import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleRepository
 import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepository
 import co.electriccoin.zcash.ui.common.repository.ZashiProposalRepository
@@ -75,6 +77,7 @@ class MigrationReviewVM(
     private val zashiProposalRepository: ZashiProposalRepository,
     private val keystoneProposalRepository: KeystoneProposalRepository,
     private val submitProposal: SubmitProposalUseCase,
+    private val synchronizerProvider: SynchronizerProvider,
 ) : ViewModel() {
     // proposeImmediateMigration() now returns an ordinary send-max Proposal (bypassing the
     // migration engine entirely — see OrchardMigrationSdk's kdoc), which carries no amount or
@@ -343,6 +346,11 @@ class MigrationReviewVM(
                     failure.value = splitResult
                     return
                 }
+                // Classify zip318_kind (PREPARATION) immediately — this broadcast's raw bytes are
+                // already stored locally, so without this the normal enhancement queue would skip
+                // it forever and the Activity row would stay "Sent" instead of "Note split"/
+                // "Migrated". See MigrationDriveOnce.handleExecuted's identical call for transfers.
+                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(splitResult.txId))
                 scheduleFromSplit
             } else {
                 sched

@@ -9,6 +9,7 @@ import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.datasource.ZashiSpendingKeyDataSource
 import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
+import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.BiometricRepository
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
 import co.electriccoin.zcash.ui.common.repository.KeystoneProposalRepository
@@ -361,6 +362,7 @@ class MigrationReviewPlanShapeTest {
             zashiProposalRepository = mockk<ZashiProposalRepository>(relaxed = true),
             keystoneProposalRepository = mockk<KeystoneProposalRepository>(relaxed = true),
             submitProposal = mockk<SubmitProposalUseCase>(relaxed = true),
+            synchronizerProvider = mockk<SynchronizerProvider>(relaxed = true),
         )
     }
 

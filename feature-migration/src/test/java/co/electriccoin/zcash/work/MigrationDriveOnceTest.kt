@@ -2,6 +2,8 @@ package co.electriccoin.zcash.work
 
 import cash.z.ecc.android.sdk.AttentionReason
 import cash.z.ecc.android.sdk.MigrationBlocker
+import cash.z.ecc.android.sdk.MigrationPeek
+import cash.z.ecc.android.sdk.MigrationStepKind
 import cash.z.ecc.android.sdk.MigrationProgress
 import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationSyncWakeup
@@ -294,6 +296,61 @@ class MigrationDriveOnceTest {
                 secondsPerBlock = 10,
             )
         )
+    }
+
+    // ── computeEngineWakeDelay: the engine's own peek-ahead as a third candidate ──
+
+    @Test
+    fun `a nearer peek height beats both the wakeup and the due height`() {
+        val delay =
+            computeEngineWakeDelay(
+                states = states(tx(1, scheduled = 300, isProved = false, blocker = MigrationBlocker.ANCHOR_BOUNDARY)),
+                wakeups = listOf(MigrationSyncWakeup(height = 250, covers = listOf(1L))),
+                est = 100,
+                secondsPerBlock = 10,
+                peek = MigrationPeek(height = 180, kind = MigrationStepKind.BROADCAST),
+            )
+        // Peek at 180 beats both the wakeup (250) and the due height (300): (180-100)*10 = 800s.
+        assertEquals(800.seconds, delay)
+    }
+
+    @Test
+    fun `a farther peek height loses to the nearer wakeup and due height`() {
+        val delay =
+            computeEngineWakeDelay(
+                states = states(tx(1, scheduled = 300, isProved = false, blocker = MigrationBlocker.ANCHOR_BOUNDARY)),
+                wakeups = listOf(MigrationSyncWakeup(height = 250, covers = listOf(1L))),
+                est = 100,
+                secondsPerBlock = 10,
+                peek = MigrationPeek(height = 400, kind = MigrationStepKind.WAITING),
+            )
+        assertEquals(1500.seconds, delay)
+    }
+
+    @Test
+    fun `a peek is the only candidate when nothing else is pending`() {
+        val delay =
+            computeEngineWakeDelay(
+                states = null,
+                wakeups = null,
+                est = 100,
+                secondsPerBlock = 10,
+                peek = MigrationPeek(height = 150, kind = MigrationStepKind.PROVE),
+            )
+        assertEquals(500.seconds, delay)
+    }
+
+    @Test
+    fun `a null peek falls back to the existing engine-only candidates unchanged`() {
+        val delay =
+            computeEngineWakeDelay(
+                states = states(tx(1, scheduled = 300)),
+                wakeups = emptyList(),
+                est = 100,
+                secondsPerBlock = 10,
+                peek = null,
+            )
+        assertEquals(2000.seconds, delay)
     }
 
     // ── nextWake (engine schedule folded with the app privacy gap) ────────────
