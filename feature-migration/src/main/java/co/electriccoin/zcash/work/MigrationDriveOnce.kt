@@ -3,6 +3,7 @@ package co.electriccoin.zcash.work
 import cash.z.ecc.android.sdk.CloseableSynchronizer
 import cash.z.ecc.android.sdk.MigrationAdvanceStep
 import cash.z.ecc.android.sdk.MigrationBlocker
+import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationSyncWakeup
 import cash.z.ecc.android.sdk.MigrationTransferState
 import cash.z.ecc.android.sdk.MigrationTransferStates
@@ -107,8 +108,7 @@ class MigrationDriveOnce(
             migrationLog("MigrationDriveOnce: run start account=$accountKeyId step=$step")
             return when (step) {
                 MigrationAdvanceStep.Complete -> {
-                    completeRun(accountKeyId)
-                    DriveOnceResult.Terminal
+                    handleCompleteStep(sdk, accountKeyId) { completeRun(accountKeyId) }
                 }
 
                 is MigrationAdvanceStep.Rebuild -> {
@@ -214,8 +214,7 @@ class MigrationDriveOnce(
             }
 
             MigrationAdvanceStep.Complete -> {
-                completeRun(accountKeyId)
-                DriveOnceResult.Terminal
+                handleCompleteStep(sdk, accountKeyId) { completeRun(accountKeyId) }
             }
 
             is MigrationAdvanceStep.Rebuild -> {
@@ -753,6 +752,45 @@ internal fun broadcastDueByEstimate(states: MigrationTransferStates, estimatedTi
  * due broadcast never reaches this decision — see [MigrationDriveOnce] `waitingRun`).
  */
 internal enum class WaitingDisposition { COMPLETION_SWEEP, SURFACE_UNPROVABLE, RE_ARM }
+
+/**
+ * `nextStep()`'s `STEP_COMPLETE` is ambiguous on its own: the engine's `next_step` reports
+ * `Complete` the instant a migration is TERMINAL (state.rs's `is_terminal()` short-circuit, checked
+ * before anything else) — which is true not only for a genuinely finished migration but also for
+ * one this same driver just marked `Superseded` (Task 7's `markMigrationSuperseded`, fired from
+ * `OrchardMigrationSdkImpl.nextStep()`'s `STEP_REPLAN` branch) or `Failed`. A Superseded migration
+ * was already handled at the moment it superseded — `replanRun`'s `notifyRescheduleRequired` — so a
+ * LATER call landing here must not re-surface it as done. [sdk]'s `getMigrationState()` resolves
+ * the ambiguity: it reads the persisted status directly (Superseded maps to `ReadyToPropose`, not
+ * `Complete` — see `derive_migration_state` in `migration.rs`), so [onActuallyComplete] — the
+ * caller's `completeRun` effects — only runs for a genuinely complete migration. Top-level
+ * (rather than a method on [MigrationDriveOnce]) so adding this disambiguation does not itself push
+ * the class over its function-count budget.
+ */
+private suspend fun handleCompleteStep(
+    sdk: OrchardMigrationSdk,
+    accountKeyId: String,
+    onActuallyComplete: suspend () -> Unit,
+): DriveOnceResult {
+    if (isMigrationActuallyComplete(sdk.getMigrationState())) {
+        onActuallyComplete()
+    } else {
+        migrationLog(
+            "MigrationDriveOnce: nextStep reported Complete but the migration state is not " +
+                "actually Complete (superseded/failed) — not surfacing as complete. (account=$accountKeyId)"
+        )
+    }
+    return DriveOnceResult.Terminal
+}
+
+/**
+ * The Superseded-vs-Complete disambiguation predicate — see [handleCompleteStep]'s doc for why
+ * the step alone is ambiguous. Only a genuine [MigrationState.Complete] counts — every other case
+ * (notably [MigrationState.ReadyToPropose], what a Superseded migration maps to) means
+ * `completeRun`'s effects must NOT fire.
+ */
+internal fun isMigrationActuallyComplete(migrationState: MigrationState): Boolean =
+    migrationState is MigrationState.Complete
 
 internal fun waitingDisposition(allSent: Boolean, hasUnprovableBlocker: Boolean): WaitingDisposition =
     when {

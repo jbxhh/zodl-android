@@ -1,6 +1,9 @@
 package co.electriccoin.zcash.work
 
+import cash.z.ecc.android.sdk.AttentionReason
 import cash.z.ecc.android.sdk.MigrationBlocker
+import cash.z.ecc.android.sdk.MigrationProgress
+import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationSyncWakeup
 import cash.z.ecc.android.sdk.MigrationTransferState
 import cash.z.ecc.android.sdk.MigrationTransferStates
@@ -358,6 +361,39 @@ class MigrationDriveOnceTest {
                 nowEpochSeconds = 1_000_500L, // 500s since last activity, buffer only 180s
             )
         assertEquals(0.seconds, delay)
+    }
+
+    // ── isMigrationActuallyComplete (Task 7: Superseded-vs-Complete disambiguation) ──────────
+    // nextStep()'s STEP_COMPLETE fires for EVERY terminal status (state.rs's is_terminal()
+    // short-circuit) — genuinely Complete, but also a migration Step 7's nextStep() just marked
+    // Superseded (or one that's Failed). A Superseded migration maps to
+    // MigrationState.ReadyToPropose (see derive_migration_state in migration.rs), never
+    // MigrationState.Complete — this is exactly what handleCompleteStep gates completeRun's
+    // effects on.
+
+    @Test
+    fun `a genuinely complete migration state is treated as complete`() {
+        assertTrue(isMigrationActuallyComplete(MigrationState.Complete))
+    }
+
+    @Test
+    fun `a superseded migration reports ReadyToPropose, which is not treated as complete`() {
+        // The Superseded status maps here — a replan-superseded migration accepts a replacement
+        // commit immediately, exactly ReadyToPropose's meaning, even though a prior (now
+        // superseded) migration record still exists in the store.
+        assertFalse(isMigrationActuallyComplete(MigrationState.ReadyToPropose))
+    }
+
+    @Test
+    fun `a RequiresAttention migration is not treated as complete`() {
+        assertFalse(isMigrationActuallyComplete(MigrationState.RequiresAttention(AttentionReason.TransferExpired)))
+    }
+
+    @Test
+    fun `NotStarted, SplitPendingConfirmation, and InProgress are not treated as complete`() {
+        assertFalse(isMigrationActuallyComplete(MigrationState.NotStarted))
+        assertFalse(isMigrationActuallyComplete(MigrationState.SplitPendingConfirmation))
+        assertFalse(isMigrationActuallyComplete(MigrationState.InProgress(MigrationProgress(3, 10, null))))
     }
 
     // ── waitingDisposition (what a genuine engine Waiting resolves to) ────────
