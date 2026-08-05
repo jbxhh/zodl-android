@@ -249,7 +249,7 @@ private fun PrivacyReviewContent(
         }
         // Only this list scrolls when it doesn't fit — header and Confirm button stay pinned.
         LazyColumn(modifier = Modifier.weight(1f)) {
-            if (state.preparations.size > 1) {
+            if (state.preparationDetails != null) {
                 // Multi-note wallet: collapse the per-preparation "Split balance N" rows into a
                 // single "Split Balance" summary row with a "Show details" sheet (Figma "PR App
                 // Designs Q3'26" node 5207:16023, 2026-08-03 — supersedes the earlier inline
