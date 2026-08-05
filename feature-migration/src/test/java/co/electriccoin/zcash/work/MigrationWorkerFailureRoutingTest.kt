@@ -69,7 +69,13 @@ enum class DispatchResult { SUCCESS, FAILURE }
  *
  * Production arms covered (terminal arms simply do not re-arm — there is no second lane left to
  * cancel since the engine-adoption single-worker refactor):
- * - [TransferResult.InvalidNote]  → notifyMigrationPlanInvalid → SUCCESS
+ * - [TransferResult.InvalidNote]  → withheld for reevaluation, NO notify, re-arms → SUCCESS (SDK
+ *   Task 9 / spec 2026-08-05-migration-engine-full-delegation-design.md §5: a genuinely-unknown
+ *   broadcast rejection is now reported via report_broadcast_failure — tag=4, AwaitingReevaluation
+ *   — instead of terminally failed, so this arm no longer notifies "plan invalid". This
+ *   transcription omits the re-arm call itself, same as it omits every other arm's re-arm/schedule
+ *   side effects — [DispatchResult] only mirrors the WorkManager `Result` outcome, not
+ *   `MigrationScheduler` scheduling.)
  * - [TransferResult.Expired]      → notifyTransferExpired      → SUCCESS
  * - [TransferResult.NetworkError] (isTorFailure=true)  → store tor-flag + notifyMigrationTorFailure → FAILURE
  * - [TransferResult.NetworkError] (isTorFailure=false) → notifyManualConfirmationRequired          → FAILURE
@@ -94,7 +100,9 @@ private suspend fun dispatchTransferResultForTest(
         }
 
         TransferResult.InvalidNote -> {
-            notifier.notifyMigrationPlanInvalid(accountKeyId)
+            // No notify — see the doc comment above. Production re-arms here (DriveOnceResult.ReArmed);
+            // MigrationWorker.doWork() maps both ReArmed and Terminal to Result.success(), so SUCCESS
+            // still matches this transcription's WorkManager-result-only modeling.
             DispatchResult.SUCCESS
         }
 
@@ -142,9 +150,11 @@ private fun planWithPendingFirst(): LiveMigrationSnapshot =
 
 class MigrationWorkerFailureRoutingTest {
     @Test
-    fun `InvalidNote calls notifyMigrationPlanInvalid and returns success`() =
+    fun `InvalidNote is withheld for reevaluation without notifying and returns success`() =
         runTest {
-            val notifier = mockk<TestMigrationNotifier> { coJustRun { notifyMigrationPlanInvalid(any()) } }
+            // SDK Task 9: a genuinely-unknown rejection is now reported via report_broadcast_failure
+            // (tag=4, AwaitingReevaluation) instead of terminally failed — no "plan invalid" notify.
+            val notifier = mockk<TestMigrationNotifier>()
             val torStore = mockk<TestTorFailureStore>()
 
             val result =
@@ -157,7 +167,7 @@ class MigrationWorkerFailureRoutingTest {
                 )
 
             assertEquals(DispatchResult.SUCCESS, result, "InvalidNote must return Result.success()")
-            coVerify(exactly = 1) { notifier.notifyMigrationPlanInvalid(ACCOUNT_KEY_ID) }
+            coVerify(exactly = 0) { notifier.notifyMigrationPlanInvalid(any()) }
             // Tor storage must NOT be touched — this is not a network failure.
             coVerify(exactly = 0) { torStore.store(any(), any()) }
             // Transfer-expired notification must NOT fire — distinct spec §6.3 copy.
@@ -320,12 +330,9 @@ class MigrationWorkerFailureRoutingTest {
     // ── Cross-arm isolation: verify arms do not bleed into each other ──────────────────────────
 
     @Test
-    fun `InvalidNote does not fire Expired notification or Tor paths`() =
+    fun `InvalidNote does not fire Expired, ManualConfirmation, Tor, or PlanInvalid notifications`() =
         runTest {
-            val notifier =
-                mockk<TestMigrationNotifier> {
-                    coJustRun { notifyMigrationPlanInvalid(any()) }
-                }
+            val notifier = mockk<TestMigrationNotifier>()
             val torStore = mockk<TestTorFailureStore>()
 
             dispatchTransferResultForTest(
@@ -339,6 +346,7 @@ class MigrationWorkerFailureRoutingTest {
             coVerify(exactly = 0) { notifier.notifyTransferExpired(any()) }
             coVerify(exactly = 0) { notifier.notifyManualConfirmationRequired(any(), any(), any()) }
             coVerify(exactly = 0) { notifier.notifyMigrationTorFailure(any()) }
+            coVerify(exactly = 0) { notifier.notifyMigrationPlanInvalid(any()) }
         }
 
     @Test

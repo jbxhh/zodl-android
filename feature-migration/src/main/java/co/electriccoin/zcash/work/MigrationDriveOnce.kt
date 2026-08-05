@@ -42,9 +42,12 @@ import kotlin.time.Duration.Companion.seconds
  *    kills the durable WorkManager chain (nothing else will re-arm it). The live driver just
  *    waits [retryDelay] and tries again.
  *  - [Terminal]: the migration reached `Complete`, or a state that intentionally never
- *    self-schedules (`Rebuild`, `Replan`, `InvalidNote`, `Expired`, `NetworkError`) — all of
- *    these need a user-driven reschedule/re-plan (or are simply done), so nothing here re-arms.
- *    Neither caller should re-arm; the live driver stops.
+ *    self-schedules (`Rebuild`, `Replan`, `Expired`, `NetworkError`) — all of these need a
+ *    user-driven reschedule/re-plan (or are simply done), so nothing here re-arms. Neither caller
+ *    should re-arm; the live driver stops. `InvalidNote` is NOT in this list (SDK Task 9): a
+ *    genuinely-unknown broadcast rejection is withheld (`Blocker::AwaitingReevaluation`) rather
+ *    than terminally failed, so [handleExecuted]'s `InvalidNote` arm re-arms instead of stopping —
+ *    see its doc comment.
  */
 sealed class DriveOnceResult {
     data class ReArmed(
@@ -458,13 +461,28 @@ class MigrationDriveOnce(
             }
 
             TransferResult.InvalidNote -> {
-                // State is now RequiresAttention(InvalidTransfer) — notes were spent outside the
-                // migration flow. On-launch reconciliation surfaces the prompt, but the user still
-                // needs telling since nothing else runs meanwhile. No re-arm — terminal until the
-                // user acts.
-                migrationLog("MigrationDriveOnce: transfer invalid (note spent externally) — user action required on next open.")
-                migrationNotifier.notifyMigrationPlanInvalid(accountKeyId)
-                DriveOnceResult.Terminal
+                // SDK Task 9 behavior change (spec 2026-08-05-migration-engine-full-delegation-design.md
+                // §5): a genuinely-unknown broadcast rejection is now reported to the engine via
+                // report_broadcast_failure (recordTransferResult tag=4) instead of being terminally
+                // failed (tag=2's old behavior for this exact case). mapSubmitResult's non-gRPC-Failure
+                // `else` branch — the ONLY producer of TransferResult.InvalidNote in the SDK — is what
+                // reaches here (via executeNextPendingTransfer, this driver's only path into
+                // handleExecuted), and that call site always applies the tag=2 -> tag=4 override. So the
+                // persisted migration state after this outcome is InProgress, with the transaction
+                // withheld under Blocker::AwaitingReevaluation — NOT RequiresAttention(InvalidTransfer)
+                // as the old comment here claimed. No user action is required: the transaction is
+                // offered again once the wallet's scan reaches the rejecting node's observed tip and
+                // advance_migration adjudicates it — surfaced on a later nextStep() call as
+                // MigrationAdvanceStep.Reevaluate, which run()'s Reevaluate branch drives via a real
+                // syncRun. So: withhold + re-arm, NOT terminal-fail + notify — notifying "plan invalid"
+                // here would be a false alarm for what is very often a transient rejection. (If the
+                // transfer genuinely cannot mine, advance_migration's own foreign-spend detection
+                // eventually routes it to Replan -> replanRun, which DOES notify the user.)
+                migrationLog(
+                    "MigrationDriveOnce: broadcast rejected for an unknown reason — withheld pending " +
+                        "reevaluation, re-arming."
+                )
+                DriveOnceResult.ReArmed(reArm(sdk, accountKeyId))
             }
 
             TransferResult.Expired -> {
