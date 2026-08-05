@@ -29,6 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.ZashiButton
@@ -39,7 +40,6 @@ import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
-import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
@@ -72,18 +72,20 @@ fun MigrationBatteryScreen() {
                     if (isUnrestricted()) s.onAllow()
                 }
             MigrationBatteryView(
-                state = s.copy(
-                    onAllow = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:${context.packageName}")
+                state =
+                    s.copy(
+                        onAllow = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                val intent =
+                                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
+                                launcher.launch(intent)
+                            } else {
+                                s.onAllow()
                             }
-                            launcher.launch(intent)
-                        } else {
-                            s.onAllow()
                         }
-                    }
-                )
+                    )
             )
         }
     }
@@ -100,20 +102,23 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
         }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .scaffoldPadding(padding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .scaffoldPadding(padding),
         ) {
             Text(
-                text = "Disable Battery Optimization",
+                text = "Allow Background Delivery",
                 style = ZashiTypography.header6,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "To send migration transfers at their scheduled times, Zodl needs permission to run in the background.",
+                text =
+                    "To send migration transfers at their scheduled times, Zodl needs to keep running in " +
+                        "the background. Allow background activity for Zodl in your device settings.",
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
@@ -121,44 +126,49 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
             BatteryFeatureItem(
                 icon = co.electriccoin.zcash.ui.R.drawable.ic_migration_battery_clock_check,
                 title = "Transfers send at their scheduled windows",
-                body = "Your device wakes up and broadcasts each transfer at its scheduled window — no action needed.",
+                body = "Zodl wakes up and sends each transfer at its scheduled time — no action needed.",
             )
             Spacer(Modifier.height(16.dp))
             BatteryFeatureItem(
                 icon = co.electriccoin.zcash.ui.R.drawable.ic_migration_battery_face_smile,
                 title = "No need to open the app for each send",
-                body = "Once the schedule is committed, all transfers broadcast in the background over the next 24 hours.",
+                body = "Once the schedule is committed, all transfers are sent in the background.",
             )
             Spacer(Modifier.height(16.dp))
             BatteryFeatureItem(
                 icon = co.electriccoin.zcash.ui.R.drawable.ic_migration_battery_check_heart,
-                title = "Stays de-correlated from your app activity",
-                body = "Transfers go out at fixed network-wide windows, not tied to when you open Zodl.",
+                title = "Sends on a fixed schedule, not your activity",
+                body = "Transfers go out at set network-wide times, so they're not linked to when you open Zodl.",
             )
             Spacer(Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth()) {
                 Icon(
                     painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_info),
                     contentDescription = null,
-                    tint = ZashiColors.Text.textTertiary,
+                    tint = ZashiColors.Utility.WarningYellow.utilityOrange700,
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = "Without this permission background operations may fail and you may experience delays.",
+                    text = "Without this permission, you'll need to open Zodl manually at each scheduled time to send.",
                     style = ZashiTypography.textXs,
-                    color = ZashiColors.Text.textTertiary,
+                    color = ZashiColors.Utility.WarningYellow.utilityOrange700,
                 )
             }
             Spacer(Modifier.height(24.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Skip — I'll open the app"), onClick = state.onSkip),
+                state = ButtonState(text = stringRes("Skip"), onClick = state.onSkip),
                 modifier = Modifier.fillMaxWidth(),
-                defaultPrimaryColors = ZashiButtonDefaults.secondaryColors(),
+                defaultPrimaryColors =
+                    ZashiButtonDefaults.destructive1Colors(
+                        containerColor = ZashiColors.Utility.WarningYellow.utilityOrange50,
+                        contentColor = ZashiColors.Utility.WarningYellow.utilityOrange700,
+                        borderColor = ZashiColors.Utility.WarningYellow.utilityOrange300,
+                    ),
             )
             Spacer(Modifier.height(12.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Allow Background Access"), onClick = state.onAllow),
+                state = ButtonState(text = stringRes("Allow"), onClick = state.onAllow),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -193,8 +203,9 @@ private fun BatteryFeatureItem(icon: Int, title: String, body: String) {
 
 @PreviewScreens
 @Composable
-private fun Preview() = ZcashTheme {
-    MigrationBatteryView(
-        state = MigrationBatteryState(onAllow = {}, onSkip = {}, onAutoSkip = {}, onBack = {})
-    )
-}
+private fun Preview() =
+    ZcashTheme {
+        MigrationBatteryView(
+            state = MigrationBatteryState(onAllow = {}, onSkip = {}, onAutoSkip = {}, onBack = {})
+        )
+    }

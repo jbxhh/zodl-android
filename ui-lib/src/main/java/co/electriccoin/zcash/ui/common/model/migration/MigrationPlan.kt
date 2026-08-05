@@ -3,9 +3,9 @@ package co.electriccoin.zcash.ui.common.model.migration
 import cash.z.ecc.android.sdk.MigrationSchedule
 import cash.z.ecc.android.sdk.MigrationTransferStates
 import kotlinx.serialization.Serializable
+import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.Instant
-import java.util.UUID
 
 /**
  * One note-split (preparation) transaction surfaced in the app-side [MigrationPlan]. Mirrors the
@@ -50,7 +50,10 @@ data class MigrationPreparation(
  * literally `1` ("this round, from here") rather than tracking progress across rounds.
  */
 @Serializable
-data class MigrationKeystoneRound(val current: Int, val total: Int)
+data class MigrationKeystoneRound(
+    val current: Int,
+    val total: Int
+)
 
 @Serializable
 data class MigrationPlan(
@@ -87,32 +90,43 @@ fun MigrationSchedule.toMigrationPlan(
     // Preparations carry no per-item anchorHeight. Use the transfers' commit-tip baseline so all
     // height-to-wall-clock estimates share the same reference point. Falls back to the
     // preparations' own broadcastHeight minimum (or 0) when there are no transfers.
-    val baseline = transfers.minOfOrNull { it.anchorHeight }
-        ?: preparations.minOfOrNull { it.broadcastHeight }
-        ?: 0L
+    val baseline =
+        transfers.minOfOrNull { it.anchorHeight }
+            ?: preparations.minOfOrNull { it.broadcastHeight }
+            ?: 0L
     return MigrationPlan(
         id = UUID.randomUUID().toString(),
         createdAtEpochSeconds = now,
-        transfers = transfers.mapIndexed { i, t ->
-            MigrationTransfer(
-                index = i,
-                amountZatoshi = t.amountZatoshi,
-                scheduledAtEpochSeconds = now + estimatedSecondsBetweenHeights(t.anchorHeight, t.nextExecutableAfterHeight, secondsPerBlock),
-                status = MigrationTransferStatus.PENDING,
-                expiryAtEpochSeconds = now + estimatedSecondsBetweenHeights(t.anchorHeight, t.expiryHeight, secondsPerBlock),
-                id = t.id,
-            )
-        },
-        preparations = preparations.map { p ->
-            MigrationPreparation(
-                id = p.id,
-                layer = p.layer,
-                index = p.index,
-                scheduledAtEpochSeconds = now + estimatedSecondsBetweenHeights(baseline, p.broadcastHeight, secondsPerBlock),
-                dependsOn = p.dependsOn,
-                status = MigrationTransferStatus.PENDING,
-            )
-        },
+        transfers =
+            transfers.mapIndexed { i, t ->
+                MigrationTransfer(
+                    index = i,
+                    amountZatoshi = t.amountZatoshi,
+                    scheduledAtEpochSeconds =
+                        now +
+                            estimatedSecondsBetweenHeights(
+                                t.anchorHeight,
+                                t.nextExecutableAfterHeight,
+                                secondsPerBlock
+                            ),
+                    status = MigrationTransferStatus.PENDING,
+                    expiryAtEpochSeconds =
+                        now + estimatedSecondsBetweenHeights(t.anchorHeight, t.expiryHeight, secondsPerBlock),
+                    id = t.id,
+                )
+            },
+        preparations =
+            preparations.map { p ->
+                MigrationPreparation(
+                    id = p.id,
+                    layer = p.layer,
+                    index = p.index,
+                    scheduledAtEpochSeconds =
+                        now + estimatedSecondsBetweenHeights(baseline, p.broadcastHeight, secondsPerBlock),
+                    dependsOn = p.dependsOn,
+                    status = MigrationTransferStatus.PENDING,
+                )
+            },
         mode = mode,
         keystoneRound = keystoneRound,
     )
@@ -145,24 +159,36 @@ fun MigrationPlan.withLiveState(live: MigrationTransferStates?, secondsPerBlock:
     val byTransferId = live.transfers.filter { it.isTransfer }.associateBy { it.id }
     val byPrepId = live.transfers.filter { !it.isTransfer }.associateBy { it.id }
     return copy(
-        transfers = transfers.map { t ->
-            val liveTransfer = byTransferId[t.id] ?: return@map t
-            t.copy(
-                status = if (liveTransfer.isSent) MigrationTransferStatus.SENT else MigrationTransferStatus.PENDING,
-                isProved = liveTransfer.isProved,
-                scheduledAtEpochSeconds =
-                    now + estimatedSecondsBetweenHeights(live.tipHeight, liveTransfer.scheduledHeight, secondsPerBlock),
-            )
-        },
-        preparations = preparations.map { p ->
-            val liveTransfer = byPrepId[p.id] ?: return@map p
-            p.copy(
-                status = if (liveTransfer.isSent) MigrationTransferStatus.SENT else MigrationTransferStatus.PENDING,
-                isProved = liveTransfer.isProved,
-                scheduledAtEpochSeconds =
-                    now + estimatedSecondsBetweenHeights(live.tipHeight, liveTransfer.scheduledHeight, secondsPerBlock),
-            )
-        },
+        transfers =
+            transfers.map { t ->
+                val liveTransfer = byTransferId[t.id] ?: return@map t
+                t.copy(
+                    status = if (liveTransfer.isSent) MigrationTransferStatus.SENT else MigrationTransferStatus.PENDING,
+                    isProved = liveTransfer.isProved,
+                    scheduledAtEpochSeconds =
+                        now +
+                            estimatedSecondsBetweenHeights(
+                                live.tipHeight,
+                                liveTransfer.scheduledHeight,
+                                secondsPerBlock
+                            ),
+                )
+            },
+        preparations =
+            preparations.map { p ->
+                val liveTransfer = byPrepId[p.id] ?: return@map p
+                p.copy(
+                    status = if (liveTransfer.isSent) MigrationTransferStatus.SENT else MigrationTransferStatus.PENDING,
+                    isProved = liveTransfer.isProved,
+                    scheduledAtEpochSeconds =
+                        now +
+                            estimatedSecondsBetweenHeights(
+                                live.tipHeight,
+                                liveTransfer.scheduledHeight,
+                                secondsPerBlock
+                            ),
+                )
+            },
     )
 }
 
@@ -172,7 +198,7 @@ fun MigrationPlan.withLiveState(live: MigrationTransferStates?, secondsPerBlock:
  * `isComplete` actually advance after a broadcast. The send path must persist this after every
  * successful `executeNextPendingTransfer()` — the home banner reads the RAW cached plan (not a
  * live read-time overlay like [withLiveState]), so without this write-through it stays stuck on
- * "First transfer sending…" even though the SDK already recorded the send.
+ * "0 of N transfers done" even though the SDK already recorded the send.
  *
  * Unlike [withLiveState] this deliberately leaves [MigrationTransfer.scheduledAtEpochSeconds]
  * alone — it's a status-only reconcile, so it never clobbers a user/engine reschedule with a
@@ -186,12 +212,13 @@ fun MigrationPlan.withLiveStatusOnly(live: MigrationTransferStates?): MigrationP
     val sentIds = live.transfers.filter { it.isSent }.mapTo(mutableSetOf()) { it.id }
     if (sentIds.isEmpty()) return this
     return copy(
-        transfers = transfers.map { t ->
-            if (t.status != MigrationTransferStatus.SENT && t.id in sentIds) {
-                t.copy(status = MigrationTransferStatus.SENT)
-            } else {
-                t
+        transfers =
+            transfers.map { t ->
+                if (t.status != MigrationTransferStatus.SENT && t.id in sentIds) {
+                    t.copy(status = MigrationTransferStatus.SENT)
+                } else {
+                    t
+                }
             }
-        }
     )
 }

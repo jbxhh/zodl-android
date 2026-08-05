@@ -1,7 +1,6 @@
 package co.electriccoin.zcash.ui.screen.migration.setup
 
 import androidx.activity.compose.BackHandler
-import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +32,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
@@ -55,10 +56,9 @@ import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
-import co.electriccoin.zcash.ui.screen.common.PrivacyDisclaimerCard
+import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIcons
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIconsState
-import co.electriccoin.zcash.ui.R
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -81,10 +81,11 @@ fun MigrationSetupView(state: MigrationSetupState) {
         }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .scaffoldPadding(padding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .scaffoldPadding(padding),
         ) {
             WalletHeaderIcons(
                 state =
@@ -102,7 +103,12 @@ fun MigrationSetupView(state: MigrationSetupState) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = buildMigrationBodyText(state.orchardBalance.getValue(), state.fiatBalance?.getValue()),
+                text =
+                    buildMigrationBodyText(
+                        zecAmount = state.orchardBalance.getValue(),
+                        fiatAmount = state.fiatBalance?.getValue(),
+                        zecAmountColor = ZashiColors.Text.textPrimary,
+                    ),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
@@ -122,11 +128,28 @@ fun MigrationSetupView(state: MigrationSetupState) {
             Spacer(Modifier.weight(1f))
             when (state.mode) {
                 MigrationMode.IMMEDIATE -> {
-                    PrivacyDisclaimerCard(
-                        body = "All funds transferred in this transaction will be revealed on-chain.",
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Icon(
+                            painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_info),
+                            contentDescription = null,
+                            tint = ZashiColors.Utility.WarningYellow.utilityOrange700,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = "All funds transferred in this transaction will be revealed on-chain.",
+                            style = ZashiTypography.textXs,
+                            fontWeight = FontWeight.Medium,
+                            color = ZashiColors.Utility.WarningYellow.utilityOrange700,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                     Spacer(Modifier.height(20.dp))
                 }
+
                 MigrationMode.AUTOMATIC -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -151,19 +174,24 @@ fun MigrationSetupView(state: MigrationSetupState) {
                 }
             }
             ZashiButton(
-                state = ButtonState(
-                    text = stringRes("Next"),
-                    onClick = state.onConfirm,
-                ),
+                state =
+                    ButtonState(
+                        text = stringRes("Next"),
+                        onClick = state.onConfirm,
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
     }
 }
 
-private fun buildMigrationBodyText(zecAmount: String, fiatAmount: String?) = buildAnnotatedString {
-    append("Latest Zcash network upgrade requires moving your ")
-    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+private fun buildMigrationBodyText(
+    zecAmount: String,
+    fiatAmount: String?,
+    zecAmountColor: Color,
+) = buildAnnotatedString {
+    append("The latest Zcash network upgrade requires moving your ")
+    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = zecAmountColor)) {
         append(zecAmount)
     }
     if (fiatAmount != null) {
@@ -192,7 +220,7 @@ private fun MigrationModeSelector(
         MigrationModeOption(
             mode = MigrationMode.IMMEDIATE,
             title = "Migrate Immediately",
-            subtitle = "Single transfer · Sends now · No privacy",
+            subtitle = "Single transfer · Sends now · Less privacy",
             isWarning = true,
             selected = selected,
             onSelect = onSelect,
@@ -218,48 +246,47 @@ private fun MigrationModeOption(
     val warningTitle = ZashiColors.Utility.WarningYellow.utilityOrange700
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .let {
-                if (isWarningSelected) {
-                    it.drawBehind {
-                        val ringWidthPx = 2.dp.toPx()
-                        val cornerPx = 16.dp.toPx() + ringWidthPx
-                        drawRoundRect(
-                            color = warningRing,
-                            topLeft = Offset(-ringWidthPx, -ringWidthPx),
-                            size = Size(size.width + ringWidthPx * 2, size.height + ringWidthPx * 2),
-                            cornerRadius = CornerRadius(cornerPx, cornerPx),
-                        )
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .let {
+                    if (isWarningSelected) {
+                        it.drawBehind {
+                            val ringWidthPx = 2.dp.toPx()
+                            val cornerPx = 16.dp.toPx() + ringWidthPx
+                            drawRoundRect(
+                                color = warningRing,
+                                topLeft = Offset(-ringWidthPx, -ringWidthPx),
+                                size = Size(size.width + ringWidthPx * 2, size.height + ringWidthPx * 2),
+                                cornerRadius = CornerRadius(cornerPx, cornerPx),
+                            )
+                        }
+                    } else {
+                        it
                     }
-                } else {
-                    it
-                }
-            }
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) ZashiColors.Surfaces.bgPrimary else ZashiColors.Surfaces.bgSecondary)
-            .let {
-                when {
-                    isWarningSelected -> it.border(1.dp, warningBorder, RoundedCornerShape(16.dp))
-                    isSelected -> it.border(1.dp, ZashiColors.Text.textPrimary, RoundedCornerShape(16.dp))
-                    else -> it
-                }
-            }
-            .selectable(
-                selected = isSelected,
-                onClick = { onSelect(mode) },
-                role = Role.RadioButton,
-            )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+                }.clip(RoundedCornerShape(16.dp))
+                .background(if (isSelected) ZashiColors.Surfaces.bgPrimary else ZashiColors.Surfaces.bgSecondary)
+                .let {
+                    when {
+                        isWarningSelected -> it.border(1.dp, warningBorder, RoundedCornerShape(16.dp))
+                        isSelected -> it.border(1.dp, ZashiColors.Text.textPrimary, RoundedCornerShape(16.dp))
+                        else -> it
+                    }
+                }.selectable(
+                    selected = isSelected,
+                    onClick = { onSelect(mode) },
+                    role = Role.RadioButton,
+                ).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         RadioButton(
             selected = isSelected,
             onClick = null,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = if (isWarningSelected) warningRadio else ZashiColors.Text.textPrimary,
-                unselectedColor = ZashiColors.Surfaces.strokePrimary,
-            ),
+            colors =
+                RadioButtonDefaults.colors(
+                    selectedColor = if (isWarningSelected) warningRadio else ZashiColors.Text.textPrimary,
+                    unselectedColor = ZashiColors.Surfaces.strokePrimary,
+                ),
         )
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(
@@ -279,34 +306,38 @@ private fun MigrationModeOption(
 
 @PreviewScreens
 @Composable
-private fun Preview() = ZcashTheme {
-    MigrationSetupView(
-        state = MigrationSetupState(
-            orchardBalance = stringRes("12.458 ZEC"),
-            fiatBalance = stringRes("$4,832.86"),
-            isKeystone = false,
-            mode = MigrationMode.AUTOMATIC,
-            onModeChange = {},
-            onFindOutMore = {},
-            onConfirm = {},
-            onBack = {},
+private fun Preview() =
+    ZcashTheme {
+        MigrationSetupView(
+            state =
+                MigrationSetupState(
+                    orchardBalance = stringRes("12.458 ZEC"),
+                    fiatBalance = stringRes("$4,832.86"),
+                    isKeystone = false,
+                    mode = MigrationMode.AUTOMATIC,
+                    onModeChange = {},
+                    onFindOutMore = {},
+                    onConfirm = {},
+                    onBack = {},
+                )
         )
-    )
-}
+    }
 
 @PreviewScreens
 @Composable
-private fun PreviewImmediateSelected() = ZcashTheme {
-    MigrationSetupView(
-        state = MigrationSetupState(
-            orchardBalance = stringRes("12.458 ZEC"),
-            fiatBalance = stringRes("$4,832.86"),
-            isKeystone = false,
-            mode = MigrationMode.IMMEDIATE,
-            onModeChange = {},
-            onFindOutMore = {},
-            onConfirm = {},
-            onBack = {},
+private fun PreviewImmediateSelected() =
+    ZcashTheme {
+        MigrationSetupView(
+            state =
+                MigrationSetupState(
+                    orchardBalance = stringRes("12.458 ZEC"),
+                    fiatBalance = stringRes("$4,832.86"),
+                    isKeystone = false,
+                    mode = MigrationMode.IMMEDIATE,
+                    onModeChange = {},
+                    onFindOutMore = {},
+                    onConfirm = {},
+                    onBack = {},
+                )
         )
-    )
-}
+    }
