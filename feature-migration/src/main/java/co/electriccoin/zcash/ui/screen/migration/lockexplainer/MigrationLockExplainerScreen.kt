@@ -91,10 +91,8 @@ fun MigrationLockExplainerView(
             ZashiButton(
                 state =
                     ButtonState(
-                        text = stringRes(if (innerState.isLocking) "Locking balance…" else "Got it"),
+                        text = stringRes("Got it"),
                         onClick = innerState.onGotIt,
-                        isEnabled = !innerState.isLocking,
-                        isLoading = innerState.isLocking,
                     ),
                 modifier = Modifier.fillMaxWidth(),
             )
