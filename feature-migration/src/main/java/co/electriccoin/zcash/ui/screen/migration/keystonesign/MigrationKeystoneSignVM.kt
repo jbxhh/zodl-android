@@ -52,7 +52,8 @@ class MigrationKeystoneSignVM(
     // Builds (or, when resuming round > 0 of a multi-round batch, reuses) the unsigned split (if
     // needed) + schedule PCZTs, then builds the animated QR for *this round's* slice only — see
     // KeystoneBatchChunking.kt and MigrationSdk.kt's buildKeystoneSignBatchQrParts doc. A batch
-    // larger than KEYSTONE_BATCH_MAX_ITEMS is split across multiple sign/scan round trips;
+    // too large for one round's KeystoneSigningRoundBudget (see sdk.keystoneSigningRoundBudget()/
+    // KeystoneBatchChunking.kt) is split across multiple sign/scan round trips;
     // MigrationKeystoneScanVM advances pendingKeystonePczts.roundIndex and replace()s back into a
     // fresh instance of this screen for each subsequent round. Retains the unsigned originals (via
     // pendingKeystonePczts) so the scan screen can match the device's signatures back to them once

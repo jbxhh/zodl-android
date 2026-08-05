@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * blobs, too large/inappropriate to round-trip through Compose Navigation's serialized nav args.
  *
  * When the full batch is larger than one Keystone QR round can safely hold
- * (`KEYSTONE_BATCH_MAX_ITEMS`, see `MigrationKeystoneSignVM`), it's split into multiple rounds via
+ * (the `KeystoneSigningRoundBudget` returned by `sdk.keystoneSigningRoundBudget()`, see
+ * `KeystoneBatchChunking.kt`), it's split into multiple rounds via
  * `keystoneBatchRoundSlice` — [roundIndex] tracks which round is currently in flight (0-based),
  * and [accumulatedSplitSigned]/[accumulatedTransferSigned] carry every already-completed round's
  * results forward so the final round can hand the *whole* signed set to
