@@ -141,9 +141,10 @@ class CheckMigrationRecoveryUseCaseTest {
             // an old Tor failure while the actual next-due transfer was stuck needing PROVE for an
             // unrelated reason (a stale anchor checkpoint) — navigating to Sending here just hits a
             // guaranteed AwaitingProof and shows a "Couldn't Send" sheet on every app open.
-            val storageProvider = mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true) {
-                coEvery { get() } returns true
-            }
+            val storageProvider =
+                mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true) {
+                    coEvery { get() } returns true
+                }
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
@@ -169,9 +170,10 @@ class CheckMigrationRecoveryUseCaseTest {
     @Test
     fun pendingTorFailureIsStale_whenNothingIsDue_clearsFlagInsteadOfNavigating() =
         runTest {
-            val storageProvider = mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true) {
-                coEvery { get() } returns true
-            }
+            val storageProvider =
+                mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true) {
+                    coEvery { get() } returns true
+                }
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true

@@ -125,6 +125,10 @@ class MigrationDriveOnce(
                     syncRun(sdk, accountKeyId)
                 }
 
+                MigrationAdvanceStep.Reevaluate -> {
+                    syncRun(sdk, accountKeyId)
+                }
+
                 is MigrationAdvanceStep.Broadcast -> {
                     broadcastRun(sdk, accountKeyId, allowForcedBroadcastWindow)
                 }

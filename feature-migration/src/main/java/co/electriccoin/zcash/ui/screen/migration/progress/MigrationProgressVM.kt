@@ -164,10 +164,12 @@ class MigrationProgressVM(
                         isReadyNow = display.isReadyNow,
                         // Attention paint (orange) ONLY for genuine, cannot-heal-on-its-own states —
                         // never for a merely-late-but-healthy transfer (the old "overdue" false
-                        // alarm). Expired and the synthetic unprovable-anchor are the only two.
+                        // alarm). Expired, the synthetic unprovable-anchor, and the engine-native
+                        // unsatisfiable verdict (2026-08-05: same "can never mine" category).
                         isAttention =
                             t.blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR ||
-                                t.blocker == MigrationTransferBlocker.EXPIRED,
+                                t.blocker == MigrationTransferBlocker.EXPIRED ||
+                                t.blocker == MigrationTransferBlocker.UNSATISFIABLE,
                         isSent = t.isSent,
                     )
                 },
@@ -366,8 +368,13 @@ internal data class MigrationRowDisplay(
  * Row state for a crossing transfer, in Figma's priority order (2026-08-03 finalization, decision
  * with Dominik — replaces the old debug/primary split from 2026-08-01):
  *
- * 1. A genuinely blocked row (`EXPIRED`/`UNPROVABLE_ANCHOR`/`SIGNATURE` — the only three blockers
+ * 1. A genuinely blocked row (`EXPIRED`/`UNPROVABLE_ANCHOR`/`SIGNATURE`/`UNSATISFIABLE` — the ones
  *    that can never self-resolve) keeps its own explicit copy, regardless of schedule time.
+ *    (2026-08-05: `UNSATISFIABLE` added — same "can never mine" shape as `UNPROVABLE_ANCHOR`,
+ *    reusing its copy pending a real design pass. `EXPIRY_IMMINENT`/`AWAITING_REEVALUATION` are
+ *    deliberately NOT given a branch here — per their SDK doc comments both are transient/
+ *    self-resolving [MigrationBlocker] readings, so falling through to the schedule-based
+ *    "Ready now"/relative-estimate display is an acceptable placeholder, not a bug.)
  * 2. [sentRowDisplay] — broadcast (`isSent`), Figma's "Confirmed" vs "Sent" split collapses into
  *    one state.
  * 3. "Sending now" has no real backing signal in this passively-polled snapshot (see
@@ -395,6 +402,10 @@ internal fun transferRowDisplay(
         }
 
         t.blocker == MigrationTransferBlocker.UNPROVABLE_ANCHOR -> {
+            MigrationRowDisplay(stringRes("Needs reschedule"), isReadyNow = false)
+        }
+
+        t.blocker == MigrationTransferBlocker.UNSATISFIABLE -> {
             MigrationRowDisplay(stringRes("Needs reschedule"), isReadyNow = false)
         }
 

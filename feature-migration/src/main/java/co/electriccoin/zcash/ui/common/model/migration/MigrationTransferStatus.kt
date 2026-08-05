@@ -12,7 +12,17 @@ enum class MigrationTransferStatus { PENDING, SENT }
  * overwritten from live SDK state on every [withLiveState] overlay.
  */
 @Serializable
-enum class MigrationTransferBlocker { DEPENDENCIES, SCHEDULE, ANCHOR_BOUNDARY, SIGNATURE, EXPIRED, UNPROVABLE_ANCHOR }
+enum class MigrationTransferBlocker {
+    DEPENDENCIES,
+    SCHEDULE,
+    ANCHOR_BOUNDARY,
+    SIGNATURE,
+    EXPIRED,
+    UNPROVABLE_ANCHOR,
+    EXPIRY_IMMINENT,
+    AWAITING_REEVALUATION,
+    UNSATISFIABLE
+}
 
 fun cash.z.ecc.android.sdk.MigrationBlocker.toAppBlocker(): MigrationTransferBlocker =
     when (this) {
@@ -22,6 +32,9 @@ fun cash.z.ecc.android.sdk.MigrationBlocker.toAppBlocker(): MigrationTransferBlo
         cash.z.ecc.android.sdk.MigrationBlocker.SIGNATURE -> MigrationTransferBlocker.SIGNATURE
         cash.z.ecc.android.sdk.MigrationBlocker.EXPIRED -> MigrationTransferBlocker.EXPIRED
         cash.z.ecc.android.sdk.MigrationBlocker.UNPROVABLE_ANCHOR -> MigrationTransferBlocker.UNPROVABLE_ANCHOR
+        cash.z.ecc.android.sdk.MigrationBlocker.EXPIRY_IMMINENT -> MigrationTransferBlocker.EXPIRY_IMMINENT
+        cash.z.ecc.android.sdk.MigrationBlocker.AWAITING_REEVALUATION -> MigrationTransferBlocker.AWAITING_REEVALUATION
+        cash.z.ecc.android.sdk.MigrationBlocker.UNSATISFIABLE -> MigrationTransferBlocker.UNSATISFIABLE
     }
 
 /**

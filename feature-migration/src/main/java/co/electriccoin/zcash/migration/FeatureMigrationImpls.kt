@@ -78,6 +78,7 @@ class MigrationGateImpl(
         when (getOrchardMigrationSdk()?.getMigrationState()) {
             is cash.z.ecc.android.sdk.MigrationState.InProgress,
             is cash.z.ecc.android.sdk.MigrationState.RequiresAttention -> true
+
             else -> false
         }
 }

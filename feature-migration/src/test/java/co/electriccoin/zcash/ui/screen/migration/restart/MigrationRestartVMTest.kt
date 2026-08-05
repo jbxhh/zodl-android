@@ -63,7 +63,10 @@ class MigrationRestartVMTest {
             assertNull(loaded.content?.confirmationDialog)
 
             // Next opens the confirmation sheet.
-            loaded.content?.nextButton?.onClick?.invoke()
+            loaded.content
+                ?.nextButton
+                ?.onClick
+                ?.invoke()
             val withDialog = vm.state.first { it.content?.confirmationDialog != null }
             val dialog = requireNotNull(withDialog.content?.confirmationDialog)
 
