@@ -250,7 +250,6 @@ class MigrationProgressVM(
 
     private fun onBack() = sendLce.guardLoading { navigationRouter.back() }
 
-
     // "Reschedule" no longer mutates the plan — a missed-but-unexpired transfer needs NO plan
     // change by design (ZIP 374: the signature does not cover the anchor, so it proves late
     // against its committed boundary and broadcasts late; the engine is the single source of

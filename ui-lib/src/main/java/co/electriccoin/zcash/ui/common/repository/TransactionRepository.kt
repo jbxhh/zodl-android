@@ -531,8 +531,7 @@ private data class TxDetails(
  * - A *mined* cross-pool transfer (e.g. a pool migration), where the scanner's change-detection
  *   heuristic misclassifies the crossing output as change ([TransactionOverview.sentNoteCount]
  *   and [TransactionOverview.receivedNoteCount] both end up 0).
- * - A *pending* (not-yet-broadcast) migration transaction read from `v_transactions_with_pending_migrations`
- *   (see `z/wt/migration_fixes/spec/2026-08-06-activity-pending-migrations-plan.md` Task 1),
+ * - A *pending* (not-yet-broadcast) migration transaction read from `v_transactions_with_pending_migrations`,
  *   which has a different shape: `sentNoteCount == 0` but `receivedNoteCount >= 1`. Requires
  *   [TransactionOverview.raw] `== null` AND [TransactionOverview.minedHeight] `== null` to
  *   distinguish from ordinary sends: [Zip318Kind.TRANSFER] is deliberately built in canonical
