@@ -97,8 +97,17 @@ class MigrationLiveDriverImpl(
                         // Floor a floorless re-arm value (nextWake's privacy-gap term can be
                         // exactly zero) so this in-process loop never spins tightly — WorkManager
                         // dispatch latency is the accidental brake for the worker path; this loop
-                        // has no equivalent brake unless we supply one.
-                        delay(maxOf(result.delay, MIN_REARM_SECONDS.seconds))
+                        // has no equivalent brake unless we supply one. EXCEPT already-deliberate
+                        // short constants (result.respectAntiSpinFloor == false, e.g.
+                        // PREP_FAST_TRACK_REARM) — flooring those defeats their whole purpose
+                        // (chaining ready prep-batch broadcasts back-to-back within one tree).
+                        val effectiveDelay =
+                            if (result.respectAntiSpinFloor) {
+                                maxOf(result.delay, MIN_REARM_SECONDS.seconds)
+                            } else {
+                                result.delay
+                            }
+                        delay(effectiveDelay)
                     }
 
                     is DriveOnceResult.LockBusy -> {

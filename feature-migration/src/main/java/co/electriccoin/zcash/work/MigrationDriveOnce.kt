@@ -52,7 +52,11 @@ import kotlin.time.Duration.Companion.seconds
  */
 sealed class DriveOnceResult {
     data class ReArmed(
-        val delay: Duration
+        val delay: Duration,
+        /** False only for already-deliberate short constants (e.g. PREP_FAST_TRACK_REARM) where
+         *  the live driver's anti-spin floor would defeat their purpose. True (default) for every
+         *  genuinely floorless nextWake()-derived gap. */
+        val respectAntiSpinFloor: Boolean = true
     ) : DriveOnceResult()
 
     data class LockBusy(
@@ -374,7 +378,7 @@ class MigrationDriveOnce(
                 val deferDelay = if (prepFastTrack) PREP_FAST_TRACK_REARM else sdk.privacySyncBufferDuration()
                 scheduleUnlessLiveLoop(accountKeyId, deferDelay)
                 migrationLog("MigrationDriveOnce: deferring broadcast $deferDelay — a sync source is live or the quiet gap is unmet.")
-                return DriveOnceResult.ReArmed(deferDelay)
+                return DriveOnceResult.ReArmed(deferDelay, respectAntiSpinFloor = !prepFastTrack)
             }
         }
         return attemptBroadcast(sdk, accountKeyId, nextCandidate)
@@ -488,7 +492,7 @@ class MigrationDriveOnce(
                         if (!sentWasPrep && snapshot != null) {
                             migrationNotifier.notifyTransferComplete(accountKeyId, snapshot.completedCount, snapshot.totalCount)
                         }
-                        DriveOnceResult.ReArmed(PREP_FAST_TRACK_REARM)
+                        DriveOnceResult.ReArmed(PREP_FAST_TRACK_REARM, respectAntiSpinFloor = false)
                     } else {
                         val delay = reArm(sdk, accountKeyId, floor = sdk.privacySyncBufferDuration())
                         if (!sentWasPrep && snapshot != null) {

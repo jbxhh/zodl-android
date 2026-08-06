@@ -96,6 +96,40 @@ class MigrationLiveDriverTest {
         }
 
     @Test
+    fun `an unfloored ReArmed delay (respectAntiSpinFloor=false) is NOT floored, chains back-to-back`() =
+        runTest {
+            var runCallCount = 0
+            val driveOnce =
+                mockk<MigrationDriveOnce> {
+                    coEvery { run(any(), any(), any()) } coAnswers {
+                        runCallCount++
+                        // A deliberate short constant (e.g. PREP_FAST_TRACK_REARM) opts out of the
+                        // anti-spin floor — the loop must honor that and chain back-to-back.
+                        if (runCallCount < 3) {
+                            DriveOnceResult.ReArmed(1.seconds, respectAntiSpinFloor = false)
+                        } else {
+                            DriveOnceResult.Terminal
+                        }
+                    }
+                }
+            val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
+            val driver =
+                MigrationLiveDriverImpl(
+                    migrationDriveOnce = driveOnce,
+                    getOrchardMigrationSdk = { sdk },
+                    scope = this,
+                )
+
+            driver.startIfNotRunning("account-1")
+            // Advance by far less than the 60s floor — if the loop were flooring this, at most one
+            // call would have happened by now; all 3 should complete well before the floor.
+            advanceTimeBy(5_000)
+            advanceUntilIdle()
+
+            assertEquals(3, runCallCount, "respectAntiSpinFloor=false must NOT be floored — the loop must chain back-to-back")
+        }
+
+    @Test
     fun `LockBusy waits the given retry delay and tries again`() =
         runTest {
             var runCallCount = 0
