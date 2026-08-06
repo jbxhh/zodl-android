@@ -102,7 +102,18 @@ class MigrationLiveDriverImpl(
                     // single-threaded DB I/O executor the way an independent screen poll did.
                     // Skipped on LockBusy — another caller is mid-step, nothing changed from THIS
                     // call's perspective, and the winning caller publishes when it finishes.
-                    migrationTransferStateRepository.publish(accountKeyId, sdk.getMigrationTransferStates())
+                    //
+                    // runCatching: a failed read (e.g. "database is locked" outlasting the SDK's
+                    // own bounded retry) must not kill this loop the way it would a genuine drive
+                    // step — unlike run()'s own work, this publish is a side-channel for OTHER
+                    // screens' benefit, not something this loop's own control flow depends on
+                    // (2026-08-06 Fable review: an unguarded read here escaping to the outer catch
+                    // stopped the whole live-driver loop mid-migration on a transient DB-lock read
+                    // failure, worse than having no publish at all). Skipping just leaves the
+                    // repository's last-published value in place until the next successful read.
+                    runCatching {
+                        migrationTransferStateRepository.publish(accountKeyId, sdk.getMigrationTransferStates())
+                    }
                 }
                 when (result) {
                     is DriveOnceResult.ReArmed -> {

@@ -1,8 +1,10 @@
 package co.electriccoin.zcash.work
 
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -157,5 +159,69 @@ class MigrationLiveDriverTest {
             advanceUntilIdle()
 
             assertEquals(2, runCallCount, "LockBusy must retry using its own retryDelay, not the floored ReArmed floor")
+        }
+
+    @Test
+    fun `a step that actually ran publishes fresh transfer states, LockBusy does not`() =
+        runTest {
+            var runCallCount = 0
+            val driveOnce =
+                mockk<MigrationDriveOnce> {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
+                        runCallCount++
+                        when (runCallCount) {
+                            1 -> DriveOnceResult.LockBusy(5.seconds) // must NOT publish
+                            2 -> DriveOnceResult.ReArmed(1.seconds) // must publish
+                            else -> DriveOnceResult.Terminal // must also publish
+                        }
+                    }
+                }
+            val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
+            val repository = mockk<MigrationTransferStateRepository>(relaxed = true)
+            val driver =
+                MigrationLiveDriverImpl(
+                    migrationDriveOnce = driveOnce,
+                    getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = repository,
+                    scope = this,
+                )
+
+            driver.startIfNotRunning("account-1")
+            advanceUntilIdle()
+
+            verify(exactly = 2) { repository.publish("account-1", any()) }
+        }
+
+    @Test
+    fun `a failed publish read does not kill the loop`() =
+        runTest {
+            var runCallCount = 0
+            val driveOnce =
+                mockk<MigrationDriveOnce> {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
+                        runCallCount++
+                        if (runCallCount < 3) DriveOnceResult.ReArmed(1.seconds) else DriveOnceResult.Terminal
+                    }
+                }
+            // Every read throws — mirrors a "database is locked" failure outlasting the SDK's own
+            // bounded retry (loggedRetryLoop rethrows once exhausted; observed live). Before the
+            // 2026-08-06 Fable-review fix, this escaped to the loop's outer catch and stopped the
+            // whole live-driver loop mid-migration.
+            val sdk =
+                mockk<OrchardMigrationSdk> {
+                    coEvery { getMigrationTransferStates() } throws IllegalStateException("database is locked")
+                }
+            val driver =
+                MigrationLiveDriverImpl(
+                    migrationDriveOnce = driveOnce,
+                    getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = mockk(relaxed = true),
+                    scope = this,
+                )
+
+            driver.startIfNotRunning("account-1")
+            advanceUntilIdle()
+
+            assertEquals(3, runCallCount, "a failed publish read must not stop the loop — it must keep driving to Terminal")
         }
 }

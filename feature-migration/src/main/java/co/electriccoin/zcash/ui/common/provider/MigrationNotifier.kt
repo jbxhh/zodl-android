@@ -89,18 +89,30 @@ class MigrationNotifier(
      * Registers the notification channel every migration notification posts to. Must be called once
      * before any `notify*` method (done at app start). The channel name/description are user-visible
      * in the system Settings app, so they come from localized resources.
+     *
+     * [CHANNEL_ID] is a NEW id, not a re-registration of the old "migration_channel" at a higher
+     * importance: Android does not let an app raise an EXISTING channel's importance by re-creating
+     * it with the same id — [NotificationManager.createNotificationChannel] silently no-ops on the
+     * importance field for a channel that already exists on the device. That is the actual reason
+     * every migration notification never showed a heads-up popup, including the ones already setting
+     * [NotificationCompat.PRIORITY_HIGH] at the per-notification level: channel importance, not
+     * per-notification priority, is what gates heads-up on API 26+ (this app's entire supported
+     * range, minSdk 27) — the per-notification priority calls are effectively dead weight there
+     * (2026-08-06 Fable review). [LEGACY_DEFAULT_IMPORTANCE_CHANNEL_ID] is deleted so an upgrading
+     * install doesn't leave a dead, empty "Migration" entry behind in Settings > App notifications.
      */
     fun createChannel() {
         val channel =
             NotificationChannel(
                 CHANNEL_ID,
                 context.getString(R.string.migration_notification_channelName),
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = context.getString(R.string.migration_notification_channelDescription)
             }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(channel)
+        manager.deleteNotificationChannel(LEGACY_DEFAULT_IMPORTANCE_CHANNEL_ID)
     }
 
     /**
@@ -133,6 +145,13 @@ class MigrationNotifier(
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(mainActivityIntent(accountKeyId))
                 .setAutoCancel(true)
+                // The prep fast-track chains ready split broadcasts back-to-back (PREP_FAST_TRACK_REARM,
+                // ~1s apart) — without this, now that the channel actually heads-ups (see createChannel's
+                // kdoc), a fast batch would pop up a fresh heads-up for every single split update on the
+                // same notification id. onlyAlertOnce only suppresses the ALERT (sound/vibration/heads-up)
+                // for an update to an ALREADY-SHOWING notification; the content still updates, and a
+                // genuinely new notification (nothing showing yet) still alerts normally.
+                .setOnlyAlertOnce(true)
                 .build()
 
         NotificationManagerCompat.from(context).notify(progressNotificationId(accountKeyId), notification)
@@ -372,7 +391,13 @@ class MigrationNotifier(
     }
 
     companion object {
-        const val CHANNEL_ID = "migration_channel"
+        const val CHANNEL_ID = "migration_channel_high"
+
+        // The original channel, registered at IMPORTANCE_DEFAULT (no heads-up on API 26+) —
+        // superseded by CHANNEL_ID; createChannel() deletes it on every app start so it doesn't
+        // linger as a dead entry in Settings > App notifications on upgrading installs.
+        private const val LEGACY_DEFAULT_IMPORTANCE_CHANNEL_ID = "migration_channel"
+
         const val EXTRA_OPEN_MIGRATION = "co.electriccoin.zcash.migration.open_progress"
         const val EXTRA_RUN_STEP = "co.electriccoin.zcash.migration.run_step"
 
