@@ -262,9 +262,10 @@ private fun PrivacyReviewContent(
                         subtitle = state.preparationsSummarySubtitle ?: stringRes(""),
                         amount = state.totalAmount,
                         fiatAmount = state.totalFiatAmount,
-                        // Figma PR App Designs Q3'26, node 4207-7450: a checkmark, not the
-                        // coins-swap glyph — Split Balance is a same-device self-send.
-                        icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
+                        // Figma PR App Designs Q3'26, node 5596:55884 (verified live): the Split
+                        // Balance row uses the coins-swap/split icon — Transfer rows below it get
+                        // numbered circle markers instead (already handled via the `index` param).
+                        icon = R.drawable.ic_migration_coins_swap,
                         isFirst = true,
                         isLast = false,
                         onShowDetails = onShowPreparationDetails,
@@ -279,7 +280,7 @@ private fun PrivacyReviewContent(
                         subtitle = prep.scheduledLabel,
                         amount = null,
                         fiatAmount = null,
-                        icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
+                        icon = R.drawable.ic_migration_coins_swap,
                         isFirst = prep.number == 1,
                         isLast = false,
                     )
@@ -293,7 +294,7 @@ private fun PrivacyReviewContent(
                         subtitle = stringRes("Ready now"),
                         amount = state.totalAmount,
                         fiatAmount = state.totalFiatAmount,
-                        icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check,
+                        icon = R.drawable.ic_migration_coins_swap,
                         isFirst = true,
                         isLast = state.transfers.isEmpty(),
                     )

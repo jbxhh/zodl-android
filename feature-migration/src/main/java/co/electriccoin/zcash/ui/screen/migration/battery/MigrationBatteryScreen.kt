@@ -129,7 +129,7 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "To send migration transfers at their scheduled times, Zodl needs permission to run in the background.",
+                text = "To send migration transfers at their scheduled times, Zodl needs to keep running in the background. Allow background activity for Zodl in your device settings.",
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
