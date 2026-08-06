@@ -57,15 +57,34 @@ class MigrationHomeMessageSourceImpl(
             if (account == null) return@flatMapLatest flowOf(null)
             combine(
                 hasSeenMigrationCompleteStorageProvider.observe(),
-                observeReadyToSendSignal(),
+                recheckTicker(),
                 // Observed, not one-shot: after an IMMEDIATE migration (a plain send-max sweep that
                 // never touches the engine) the balance is the only input that can hide the
                 // "Migrate required" banner once the Orchard funds are spent.
                 getOrchardBalance.observe(),
-            ) { hasSeenComplete, readyToSendSignal, orchardBalance ->
+            ) { hasSeenComplete, _, orchardBalance ->
                 val sdk = getOrchardMigrationSdk()
                 val sdkState = sdk.getMigrationState()
                 val snapshot = getMigrationSnapshot()
+                // Read atomically alongside sdkState/snapshot above, in the SAME combine firing —
+                // this used to come from a separately-polled flow with its own 15s cadence, which
+                // could disagree with a freshly re-read snapshot's scheduledAt (both are wall-clock/
+                // tip-derived, but on different tip policies per hasOverdueTransfers' own doc: the
+                // estimated-tip snapshot projection advances continuously, the synced-tip-only
+                // overdue check only every 15s), flipping the home banner between "ready to send"
+                // and "N of M done" as time passed between the two reads. A failed read (e.g.
+                // "database is locked" outlasting the SDK's own bounded retry while a sync write
+                // transaction holds the wallet DB) falls back to safe defaults instead of crashing
+                // the flow — observed live as a main-thread crash before this call was guarded.
+                val readyToSendSignal =
+                    runCatching {
+                        ReadyToSendSignal(
+                            isBackgroundExecutionAvailable = isBackgroundExecutionAvailableProvider.isAvailable(),
+                            hasOverdueTransfers = sdk.hasOverdueTransfers(),
+                        )
+                    }.getOrDefault(
+                        ReadyToSendSignal(isBackgroundExecutionAvailable = true, hasOverdueTransfers = false)
+                    )
                 // UNPROVABLE ANCHOR → immediate, deterministic "Update migration plan" attention
                 // banner (decision 2026-07-30: user-driven — the user must SEE the bad state as
                 // soon as it is known). The SDK synthesizes MigrationBlocker.UNPROVABLE_ANCHOR
@@ -218,23 +237,14 @@ class MigrationHomeMessageSourceImpl(
         val hasOverdueTransfers: Boolean,
     )
 
-    // Neither signal here is itself observable, so this polls — cheap local checks (no network),
-    // re-evaluated periodically since wall-clock "has this transfer's due time arrived yet" can't
-    // otherwise be recomputed reactively. This poll is also what re-fires the whole combine, so
-    // the engine-derived snapshot refreshes on the same cadence.
-    private fun observeReadyToSendSignal(): Flow<ReadyToSendSignal> =
+    // A bare trigger, no data of its own: wall-clock "has this transfer's due time arrived yet"
+    // can't be recomputed reactively, so something has to re-fire the combine periodically. The
+    // actual reads (isBackgroundExecutionAvailable, hasOverdueTransfers) happen inside the combine
+    // lambda itself now, atomically alongside sdkState/snapshot — see the comment there.
+    private fun recheckTicker(): Flow<Unit> =
         flow {
             while (true) {
-                // A failed tick (e.g. "database is locked" outlasting the SDK's own bounded
-                // retry while a sync write transaction holds the wallet DB) skips this emission
-                // instead of cancelling the whole home-message flow — observed live as a
-                // main-thread crash. The next tick re-reads; the signal is periodic anyway.
-                runCatching {
-                    ReadyToSendSignal(
-                        isBackgroundExecutionAvailable = isBackgroundExecutionAvailableProvider.isAvailable(),
-                        hasOverdueTransfers = getOrchardMigrationSdk().hasOverdueTransfers(),
-                    )
-                }.onSuccess { emit(it) }
+                emit(Unit)
                 delay(READY_TO_SEND_RECHECK_INTERVAL)
             }
         }
