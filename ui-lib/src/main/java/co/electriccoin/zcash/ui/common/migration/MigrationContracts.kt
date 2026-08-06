@@ -83,3 +83,9 @@ interface MigrationDebugActions {
 
     suspend fun simulateTorFailure(): String
 }
+
+// The Balance Breakdown pool-correction seam (MigrationPoolCorrectionSource, PoolTruthCorrection)
+// that lived here was removed 2026-08-06: GetBalancePoolsUseCase now reads
+// WalletBalance.locked directly (a real field, plumbed from the SDK's Rust dependency's
+// Balance::locked_value()) instead of reconstructing an approximation of it from live migration
+// transfer states. No migration-specific contract is needed for balance display anymore.
