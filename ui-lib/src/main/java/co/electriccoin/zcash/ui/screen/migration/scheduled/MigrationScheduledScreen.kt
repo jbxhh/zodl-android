@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.GradientBgScaffold
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
@@ -52,7 +53,10 @@ data class MigrationScheduledState(
 fun MigrationScheduledScreen() {
     val vm = koinViewModel<MigrationScheduledVM>()
     val state by vm.state.collectAsStateWithLifecycle()
-    LceRenderer(state) { MigrationScheduledView(it) }
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { MigrationScheduledView(it) }
 }
 
 @Composable

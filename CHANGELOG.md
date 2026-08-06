@@ -10,6 +10,7 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 - When a send fails because the wallet's chain state changed between tapping review and confirm (due to syncing catching up, a reorg, or the app resuming from background), a clear actionable message is now shown instead of the generic error copy.
 - Transferring to a new phone via device-to-device setup no longer copies the app's local data, including the undecryptable encrypted preferences file, which previously forced a manual seed re-restore on the new device. Only the address book and metadata backups are carried over, matching cloud backup.
 - Preference file creation no longer serializes behind one global lock: a slow or hung encrypted-preferences creation (e.g. blocked on the Keystore) no longer delays every other preference file, including the ones startup flows like the wallet secret and home state depend on. Preference-provider instances are now correctly cached instead of being rebuilt on every access, and steady-state preference reads/writes no longer take a lock at all.
+- Opening the automatic migration progress screen no longer shows a blank screen while it loads. The migration schedule now appears immediately and a loading indicator is shown on screens that are still waiting for their content.
 
 ### Added:
 - Currency Conversion now supports multiple fiat currencies. You can pick which currency your balances and payment amounts are shown in from the Currency Conversion settings and opt-in screens.

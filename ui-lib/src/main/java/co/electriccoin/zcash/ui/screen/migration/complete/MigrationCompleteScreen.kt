@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.IconButtonState
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiButtonDefaults
@@ -72,7 +73,10 @@ data object MigrationCompleteArgs
 fun MigrationCompleteScreen() {
     val vm = koinViewModel<MigrationCompleteVM>()
     val state by vm.state.collectAsStateWithLifecycle()
-    LceRenderer(state) { MigrationCompleteView(it) }
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { MigrationCompleteView(it) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

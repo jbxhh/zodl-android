@@ -37,12 +37,16 @@ import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingArgs
 import co.electriccoin.zcash.work.LANE_A_SYNC_TIMEOUT
 import co.electriccoin.zcash.work.MigrationScheduler
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.MathContext
@@ -65,23 +69,82 @@ class MigrationProgressVM(
 
     private val sendLce = mutableLce<Unit>()
 
+    /**
+     * Live per-transfer state as the engine itself holds it, cached at VM level.
+     *
+     * MigrationPlanRepository's per-transfer status/scheduledAt is a display cache, written once at
+     * propose/commit time. Polling the SDK's own persisted state directly keeps the displayed
+     * schedule true to the engine — the single source of truth for the plan — regardless of what the
+     * cache last recorded.
+     *
+     * The cache lives on the VM, NOT inside the state flow: [state] is shared with
+     * `WhileSubscribed`, so leaving the screen for longer than its stop timeout restarts the upstream
+     * — and a poll that started from `null` again would flash "scheduled" over transfers already
+     * known to be sent and momentarily drop the recovery buttons. The VM outlives those restarts, so
+     * the last known value is re-emitted immediately on resubscription instead.
+     */
+    private val liveTransferStates = MutableStateFlow<MigrationTransferStates?>(null)
+
+    /**
+     * Measured block rate used for the height -> wall-clock re-projection, cached at VM level for the
+     * same reason as [liveTransferStates]. Seeded with [DEFAULT_SECONDS_PER_BLOCK] so the first frame
+     * can be painted from the (fast) plan read alone; the measured value replaces it moments later —
+     * the default alone turned minute-scale testnet schedules into "~1 hour" rows (caught live 28.7.).
+     */
+    private val secondsPerBlock = MutableStateFlow(DEFAULT_SECONDS_PER_BLOCK)
+
+    /**
+     * Refresh loop for the two slow SDK inputs above, tied to [state]'s subscription: it is merged
+     * into the state flow purely for that lifetime, never for its emissions ([Flow] of [Nothing]).
+     * Both inputs are written into the VM-level caches instead of being emitted, so the state flow
+     * can paint its first frame from the cached plan alone — a single encrypted-prefs read — while
+     * the SDK reads, which have been observed to take seconds behind the migration DB lock, refine
+     * it afterwards (MOB-1623).
+     */
+    private val slowInputRefresh: Flow<Nothing> =
+        channelFlow {
+            launch {
+                while (true) {
+                    runCatching { getOrchardMigrationSdk().getMigrationTransferStates() }
+                        .onSuccess { states -> liveTransferStates.update { states } }
+                        .onFailure { error ->
+                            Twig.warn(error) {
+                                "MIGRATION_DIAG MigrationProgressVM: live transfer state poll failed (transient)"
+                            }
+                        }
+                    delay(OVERDUE_RECHECK_INTERVAL)
+                }
+            }
+            launch {
+                runCatching { getOrchardMigrationSdk().estimatedSecondsPerBlock() }
+                    .onSuccess { measured -> secondsPerBlock.update { measured } }
+                    .onFailure { error ->
+                        Twig.warn(error) {
+                            "MIGRATION_DIAG MigrationProgressVM: block rate read failed — keeping the default"
+                        }
+                    }
+            }
+            awaitCancellation()
+        }
+
     val state: StateFlow<LceState<MigrationProgressState>> =
-        combine(
-            migrationPlanRepository.observe(),
-            exchangeRateRepository.state,
-            liveTransferStatesFlow(),
-        ) { plan, rate, liveStates ->
-            // Measured block rate for the height->wall-clock re-projection — the 75s default
-            // turned minute-scale testnet schedules into "~1 hour" rows (caught live 28.7.).
-            val secondsPerBlock = getOrchardMigrationSdk()?.estimatedSecondsPerBlock() ?: 75L
-            // Issue 3a: gate the recovery buttons on a GRACED, transfers-only overdue check
-            // computed app-side from the live states' SCANNED tip — NOT the raw SDK
-            // hasOverdueTransfers() (Rust any_overdue), which is un-graced and includes
-            // preparations, so it flashed the buttons the instant a proved tx passed its
-            // scheduled height during otherwise-normal execution.
-            val reallyOverdue = hasGenuinelyOverdueTransfer(liveStates)
-            plan?.let { createState(it.withLiveState(liveStates, secondsPerBlock), rate, reallyOverdue) }
-        }.withLce(sendLce, errorStateMapper::mapToState)
+        merge(
+            combine(
+                migrationPlanRepository.observe(),
+                exchangeRateRepository.state,
+                liveTransferStates,
+                secondsPerBlock,
+            ) { plan, rate, liveStates, blockSeconds ->
+                // Issue 3a: gate the recovery buttons on a GRACED, transfers-only overdue check
+                // computed app-side from the live states' SCANNED tip — NOT the raw SDK
+                // hasOverdueTransfers() (Rust any_overdue), which is un-graced and includes
+                // preparations, so it flashed the buttons the instant a proved tx passed its
+                // scheduled height during otherwise-normal execution.
+                val reallyOverdue = hasGenuinelyOverdueTransfer(liveStates)
+                plan?.let { createState(it.withLiveState(liveStates, blockSeconds), rate, reallyOverdue) }
+            },
+            slowInputRefresh,
+        ).withLce(sendLce, errorStateMapper::mapToState)
             .stateIn(this)
 
     init {
@@ -98,19 +161,6 @@ class MigrationProgressVM(
         // the state combine) so it runs once per VM instance rather than re-subscribing.
         foregroundBroadcastLoop()
     }
-
-    // MigrationPlanRepository's per-transfer status/scheduledAt is a display cache, written once
-    // at propose/commit time. Polling the SDK's own persisted state directly keeps the displayed
-    // schedule true to the engine — the single source of truth for the plan — regardless of what
-    // the cache last recorded.
-    private fun liveTransferStatesFlow(): Flow<MigrationTransferStates?> =
-        flow {
-            while (true) {
-                val sdk = getOrchardMigrationSdk()
-                emit(sdk?.getMigrationTransferStates())
-                delay(OVERDUE_RECHECK_INTERVAL)
-            }
-        }
 
     /**
      * Issue 3b — the foreground broadcast pass. Periodically, while this VM is alive (i.e. the
@@ -141,9 +191,18 @@ class MigrationProgressVM(
      *    SDK itself sets the post-broadcast resume-at buffer, which keeps the main sync paused via
      *    isSyncBlocked; we still resume() so the SDK-owned gate — not this manual pause — governs
      *    sync from here on.
+     * 4. Re-reads the live transfer states right after the broadcast returns, writing them into
+     *    [liveTransferStates] exactly as the poll does (`update { states }`, nullable included — one
+     *    consistency rule for the cache). Reads no longer take the migration DB mutex, so a poll
+     *    snapshot taken moments before this broadcast's commit would otherwise leave the row stale
+     *    for a whole [OVERDUE_RECHECK_INTERVAL] tick — the one staleness window a user actually
+     *    watches. Deliberately on the success path inside the `try`, NOT in the `finally`: the
+     *    `finally` also runs on cancellation, where a suspending SDK read would throw immediately
+     *    and mask nothing useful. A thrown broadcast leaves the refresh to the poll — rare, logged
+     *    and retried anyway.
      */
     private suspend fun attemptForegroundBroadcast() {
-        val sdk = getOrchardMigrationSdk() ?: return
+        val sdk = getOrchardMigrationSdk()
         val states = sdk.getMigrationTransferStates() ?: return
         if (!hasBroadcastableTransfer(states)) {
             return
@@ -184,6 +243,13 @@ class MigrationProgressVM(
             val outcome = sdk.executeNextPendingTransfer(NetworkPrivacyOptions(useTor = useTor), useEstimatedTip = false)
             Twig.debug { "MIGRATION_DIAG ProgressBroadcast: foreground broadcast outcome=$outcome" }
             lastNetworkActivity.stampNow()
+            runCatching { sdk.getMigrationTransferStates() }
+                .onSuccess { states -> liveTransferStates.update { states } }
+                .onFailure { error ->
+                    Twig.warn(error) {
+                        "MIGRATION_DIAG ProgressBroadcast: post-broadcast state refresh failed — next poll covers it"
+                    }
+                }
         } finally {
             // Hand sync governance back to the SDK-owned isSyncBlocked gate (which, after a
             // successful overdue broadcast, keeps sync paused for the post-broadcast buffer).
@@ -294,7 +360,7 @@ class MigrationProgressVM(
     // does, in the foreground, so the missing proof falls out immediately — then let the transfer
     // go out in the next live window (background worker, or next app open).
     private fun onReschedule() = sendLce.execute {
-        val sdk = getOrchardMigrationSdk() ?: error("MigrationProgressVM: no wallet available to sync")
+        val sdk = getOrchardMigrationSdk()
         val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
         if (sdk.isSyncBlocked().first()) {
             // Post-broadcast privacy gate — same guard Lane A honours; the re-arm below still
@@ -319,6 +385,12 @@ class MigrationProgressVM(
 
     companion object {
         private val OVERDUE_RECHECK_INTERVAL = 15.seconds
+
+        /**
+         * Block rate assumed until [MigrationProgressVM.secondsPerBlock] has been measured — the
+         * network's nominal target, and what the SDK itself falls back to when it has no samples.
+         */
+        private const val DEFAULT_SECONDS_PER_BLOCK = 75L
 
         // How often the foreground broadcast pass (Issue 3b) re-checks for a due, proved transfer.
         // Short enough to advance the migration responsively while watched, long enough not to

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiTopAppBarCloseNavigation
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
@@ -40,7 +41,10 @@ fun MigrationSendingScreen() {
     val vm = koinViewModel<MigrationSendingVM>()
     val state by vm.state.collectAsStateWithLifecycle()
     BackHandler { vm.onBack() }
-    LceRenderer(state) { MigrationSendingView(it) }
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { MigrationSendingView(it) }
 }
 
 // Figma node 2618:6858 ("Sending") has no bottom CTA slot by design (nothing actionable while

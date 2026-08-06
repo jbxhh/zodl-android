@@ -46,6 +46,7 @@ import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiTopAppBarBackNavigation
@@ -65,7 +66,10 @@ import org.koin.androidx.compose.koinViewModel
 fun MigrationSetupScreen() {
     val vm = koinViewModel<MigrationSetupVM>()
     val state by vm.state.collectAsStateWithLifecycle()
-    LceRenderer(state) { s ->
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { s ->
         BackHandler { s.onBack() }
         MigrationSetupView(s)
     }
