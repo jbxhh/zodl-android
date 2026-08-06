@@ -146,14 +146,18 @@ fun MigrationNotificationView(state: MigrationNotificationState) {
                         "Without this permission, you'll need to open Zodl to view the migration " +
                             "progress and approve any fall-back operations.",
                     style = ZashiTypography.textXs,
-                    color = ZashiColors.Text.textTertiary,
+                    color = ZashiColors.Utility.WarningYellow.utilityOrange700,
                 )
             }
             Spacer(Modifier.height(24.dp))
             ZashiButton(
                 state = ButtonState(text = stringRes("Skip — I'll open the app"), onClick = state.onSkip),
                 modifier = Modifier.fillMaxWidth(),
-                defaultPrimaryColors = ZashiButtonDefaults.secondaryColors(),
+                defaultPrimaryColors =
+                    ZashiButtonDefaults.secondaryColors(
+                        contentColor = ZashiColors.Utility.WarningYellow.utilityOrange700,
+                        borderColor = ZashiColors.Utility.WarningYellow.utilityOrange300,
+                    ),
             )
             Spacer(Modifier.height(12.dp))
             ZashiButton(
