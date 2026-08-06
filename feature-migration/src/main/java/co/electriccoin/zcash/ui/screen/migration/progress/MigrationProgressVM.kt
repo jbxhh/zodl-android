@@ -1,7 +1,6 @@
 package co.electriccoin.zcash.ui.screen.migration.progress
 
 import androidx.lifecycle.ViewModel
-import cash.z.ecc.android.sdk.MigrationTransferStates
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -23,6 +22,7 @@ import co.electriccoin.zcash.ui.common.model.stateIn
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
+import co.electriccoin.zcash.ui.common.repository.MigrationLiveReadout
 import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
@@ -57,19 +57,22 @@ class MigrationProgressVM(
     val state: StateFlow<LceState<MigrationProgressState>> =
         combine(
             exchangeRateRepository.state,
-            liveTransferStatesFlow(),
+            liveReadoutFlow(),
             // A bare periodic trigger so wall-clock-dependent display (the "in ~X minutes" row
             // labels, migrationProgressSubtitle) keeps refreshing even on a beat where the
             // underlying transfer states genuinely haven't changed — decoupled from how often we
-            // actually re-read the engine (see liveTransferStatesFlow's own comment).
+            // actually re-read the engine (see liveReadoutFlow's own comment).
             recheckTicker(),
-        ) { rate, liveStates, _ ->
+        ) { rate, readout, _ ->
             // Everything on this screen derives LIVE from the engine's persisted states — no plan
             // cache to diverge, and no app-side "overdue"/countdown: each row renders purely from
             // the engine's per-transaction status (decision with Dominik 2026-07-31). The measured
             // block rate is still used for the rough total-duration estimate in the header only.
-            val secondsPerBlock = getOrchardMigrationSdk().estimatedSecondsPerBlock()
-            val est = getOrchardMigrationSdk().estimatedChainTip()
+            // Both come from the SAME readout as the states below — one atomic read, never a fresh
+            // states paired with a stale/independently-read tip estimate or vice versa.
+            val liveStates = readout?.states
+            val secondsPerBlock = readout?.estimatedSecondsPerBlock ?: 0L
+            val est = readout?.estimatedTip ?: -1L
             liveStates
                 ?.toSnapshot(
                     estimatedTip = if (est >= 0) est else liveStates.tipHeight,
@@ -85,20 +88,29 @@ class MigrationProgressVM(
     // the cache last recorded.
     //
     // The read itself now comes from MigrationTransferStateRepository, published by
-    // MigrationLiveDriverImpl's own loop, instead of this screen polling
-    // OrchardMigrationSdk.getMigrationTransferStates() on its own timer: that used to mean this
-    // screen's poll and the live driver's prove/broadcast calls competed for the SDK's
-    // single-threaded DB I/O executor, producing a long white-screen wait whenever this screen
-    // opened right as the driver was mid-step (see the repository's own kdoc). `null` from the
-    // repository means the driver hasn't published for this account yet this session (before its
-    // first loop iteration, or no migration in_progress so it never runs) — fall back to one
-    // direct read in that narrow window, same as before this repository existed.
-    private fun liveTransferStatesFlow(): Flow<MigrationTransferStates?> =
+    // MigrationLiveDriverImpl's own loop (states AND the tip-estimate pair together, as one atomic
+    // MigrationLiveReadout — this screen used to call estimatedChainTip()/estimatedSecondsPerBlock()
+    // itself too, which dispatch onto the same single-threaded DB I/O executor as the transfer-state
+    // read), instead of this screen polling the SDK directly on its own timer: that used to mean this
+    // screen's poll and the live driver's prove/broadcast calls competed for that executor, producing
+    // a long white-screen wait whenever this screen opened right as the driver was mid-step (see the
+    // repository's own kdoc). `null` from the repository means the driver hasn't published for this
+    // account yet this session (before its first loop iteration, or no migration in_progress so it
+    // never runs) — fall back to one direct read in that narrow window, same as before this
+    // repository existed.
+    private fun liveReadoutFlow(): Flow<MigrationLiveReadout?> =
         flow {
             val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
             emitAll(
                 migrationTransferStateRepository.observe(accountKeyId).map { published ->
-                    published ?: getOrchardMigrationSdk().getMigrationTransferStates()
+                    published ?: run {
+                        val sdk = getOrchardMigrationSdk()
+                        MigrationLiveReadout(
+                            states = sdk.getMigrationTransferStates(),
+                            estimatedTip = sdk.estimatedChainTip(),
+                            estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
+                        )
+                    }
                 }
             )
         }

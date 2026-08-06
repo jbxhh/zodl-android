@@ -6,7 +6,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class MigrationTransferStateRepositoryTest {
-    private fun states(tipHeight: Long) = MigrationTransferStates(transfers = emptyList(), tipHeight = tipHeight)
+    private fun readout(tipHeight: Long, estimatedTip: Long = tipHeight, estimatedSecondsPerBlock: Long = 75L) =
+        MigrationLiveReadout(
+            states = MigrationTransferStates(transfers = emptyList(), tipHeight = tipHeight),
+            estimatedTip = estimatedTip,
+            estimatedSecondsPerBlock = estimatedSecondsPerBlock,
+        )
 
     @Test
     fun observe_before_any_publish_is_null() {
@@ -17,27 +22,31 @@ class MigrationTransferStateRepositoryTest {
     @Test
     fun publish_is_immediately_visible_to_observe() {
         val repo = MigrationTransferStateRepositoryImpl()
-        repo.publish("account-1", states(42L))
-        assertEquals(42L, repo.observe("account-1").value?.tipHeight)
+        repo.publish("account-1", readout(42L))
+        assertEquals(42L, repo.observe("account-1").value?.states?.tipHeight)
     }
 
     @Test
     fun accounts_are_isolated_from_each_other() {
         val repo = MigrationTransferStateRepositoryImpl()
-        repo.publish("account-1", states(1L))
-        repo.publish("account-2", states(2L))
-        assertEquals(1L, repo.observe("account-1").value?.tipHeight)
-        assertEquals(2L, repo.observe("account-2").value?.tipHeight)
+        repo.publish("account-1", readout(1L))
+        repo.publish("account-2", readout(2L))
+        assertEquals(1L, repo.observe("account-1").value?.states?.tipHeight)
+        assertEquals(2L, repo.observe("account-2").value?.states?.tipHeight)
     }
 
     @Test
-    fun republishing_null_clears_the_cached_value() {
-        // A driver read that comes back null (e.g. no migration in progress anymore) must be able
-        // to clear a stale cached value, not get silently ignored.
+    fun a_readout_with_null_states_is_distinct_from_never_having_published() {
+        // Publishing a readout whose states field is null (e.g. no migration in_progress anymore)
+        // is a real, meaningful value — it must NOT read back the same as observe()'s cold-start
+        // null (driver never published for this account at all). The VM tells these apart: the
+        // former means "genuinely nothing to show", the latter means "fall back to a direct read".
         val repo = MigrationTransferStateRepositoryImpl()
-        repo.publish("account-1", states(1L))
-        repo.publish("account-1", null)
-        assertNull(repo.observe("account-1").value)
+        repo.publish("account-1", readout(1L))
+        repo.publish("account-1", MigrationLiveReadout(states = null, estimatedTip = -1L, estimatedSecondsPerBlock = 0L))
+        val republished = repo.observe("account-1").value
+        assertNull(republished?.states)
+        assertEquals(-1L, republished?.estimatedTip) // the readout ITSELF is not null
     }
 
     @Test
@@ -47,8 +56,8 @@ class MigrationTransferStateRepositoryTest {
         val repo = MigrationTransferStateRepositoryImpl()
         val first = repo.observe("account-1")
         val second = repo.observe("account-1")
-        repo.publish("account-1", states(7L))
-        assertEquals(7L, first.value?.tipHeight)
-        assertEquals(7L, second.value?.tipHeight)
+        repo.publish("account-1", readout(7L))
+        assertEquals(7L, first.value?.states?.tipHeight)
+        assertEquals(7L, second.value?.states?.tipHeight)
     }
 }

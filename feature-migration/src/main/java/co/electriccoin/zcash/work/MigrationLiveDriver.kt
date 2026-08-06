@@ -2,6 +2,7 @@ package co.electriccoin.zcash.work
 
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.migration.migrationLog
+import co.electriccoin.zcash.ui.common.repository.MigrationLiveReadout
 import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -96,24 +97,14 @@ class MigrationLiveDriverImpl(
                 if (result !is DriveOnceResult.LockBusy) {
                     // A step actually ran (ReArmed) or the migration reached a terminal state —
                     // either way, publish one fresh read for every screen/use-case that used to
-                    // poll OrchardMigrationSdk.getMigrationTransferStates() on its own: this is a
-                    // read the driver's loop was already going to serialize through its own
-                    // coroutine, not a second concurrent caller competing for the SDK's
-                    // single-threaded DB I/O executor the way an independent screen poll did.
-                    // Skipped on LockBusy — another caller is mid-step, nothing changed from THIS
-                    // call's perspective, and the winning caller publishes when it finishes.
-                    //
-                    // runCatching: a failed read (e.g. "database is locked" outlasting the SDK's
-                    // own bounded retry) must not kill this loop the way it would a genuine drive
-                    // step — unlike run()'s own work, this publish is a side-channel for OTHER
-                    // screens' benefit, not something this loop's own control flow depends on
-                    // (2026-08-06 Fable review: an unguarded read here escaping to the outer catch
-                    // stopped the whole live-driver loop mid-migration on a transient DB-lock read
-                    // failure, worse than having no publish at all). Skipping just leaves the
-                    // repository's last-published value in place until the next successful read.
-                    runCatching {
-                        migrationTransferStateRepository.publish(accountKeyId, sdk.getMigrationTransferStates())
-                    }
+                    // poll OrchardMigrationSdk.getMigrationTransferStates()/estimatedChainTip()/
+                    // estimatedSecondsPerBlock() on its own: these are reads the driver's loop was
+                    // already going to serialize through its own coroutine, not a second concurrent
+                    // caller competing for the SDK's single-threaded DB I/O executor the way an
+                    // independent screen poll did. Skipped on LockBusy — another caller is mid-step,
+                    // nothing changed from THIS call's perspective, and the winning caller publishes
+                    // when it finishes.
+                    publishFreshReadout(sdk, accountKeyId)
                 }
                 when (result) {
                     is DriveOnceResult.ReArmed -> {
@@ -130,7 +121,7 @@ class MigrationLiveDriverImpl(
                             } else {
                                 result.delay
                             }
-                        delay(effectiveDelay)
+                        delayWithPeriodicRefresh(effectiveDelay, sdk, accountKeyId)
                     }
 
                     is DriveOnceResult.LockBusy -> {
@@ -149,4 +140,53 @@ class MigrationLiveDriverImpl(
             migrationLog("MigrationLiveDriver: loop for $accountKeyId failed (transient) — will resume on next start.", e)
         }
     }
+
+    /**
+     * Sleeps out [total], but for a wait long enough to matter (a re-armed gap can legitimately be
+     * hours — the next transfer's own schedule, not a bug), wakes every [STALENESS_REFRESH_INTERVAL]
+     * to republish a fresh readout. The driver is genuinely idle for the whole span (this call IS the
+     * sleep — no step is running concurrently with it), so this refresh never contends with the
+     * driver's own work; it only ever races an unrelated caller (worker/another live-driver start),
+     * exactly like the loop's own per-step publish already does. Bounds Progress-screen (and any
+     * other consumer's) staleness to roughly this interval instead of "however long until the next
+     * actual step" (2026-08-06 Fable review: previously unbounded, and re-opening the screen didn't
+     * help once the repository held a non-null value).
+     */
+    private suspend fun delayWithPeriodicRefresh(total: Duration, sdk: OrchardMigrationSdk, accountKeyId: String) {
+        var remaining = total
+        while (remaining > STALENESS_REFRESH_INTERVAL) {
+            delay(STALENESS_REFRESH_INTERVAL)
+            remaining -= STALENESS_REFRESH_INTERVAL
+            publishFreshReadout(sdk, accountKeyId)
+        }
+        delay(remaining)
+    }
+
+    /**
+     * runCatching: a failed read (e.g. "database is locked" outlasting the SDK's own bounded retry)
+     * must not kill this loop the way a failed drive step would — unlike [MigrationDriveOnce.run]'s
+     * own work, this publish is a side-channel for OTHER screens' benefit, not something this loop's
+     * own control flow depends on (2026-08-06 Fable review: an unguarded read here escaping to the
+     * outer catch stopped the whole live-driver loop mid-migration on a transient DB-lock read
+     * failure, worse than having no publish at all). Skipping just leaves the repository's
+     * last-published value in place until the next successful read.
+     */
+    private suspend fun publishFreshReadout(sdk: OrchardMigrationSdk, accountKeyId: String) {
+        runCatching {
+            MigrationLiveReadout(
+                states = sdk.getMigrationTransferStates(),
+                estimatedTip = sdk.estimatedChainTip(),
+                estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
+            )
+        }.onSuccess { migrationTransferStateRepository.publish(accountKeyId, it) }
+    }
 }
+
+/**
+ * How stale a published [MigrationLiveReadout] is allowed to get during a long re-armed wait
+ * before [MigrationLiveDriverImpl.delayWithPeriodicRefresh] wakes to republish. The refresh read is
+ * on the SDK's no-mutex pure-read lane and runs only while the driver is otherwise idle (mid-sleep,
+ * not mid-step), so — unlike the independent screen poll this repository replaced — it never
+ * contends with the driver's own work.
+ */
+private val STALENESS_REFRESH_INTERVAL = 60.seconds

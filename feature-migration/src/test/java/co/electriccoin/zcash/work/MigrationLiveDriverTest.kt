@@ -224,4 +224,38 @@ class MigrationLiveDriverTest {
 
             assertEquals(3, runCallCount, "a failed publish read must not stop the loop — it must keep driving to Terminal")
         }
+
+    @Test
+    fun `a long re-armed wait republishes periodically instead of going stale for its whole span`() =
+        runTest {
+            var runCallCount = 0
+            val driveOnce =
+                mockk<MigrationDriveOnce> {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
+                        runCallCount++
+                        // 250s is comfortably more than 4x the 60s staleness-refresh interval, and
+                        // ends the loop right after — Terminal itself never triggers a periodic
+                        // refresh (there's no wait to refresh during).
+                        if (runCallCount < 2) DriveOnceResult.ReArmed(250.seconds) else DriveOnceResult.Terminal
+                    }
+                }
+            val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
+            val repository = mockk<MigrationTransferStateRepository>(relaxed = true)
+            val driver =
+                MigrationLiveDriverImpl(
+                    migrationDriveOnce = driveOnce,
+                    getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = repository,
+                    scope = this,
+                )
+
+            driver.startIfNotRunning("account-1")
+            advanceUntilIdle()
+
+            // One publish for the ReArmed call itself, then one more every 60s across the 250s
+            // wait (at 60/120/180/240s — 4 periodic refreshes), then one for the Terminal call:
+            // 1 + 4 + 1 = 6. The old single delay() would have left the repository stale for the
+            // whole 250s span instead.
+            verify(exactly = 6) { repository.publish("account-1", any()) }
+        }
 }
