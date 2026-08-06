@@ -75,7 +75,7 @@ class MigrationScheduledVM(
             isFinalizing.value = false
             return
         }
-        val sdk = getOrchardMigrationSdk() ?: error("MigrationScheduledVM: no wallet available to finalize")
+        val sdk = getOrchardMigrationSdk()
         val splitSignedPczt = pending.accumulatedSplitSigned
         if (splitSignedPczt != null) {
             val useTor = isMigrationTorEnabledStorageProvider.get()

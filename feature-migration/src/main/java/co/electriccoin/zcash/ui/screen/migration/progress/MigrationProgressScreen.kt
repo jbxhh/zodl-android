@@ -61,7 +61,9 @@ fun MigrationProgressScreen() {
     BackHandler { state.content?.onBack?.invoke() ?: vm.navigateBack() }
     LceRenderer(
         state = state,
-        loading = { isLoading -> if (isLoading) CircularScreenProgressIndicator() },
+        // Guarded on content == null (MOB-1623) so a later isLoading=true (e.g. a retry/refresh)
+        // doesn't flash the full-screen spinner back over content that's already on screen.
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
     ) { MigrationProgressView(it) }
 }
 

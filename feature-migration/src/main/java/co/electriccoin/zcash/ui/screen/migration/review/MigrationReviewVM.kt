@@ -107,7 +107,7 @@ class MigrationReviewVM(
 
     init {
         proposeLce.execute {
-            val sdk = getOrchardMigrationSdk() ?: error("MigrationReviewVM: no wallet available to propose")
+            val sdk = getOrchardMigrationSdk()
             when (args.mode) {
                 MigrationMode.IMMEDIATE -> {
                     val amount = getOrchardBalance()
@@ -309,7 +309,7 @@ class MigrationReviewVM(
             navigationRouter.forward(MigrationKeystoneSignArgs(mode = args.mode))
             return
         }
-        val sdk = getOrchardMigrationSdk() ?: error("MigrationReviewVM: no wallet available to sign")
+        val sdk = getOrchardMigrationSdk()
         // Note-split is the first step of this confirm action (design spec §7) — a schedule with
         // more than one denomination proposed against raw, unsplit notes exhausts the wallet's
         // balance on the first transfer, leaving every subsequent transfer InsufficientFunds. Per

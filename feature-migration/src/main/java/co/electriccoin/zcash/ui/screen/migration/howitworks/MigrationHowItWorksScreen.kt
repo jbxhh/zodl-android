@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiTopAppBarBackNavigation
@@ -45,7 +46,10 @@ data object MigrationHowItWorksArgs
 fun MigrationHowItWorksScreen() {
     val vm = koinViewModel<MigrationHowItWorksVM>()
     val state by vm.state.collectAsStateWithLifecycle()
-    LceRenderer(state) { s ->
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { s ->
         BackHandler { s.onBack() }
         MigrationHowItWorksView(s)
     }

@@ -19,8 +19,10 @@ data class KeystoneFirmwareStamp(
 /**
  * Keystone hardware-wallet firmware version in **display** numbering — the triple the device
  * screen shows the user, and the only numbering [MINIMUM_SUPPORTED] and comparisons should use.
- * Construct this from a raw [KeystoneFirmwareStamp] via [fromStamp]; the `displayMajor` label on
- * the constructor exists to make every call site say which numbering it's using.
+ * Construct this from a raw [KeystoneFirmwareStamp] via [fromStamp] for the legacy single-
+ * transaction PCZT-echo path, or from [toKeystoneFwVersion] for the batch-sign migration path;
+ * the `displayMajor` label on the constructor exists to make every call site say which numbering
+ * it's using.
  */
 data class KeystoneFirmwareVersion(
     val displayMajor: Int,
@@ -116,6 +118,10 @@ private fun ByteArray.indexOfSubArray(needle: ByteArray): Int {
 }
 
 /**
+ * Keystone hardware-wallet firmware version, as reported by the device itself in the
+ * `zcash-batch-sig-result` UR envelope's dedicated firmware-version field (CBOR key 3) — see
+ * `ZcashBatchSigResult::get_firmware_version()` in keystone-sdk-rust's `ur-registry` crate.
+ *
  * Converts the raw `[major, minor, build]` bytes carried directly in the batch-sign-result UR
  * envelope (`KeystoneBatchDecodeResult.firmwareVersion`) into a [KeystoneFirmwareVersion].
  *
@@ -143,14 +149,15 @@ fun ByteArray.toKeystoneFwVersion(): KeystoneFirmwareVersion? {
 
 /**
  * Decides whether a Keystone-signed transaction may proceed to broadcast, given the firmware
- * version (if any) detected on the signed PCZT.
+ * version (if any) detected on the signed PCZT or batch-sign-result envelope, against whatever
+ * minimum the caller requires.
  */
 object KeystoneFirmwarePolicy {
     enum class Outcome {
-        /** Firmware reported a version and it meets the required minimum. */
+        /** Firmware reported a version and it meets [required]. */
         OK,
 
-        /** Firmware reported a version but it's below the required minimum. */
+        /** Firmware reported a version but it's below [required]. */
         UPDATE_REQUIRED,
 
         /** Firmware didn't report a version at all (pre-stamp build). */

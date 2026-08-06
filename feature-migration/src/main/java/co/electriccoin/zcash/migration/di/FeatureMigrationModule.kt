@@ -122,6 +122,7 @@ val featureMigrationModule =
         factory {
             CheckMigrationRecoveryUseCase(
                 getOrchardMigrationSdk = get(),
+                persistableWalletProvider = get(),
                 navigationRouter = get(),
                 pendingMigrationTorFailureStorageProvider = get(),
                 getSelectedWalletAccount = get(),

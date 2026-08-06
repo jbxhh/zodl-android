@@ -14,6 +14,7 @@ import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorag
 import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepository
 import co.electriccoin.zcash.work.MigrationScheduler
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -122,13 +123,8 @@ class DebugStartMigrationE2EUseCase(
         }
     }
 
-    private suspend fun waitForSdk(): OrchardMigrationSdk? {
-        repeat(SDK_WAIT_ATTEMPTS) {
-            getOrchardMigrationSdk()?.let { return it }
-            delay(SDK_WAIT_DELAY)
-        }
-        return null
-    }
+    private suspend fun waitForSdk(): OrchardMigrationSdk? =
+        withTimeoutOrNull(SDK_WAIT_DELAY * SDK_WAIT_ATTEMPTS) { getOrchardMigrationSdk() }
 
     companion object {
         /** Intent extra checked by MainActivity; honored only in debug builds. */

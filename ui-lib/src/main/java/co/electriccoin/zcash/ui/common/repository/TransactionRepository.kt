@@ -104,6 +104,7 @@ class TransactionRepositoryImpl(
                                                     transactionState =
                                                         createTransactionState(
                                                             minedHeight = it.minedHeight,
+                                                            transactionState = it.transactionState,
                                                             isSyncing = status == Synchronizer.Status.SYNCING
                                                         ) ?: it.transactionState
                                                 )
@@ -331,9 +332,17 @@ class TransactionRepositoryImpl(
             }
         }
 
-    private fun createTransactionState(minedHeight: BlockHeight?, isSyncing: Boolean): TransactionState? =
+    // MOB-1577: minedHeight == null alone used to fall straight to `isSyncing -> Pending`, so an
+    // Expired transaction flickered back to Pending on every sync cycle. transactionState carries
+    // the terminal Expired classification through explicitly instead of re-deriving it here.
+    internal fun createTransactionState(
+        minedHeight: BlockHeight?,
+        transactionState: TransactionState,
+        isSyncing: Boolean
+    ): TransactionState? =
         when {
             minedHeight != null -> Confirmed
+            transactionState == Expired -> null
             isSyncing -> Pending
             else -> null
         }

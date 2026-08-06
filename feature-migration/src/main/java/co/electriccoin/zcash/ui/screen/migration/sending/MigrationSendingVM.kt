@@ -116,7 +116,7 @@ class MigrationSendingVM(
     fun onBack() = navigationRouter.back()
 
     private suspend fun sendOnce(useTor: Boolean) {
-        val sdk = getOrchardMigrationSdk() ?: error("MigrationSendingVM: no wallet available to send")
+        val sdk = getOrchardMigrationSdk()
         // The engine-mutating send lives entirely under DRIVE_LOCK (via withExclusiveAccess) so it
         // can never race MigrationWorker/MigrationLiveDriver's own executeNextPendingTransfer call
         // for the same transfer (2026-08-06 DRIVE_LOCK bypass fix). Lock acquisition itself retries

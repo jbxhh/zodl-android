@@ -10,7 +10,7 @@ import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 
 /**
  * Resolves the real, Rust-backed [OrchardMigrationSdk] for the wallet account the migration flow
- * is actually running against, or `null` if there is no wallet yet.
+ * is actually running against.
  *
  * [OrchardMigrationSdk.new] needs the wallet's network and lightwalletd endpoint (only known once
  * a wallet exists — read from [PersistableWalletProvider]) and the specific account (whichever one
@@ -18,11 +18,13 @@ import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
  * never auto-picked by the SDK itself). This use case is the single seam combining all three, so
  * every migration call site injects just this instead of wiring them separately.
  *
- * Returns `null` rather than throwing when there's no persisted wallet — callers on general,
- * wallet-independent code paths (`CheckMigrationRecoveryUseCase` runs on every `MainActivity`
- * launch, including a fresh install before onboarding) must tolerate that; callers inside an
- * already-active migration flow (a wallet is a precondition for those screens existing at all) can
- * treat a `null` here as an unreachable-in-practice error instead.
+ * The no-arg [invoke] returns non-null: it suspends until a selected account exists (see
+ * [AccountDataSource.getSelectedAccount]) and throws if no wallet is persisted by then — a wallet
+ * is a precondition for every migration flow, so callers treat absence as a programming error
+ * rather than a state to branch on. Callers on general, wallet-independent code paths
+ * (`CheckMigrationRecoveryUseCase` runs on every `MainActivity` launch, including a fresh install
+ * before onboarding) must therefore gate on wallet existence BEFORE calling this — the account
+ * wait would otherwise suspend them indefinitely on a wallet-less install.
  *
  * Unlike `WalletCoordinatorFactory`'s own `OrchardMigrationSdk.new(... account = null)` call (which
  * gates sync before any `Synchronizer`/account selection exists), this always resolves a real
@@ -39,7 +41,7 @@ class GetOrchardMigrationSdkUseCase(
     private val accountDataSource: AccountDataSource,
 ) {
     /** Resolves the SDK for the currently selected wallet account. */
-    suspend operator fun invoke(): OrchardMigrationSdk? =
+    suspend operator fun invoke(): OrchardMigrationSdk =
         buildFor(getSelectedWalletAccount())
 
     /**
@@ -53,14 +55,16 @@ class GetOrchardMigrationSdkUseCase(
         val accounts = runCatching { accountDataSource.getAllAccounts() }.getOrNull()
         if (accounts.isNullOrEmpty()) return MigrationSdkLookup.NotReady // boot race — accounts not loaded yet
         val account = accounts.findByAccountKeyId(accountKeyId) ?: return MigrationSdkLookup.Gone
-        val sdk = buildFor(account) ?: return MigrationSdkLookup.NotReady
+        val sdk = buildFor(account)
         return MigrationSdkLookup.Ready(sdk)
     }
 
     /**
      * Resolves the SDK for the account identified by [accountKeyId] (its
      * [co.electriccoin.zcash.ui.common.model.toStorageKeyId] value), or `null` if no such account
-     * exists or there is no persisted wallet.
+     * exists or there is no persisted wallet. [lookup] is the boot-race-aware alternative for
+     * self-rechaining workers; this one-shot form suits callers that already know the account
+     * must exist right now and simply degrade on absence.
      */
     suspend operator fun invoke(accountKeyId: String): OrchardMigrationSdk? {
         val account =
@@ -71,8 +75,8 @@ class GetOrchardMigrationSdkUseCase(
         return buildFor(account)
     }
 
-    private suspend fun buildFor(account: WalletAccount): OrchardMigrationSdk? {
-        val wallet = persistableWalletProvider.getPersistableWallet() ?: return null
+    private suspend fun buildFor(account: WalletAccount): OrchardMigrationSdk {
+        val wallet = persistableWalletProvider.requirePersistableWallet()
         return OrchardMigrationSdk.new(
             appContext = context,
             zcashNetwork = wallet.network,

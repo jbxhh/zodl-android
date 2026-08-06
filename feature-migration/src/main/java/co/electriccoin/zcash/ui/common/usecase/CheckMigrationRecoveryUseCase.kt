@@ -10,6 +10,7 @@ import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
+import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.screen.home.HomeArgs
 import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingArgs
 import co.electriccoin.zcash.work.MigrationLiveDriver
@@ -43,6 +44,7 @@ import kotlin.time.TimeSource
  */
 class CheckMigrationRecoveryUseCase(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
+    private val persistableWalletProvider: PersistableWalletProvider,
     private val navigationRouter: NavigationRouter,
     private val pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider,
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
@@ -75,12 +77,16 @@ class CheckMigrationRecoveryUseCase(
         // (observed live: 1st call = SDK null + throttle stamped, 2nd call 3s later = throttled;
         // both lanes stayed dead after a reinstall). Un-stamp the throttle so the next trigger
         // (foreground/unlock/onStart all re-fire) gets a real attempt once the wallet is up.
-        val sdk =
-            getOrchardMigrationSdk() ?: run {
-                throttleMutex.withLock { lastRunMark = null }
-                migrationLog("MigrationRecovery: SDK not ready — will retry on next trigger.")
-                return
-            }
+        // getOrchardMigrationSdk() itself now throws rather than returning null on a wallet-less
+        // install (it's a precondition for every migration flow proper), so this gate has to run
+        // BEFORE calling it — this is the one genuinely wallet-independent call site the SDK
+        // use case's own kdoc calls out.
+        if (persistableWalletProvider.getPersistableWallet() == null) {
+            throttleMutex.withLock { lastRunMark = null }
+            migrationLog("MigrationRecovery: SDK not ready — will retry on next trigger.")
+            return
+        }
+        val sdk = getOrchardMigrationSdk()
 
         // Worker reconciliation + app-open acceleration. Self-heals after process kill, device
         // reboot, or an app upgrade that cleared WorkManager state, without requiring the user to

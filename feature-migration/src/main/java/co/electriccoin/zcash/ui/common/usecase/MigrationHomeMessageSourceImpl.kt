@@ -64,7 +64,7 @@ class MigrationHomeMessageSourceImpl(
                 getOrchardBalance.observe(),
             ) { hasSeenComplete, readyToSendSignal, orchardBalance ->
                 val sdk = getOrchardMigrationSdk()
-                val sdkState = sdk?.getMigrationState()
+                val sdkState = sdk.getMigrationState()
                 val snapshot = getMigrationSnapshot()
                 // UNPROVABLE ANCHOR → immediate, deterministic "Update migration plan" attention
                 // banner (decision 2026-07-30: user-driven — the user must SEE the bad state as
@@ -72,7 +72,7 @@ class MigrationHomeMessageSourceImpl(
                 // from the engine's late-dependency guard (TODO(remove: engine UnprovableAnchor)).
                 val hasUnprovable =
                     sdk
-                        ?.getMigrationTransferStates()
+                        .getMigrationTransferStates()
                         ?.transfers
                         ?.any { it.blocker == MigrationBlocker.UNPROVABLE_ANCHOR } == true
                 if (snapshot != null && hasUnprovable) {
@@ -94,7 +94,7 @@ class MigrationHomeMessageSourceImpl(
                     snapshot = snapshot,
                     hasSeenComplete = hasSeenComplete,
                     orchardBalanceZatoshi = orchardBalance?.value ?: 0L,
-                    dustThresholdZatoshi = sdk?.migrationDustThresholdZatoshi() ?: MIGRATION_DUST_THRESHOLD_ZATOSHI,
+                    dustThresholdZatoshi = sdk.migrationDustThresholdZatoshi(),
                     isBackgroundExecutionAvailable = readyToSendSignal.isBackgroundExecutionAvailable,
                     hasOverdueTransfers = readyToSendSignal.hasOverdueTransfers,
                     attentionKind = attentionKind,
@@ -232,7 +232,7 @@ class MigrationHomeMessageSourceImpl(
                 runCatching {
                     ReadyToSendSignal(
                         isBackgroundExecutionAvailable = isBackgroundExecutionAvailableProvider.isAvailable(),
-                        hasOverdueTransfers = getOrchardMigrationSdk()?.hasOverdueTransfers() ?: false,
+                        hasOverdueTransfers = getOrchardMigrationSdk().hasOverdueTransfers(),
                     )
                 }.onSuccess { emit(it) }
                 delay(READY_TO_SEND_RECHECK_INTERVAL)

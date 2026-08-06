@@ -138,7 +138,11 @@ class GetHomeMessageUseCase(
                     val account = inputs.account
                     val walletSnapshot = inputs.walletSnapshot
 
-                    if (walletSnapshot.status in listOf(Synchronizer.Status.STOPPED, Synchronizer.Status.INITIALIZING)) {
+                    if (walletSnapshot.status in listOf(
+                            Synchronizer.Status.STOPPED,
+                            Synchronizer.Status.INITIALIZING
+                        )
+                    ) {
                         return@collect
                     }
 
@@ -192,10 +196,13 @@ class GetHomeMessageUseCase(
     }
 
     private fun prioritizeMessage(message: HomeMessageData?): HomeMessageData? {
-        val isSameMessageUpdate = message?.priority == cache.lastMessage?.priority // same but updated
-        val someMessageBeenShown = cache.lastShownMessage != null // has any message been shown while app in fg
+        val isSameMessageUpdate =
+            message?.priority == cache.lastMessage?.priority // same but updated
+        val someMessageBeenShown =
+            cache.lastShownMessage != null // has any message been shown while app in fg
         val hasNoMessageBeenShownLately = cache.lastMessage == null // has no message been shown
-        val isHigherPriorityMessage = (message?.priority ?: 0) > (cache.lastShownMessage?.priority ?: 0)
+        val isHigherPriorityMessage =
+            (message?.priority ?: 0) > (cache.lastShownMessage?.priority ?: 0)
         val result =
             when {
                 message == null -> {
@@ -243,9 +250,9 @@ class GetHomeMessageUseCase(
     private fun createSynchronizerErrorMessage(walletSnapshot: WalletSnapshot): HomeMessageData.Error? {
         if (walletSnapshot.synchronizerError == null ||
             (
-                walletSnapshot.synchronizerError is SynchronizerError.Processor &&
-                    walletSnapshot.synchronizerError.cause is CancellationException
-            )
+                    walletSnapshot.synchronizerError is SynchronizerError.Processor &&
+                            walletSnapshot.synchronizerError.cause is CancellationException
+                    )
         ) {
             return null
         }

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.GradientBgScaffold
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiButtonDefaults
@@ -44,7 +45,10 @@ data class MigrationSuccessState(
 fun MigrationSuccessScreen(args: MigrationSuccessArgs) {
     val vm = koinViewModel<MigrationSuccessVM> { parametersOf(args) }
     val state by vm.state.collectAsStateWithLifecycle()
-    LceRenderer(state) { MigrationSuccessView(it) }
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { MigrationSuccessView(it) }
 }
 
 // Figma node 2618:6895 ("Success") — same green-gradient + fist-punch celebratory treatment

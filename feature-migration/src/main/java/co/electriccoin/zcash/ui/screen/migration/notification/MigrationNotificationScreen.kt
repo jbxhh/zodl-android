@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiButtonDefaults
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
@@ -53,7 +54,10 @@ fun MigrationNotificationScreen() {
     val vm = koinViewModel<MigrationNotificationVM>()
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    LceRenderer(state) { s ->
+    LceRenderer(
+        state = state,
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { s ->
         BackHandler { s.onBack() }
         val isAlreadyGranted =
             remember {
@@ -108,9 +112,8 @@ fun MigrationNotificationView(state: MigrationNotificationState) {
             Spacer(Modifier.height(4.dp))
             Text(
                 text =
-                    "If we miss a window for a scheduled transfer or background transaction " +
-                        "submission fails, we can send you a local notification and prompt you to open " +
-                        "Zodl. Get notified about:",
+                    "If a scheduled transfer is missed or a background submission fails, we can " +
+                        "send you a local notification and prompt you to open Zodl. Get notified about:",
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
@@ -130,28 +133,30 @@ fun MigrationNotificationView(state: MigrationNotificationState) {
             NotificationFeatureItem(
                 icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_announcement,
                 title = "Transfer Plan Changes",
-                body = "If allocated funds are spent or any pre-signed transfer expires, we will let you know.",
+                body =
+                    "If allocated funds are spent or a scheduled transfer can no longer be sent, " +
+                        "we'll let you know.",
             )
             Spacer(Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth()) {
                 Icon(
                     painter = painterResource(co.electriccoin.zcash.ui.design.R.drawable.ic_info),
                     contentDescription = null,
-                    tint = ZashiColors.Text.textTertiary,
+                    tint = ZashiColors.Utility.WarningYellow.utilityOrange700,
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
                     text =
-                        "Without this permission, you'll need to open Zodl to view the migration " +
-                            "progress and approve any fall-back operations.",
+                        "Without notifications, you'll need to open Zodl to check migration " +
+                            "progress and approve any manual transfers yourself.",
                     style = ZashiTypography.textXs,
                     color = ZashiColors.Utility.WarningYellow.utilityOrange700,
                 )
             }
             Spacer(Modifier.height(24.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Skip — I'll open the app"), onClick = state.onSkip),
+                state = ButtonState(text = stringRes("Skip"), onClick = state.onSkip),
                 modifier = Modifier.fillMaxWidth(),
                 defaultPrimaryColors =
                     ZashiButtonDefaults.secondaryColors(
@@ -161,7 +166,7 @@ fun MigrationNotificationView(state: MigrationNotificationState) {
             )
             Spacer(Modifier.height(12.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Allow Notifications"), onClick = state.onAllow),
+                state = ButtonState(text = stringRes("Allow"), onClick = state.onAllow),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

@@ -64,7 +64,7 @@ class MigrationKeystoneSignVM(
             runCatching {
                 val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
                 val sched = pendingSchedule.get(accountKeyId) ?: return@runCatching null
-                val sdk = getOrchardMigrationSdk() ?: error("MigrationKeystoneSignVM: no wallet available to sign")
+                val sdk = getOrchardMigrationSdk()
                 val existing = pendingKeystonePczts.get(accountKeyId)
                 val splitUnsignedPczt: ByteArray?
                 val prepUnsignedPczts: List<Pair<Long, ByteArray>>

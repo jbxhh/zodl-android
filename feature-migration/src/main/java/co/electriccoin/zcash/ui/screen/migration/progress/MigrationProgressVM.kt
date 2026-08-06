@@ -58,8 +58,8 @@ class MigrationProgressVM(
             // cache to diverge, and no app-side "overdue"/countdown: each row renders purely from
             // the engine's per-transaction status (decision with Dominik 2026-07-31). The measured
             // block rate is still used for the rough total-duration estimate in the header only.
-            val secondsPerBlock = getOrchardMigrationSdk()?.estimatedSecondsPerBlock() ?: 75L
-            val est = getOrchardMigrationSdk()?.estimatedChainTip() ?: -1L
+            val secondsPerBlock = getOrchardMigrationSdk().estimatedSecondsPerBlock()
+            val est = getOrchardMigrationSdk().estimatedChainTip()
             liveStates
                 ?.toSnapshot(
                     estimatedTip = if (est >= 0) est else liveStates.tipHeight,
@@ -77,7 +77,7 @@ class MigrationProgressVM(
         flow {
             while (true) {
                 val sdk = getOrchardMigrationSdk()
-                emit(sdk?.getMigrationTransferStates())
+                emit(sdk.getMigrationTransferStates())
                 delay(OVERDUE_RECHECK_INTERVAL)
             }
         }

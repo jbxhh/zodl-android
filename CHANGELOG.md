@@ -6,6 +6,11 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Fixed:
+- Transferring to a new phone via device-to-device setup no longer copies the app's local data, including the undecryptable encrypted preferences file, which previously forced a manual seed re-restore on the new device. Only the address book and metadata backups are carried over, matching cloud backup.
+- Preference file creation no longer serializes behind one global lock: a slow or hung encrypted-preferences creation (e.g. blocked on the Keystore) no longer delays every other preference file, including the ones startup flows like the wallet secret and home state depend on. Preference-provider instances are now correctly cached instead of being rebuilt on every access, and steady-state preference reads/writes no longer take a lock at all.
+- Opening the automatic migration progress screen no longer shows a blank screen while it loads. The migration schedule now appears immediately and a loading indicator is shown on screens that are still waiting for their content.
+
 ## [3.9.0 (2029)] - 2026-07-31
 
 ### Fixed:

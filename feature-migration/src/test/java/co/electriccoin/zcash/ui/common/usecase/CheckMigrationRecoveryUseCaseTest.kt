@@ -9,6 +9,7 @@ import cash.z.ecc.android.sdk.MigrationTransferStates
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
+import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.screen.home.HomeArgs
 import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteArgs
 import co.electriccoin.zcash.ui.screen.migration.invalid.MigrationTransferInvalidArgs
@@ -58,7 +59,13 @@ class CheckMigrationRecoveryUseCaseTest {
     ) = CheckMigrationRecoveryUseCase(
         getOrchardMigrationSdk =
             mockk<GetOrchardMigrationSdkUseCase> {
-                coEvery { this@mockk() } returns sdk
+                if (sdk != null) {
+                    coEvery { this@mockk() } returns sdk
+                }
+            },
+        persistableWalletProvider =
+            mockk<PersistableWalletProvider>(relaxed = true) {
+                coEvery { getPersistableWallet() } returns if (sdk != null) mockk(relaxed = true) else null
             },
         navigationRouter = navigationRouter,
         pendingMigrationTorFailureStorageProvider = pendingMigrationTorFailureStorageProvider,

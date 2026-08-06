@@ -91,7 +91,7 @@ class ErrorVM(
                 ),
             negative =
                 ButtonState(
-                    text = stringRes(co.electriccoin.zcash.ui.design.R.string.general_report),
+                    text = stringRes(co.electriccoin.zcash.ui.design.R.string.send_report),
                     onClick = { sendReportClick(args.exception) }
                 ),
             onBack = ::onBack,
@@ -118,7 +118,7 @@ class ErrorVM(
                 ),
             negative =
                 ButtonState(
-                    text = stringRes(co.electriccoin.zcash.ui.design.R.string.general_report),
+                    text = stringRes(co.electriccoin.zcash.ui.design.R.string.send_report),
                     onClick = { sendReportClick(args.exception) }
                 ),
             onBack = ::onBack,

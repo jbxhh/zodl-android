@@ -33,7 +33,7 @@ class RestartMigrationUseCase(
                 .toStorageKeyId()
         // Interim: clearMigration() marks the run Failed. Swap to deleteMigration() (→ NotStarted)
         // once the SDK primitive lands — see spec Phase A.
-        getOrchardMigrationSdk()?.clearMigration()
+        getOrchardMigrationSdk().clearMigration()
         // Cancel the self-rechaining background worker chain for a run that no longer exists.
         migrationScheduler.cancel(accountKeyId)
         // A leftover Tor-failure flag would keep routing launches into the Sending recovery screen.

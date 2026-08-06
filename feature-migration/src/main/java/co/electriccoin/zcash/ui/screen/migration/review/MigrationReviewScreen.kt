@@ -47,6 +47,7 @@ import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetai
 import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationStepDetail
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
+import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiTopAppBarBackNavigation
@@ -75,7 +76,13 @@ fun MigrationReviewScreen(args: MigrationReviewArgs) {
     // see the 2026-08-02 stale-banner/dead-end bug: without this, that failure path left the user
     // on a blank screen with no back arrow and no back gesture).
     BackHandler { state.content?.onBack?.invoke() ?: vm.navigateBack() }
-    LceRenderer(state) { s ->
+    LceRenderer(
+        state = state,
+        // MOB-1623: the default loading slot is empty, so this screen showed a black frame while
+        // the plan proposal/fetch was in flight. Guarded on content == null so a later
+        // isLoading=true (e.g. a retry) doesn't flash the spinner back over content already shown.
+        loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
+    ) { s ->
         MigrationReviewView(s)
     }
 }

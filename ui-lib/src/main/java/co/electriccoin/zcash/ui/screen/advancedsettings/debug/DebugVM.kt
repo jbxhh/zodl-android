@@ -140,9 +140,14 @@ class DebugVM(
 
     private fun onSetMockOrchardBalanceClick() = navigationRouter.forward(DebugOrchardBalanceArgs)
 
-    // Wipes the current account's in-progress migration entirely (see OrchardMigrationSdk.
-    // clearMigration's kdoc) so a fresh propose/commit can be tested immediately, instead of
-    // waiting out or resuming whatever migration is already in progress.
+    /**
+     * Wipes the current account's in-progress migration entirely — the engine's own run (see
+     * [cash.z.ecc.android.sdk.OrchardMigrationSdk.clearMigration]'s kdoc) plus every app-side
+     * leftover — so a fresh propose/commit can be tested immediately, instead of waiting out or
+     * resuming whatever migration is already in progress. Delegates to
+     * [MigrationDebugActions.restartMigration], which promotes the same orchestration used by the
+     * production "Restart Migration" flow (`RestartMigrationUseCase`).
+     */
     private fun onMigrationRestartClick() =
         viewModelScope.launch {
             val text = migrationDebugActions.restartMigration()

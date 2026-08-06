@@ -10,7 +10,7 @@ import androidx.security.crypto.MasterKey
 import co.electriccoin.zcash.preference.api.PreferenceProvider
 import co.electriccoin.zcash.preference.model.entry.PreferenceKey
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,7 +23,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.KeyStore
-import java.util.concurrent.Executors
 
 /**
  * Provides an Android implementation of shared preferences.
@@ -33,6 +32,10 @@ import java.util.concurrent.Executors
  * For a given preference file, it is expected that only a single instance is constructed and that
  * this instance lives for the lifetime of the application. Constructing multiple instances will
  * potentially corrupt preference data and will leak resources.
+ *
+ * @param dispatcher a serial dispatcher (parallelism of one) owning all access to
+ * [sharedPreferences]; EncryptedSharedPreferences are not thread-safe, so every operation is
+ * confined to it.
  */
 class AndroidPreferenceProvider(
     private val sharedPreferences: SharedPreferences,
@@ -41,10 +44,6 @@ class AndroidPreferenceProvider(
     private val clearPipeline = MutableSharedFlow<Unit>()
 
     private val mutex = Mutex()
-    /*
-     * Implementation note: EncryptedSharedPreferences are not thread-safe, so this implementation
-     * confines them to a single background thread.
-     */
 
     override suspend fun hasKey(key: PreferenceKey) =
         withContext(dispatcher) {
@@ -176,50 +175,51 @@ interface AndroidPreferenceFactory {
     suspend fun newEncrypted(context: Context, filename: String): PreferenceProvider
 }
 
+/**
+ * Each created [AndroidPreferenceProvider] serializes its preference access on a dedicated
+ * [Dispatchers.IO] parallelism-1 view, so at most one instance per filename must ever be
+ * constructed (two instances would serialize independently); that invariant is what
+ * [standardCache] and [encryptedCache] enforce. A view holds no thread of its own, so a failed
+ * creation attempt leaks nothing.
+ */
 private class AndroidPreferenceFactoryImpl : AndroidPreferenceFactory {
-    private val semaphore = Mutex()
-    private val standardCache = mutableMapOf<String, PreferenceProvider>()
-    private val encryptedCache = mutableMapOf<String, PreferenceProvider>()
+    private val standardCache = PreferenceProviderCache()
+    private val encryptedCache = PreferenceProviderCache()
 
     override suspend fun newStandard(context: Context, filename: String): PreferenceProvider =
-        getOrCreate(standardCache, filename) {
-        /*
-         * Because of this line, we don't want multiple instances of this object created
-         * because we don't clean up the thread afterwards.
-         */
-            val singleThreadedDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        standardCache.getOrCreate(filename) {
+            val dispatcher = Dispatchers.IO.limitedParallelism(1)
 
             val sharedPreferences =
-                withContext(singleThreadedDispatcher) {
+                withContext(dispatcher) {
                     context.getSharedPreferences(filename, Context.MODE_PRIVATE)
                 }
 
-            return AndroidPreferenceProvider(sharedPreferences, singleThreadedDispatcher)
+            AndroidPreferenceProvider(sharedPreferences, dispatcher)
         }
 
+    /**
+     * Android Keystore keys are hardware-bound and not transferred during device-to-device
+     * migration, so the encrypted prefs file arrives on the new device but cannot be decrypted.
+     * On failure, [deleteCorruptedEncryptedPreferences] wipes the orphaned file and creation is
+     * retried fresh.
+     */
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
     override suspend fun newEncrypted(context: Context, filename: String): PreferenceProvider =
-        getOrCreate(encryptedCache, filename) {
-        /*
-         * Because of this line, we don't want multiple instances of this object created
-         * because we don't clean up the thread afterwards.
-         */
-            val singleThreadedDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        encryptedCache.getOrCreate(filename) {
+            val dispatcher = Dispatchers.IO.limitedParallelism(1)
 
             val sharedPreferences =
-                withContext(singleThreadedDispatcher) {
+                withContext(dispatcher) {
                     try {
                         createEncryptedSharedPreferences(context, filename)
-                    } catch (e: Exception) {
-                        // Android Keystore keys are hardware-bound and not transferred during device-to-device
-                        // migration, so the encrypted prefs file arrives on the new device but cannot be
-                        // decrypted. Wipe the orphaned file and recreate fresh.
+                    } catch (_: Exception) {
                         deleteCorruptedEncryptedPreferences(context, filename)
                         createEncryptedSharedPreferences(context, filename)
                     }
                 }
 
-            return AndroidPreferenceProvider(sharedPreferences, singleThreadedDispatcher)
+            AndroidPreferenceProvider(sharedPreferences, dispatcher)
         }
 
     private fun createEncryptedSharedPreferences(
@@ -262,10 +262,4 @@ private class AndroidPreferenceFactoryImpl : AndroidPreferenceFactory {
             File(context.filesDir.parent, "shared_prefs/$filename.xml").delete()
         }
     }
-
-    private suspend inline fun getOrCreate(
-        map: MutableMap<String, PreferenceProvider>,
-        filename: String,
-        block: () -> PreferenceProvider
-    ): PreferenceProvider = semaphore.withLock { map.getOrPut(filename, block) }
 }

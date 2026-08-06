@@ -37,7 +37,7 @@ class FinalizeMigrationScheduleUseCase(
     suspend operator fun invoke(sched: MigrationSchedule, mode: MigrationMode) {
         // Measured block rate — the 75s constant grossly overestimates on the bursty testnet,
         // scheduling the first worker run far past the real due heights.
-        val secondsPerBlock = getOrchardMigrationSdk()?.estimatedSecondsPerBlock() ?: 75L
+        val secondsPerBlock = getOrchardMigrationSdk().estimatedSecondsPerBlock()
         val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
         logCommittedBoundaries()
         val tipHeight =
@@ -72,7 +72,7 @@ class FinalizeMigrationScheduleUseCase(
      * single warning and is otherwise silent, never blocking the commit's scheduling/navigation.
      */
     private suspend fun logCommittedBoundaries() {
-        val states = runCatching { getOrchardMigrationSdk()?.getMigrationTransferStates() }.getOrNull()
+        val states = runCatching { getOrchardMigrationSdk().getMigrationTransferStates() }.getOrNull()
         if (states == null) {
             migrationLog("committedPlan(app): no live transfer states available post-commit")
             return

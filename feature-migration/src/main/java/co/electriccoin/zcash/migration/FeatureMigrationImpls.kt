@@ -72,10 +72,10 @@ class MigrationGateImpl(
     // Engine state IS the gate now — no app-side plan marker exists. Selected-account scoped
     // (matches the sync it gates); see post-adoption TODO C2 for the any-account variant.
     override suspend fun isMigrationActive(): Boolean =
-        getOrchardMigrationSdk()?.getMigrationState() is cash.z.ecc.android.sdk.MigrationState.InProgress
+        getOrchardMigrationSdk().getMigrationState() is cash.z.ecc.android.sdk.MigrationState.InProgress
 
     override suspend fun isRestartAvailable(): Boolean =
-        when (getOrchardMigrationSdk()?.getMigrationState()) {
+        when (getOrchardMigrationSdk().getMigrationState()) {
             is cash.z.ecc.android.sdk.MigrationState.InProgress,
             is cash.z.ecc.android.sdk.MigrationState.RequiresAttention -> true
 
@@ -90,7 +90,7 @@ class MigrationSyncedHookImpl(
 ) : MigrationSyncedHook {
     override suspend fun onSynced() {
         // Engine state is the only "migration active" signal — no plan cache exists anymore.
-        if (getOrchardMigrationSdk()?.getMigrationState() !is cash.z.ecc.android.sdk.MigrationState.InProgress) return
+        if (getOrchardMigrationSdk().getMigrationState() !is cash.z.ecc.android.sdk.MigrationState.InProgress) return
         val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
         onMigrationSyncCompleted(accountKeyId)
     }

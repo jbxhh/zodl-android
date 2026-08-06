@@ -27,8 +27,6 @@ import co.electriccoin.zcash.ui.common.usecase.NavigateToSwapUseCase
 import co.electriccoin.zcash.ui.common.usecase.RefreshActiveVotingSessionUseCase
 import co.electriccoin.zcash.ui.common.usecase.ShieldFundsFromMessageUseCase
 import co.electriccoin.zcash.ui.design.component.BigIconButtonState
-import co.electriccoin.zcash.ui.design.util.TickerLocation.HIDDEN
-import co.electriccoin.zcash.ui.design.util.asPrivacySensitive
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.error.ErrorArgs
 import co.electriccoin.zcash.ui.screen.error.NavigateToErrorUseCase
@@ -46,7 +44,6 @@ import co.electriccoin.zcash.ui.screen.home.restoring.WalletRestoringInfo
 import co.electriccoin.zcash.ui.screen.home.restoring.WalletRestoringMessageState
 import co.electriccoin.zcash.ui.screen.home.resyncing.WalletResyncingInfo
 import co.electriccoin.zcash.ui.screen.home.resyncing.WalletResyncingMessageState
-import co.electriccoin.zcash.ui.screen.home.shieldfunds.ShieldFundsMessageState
 import co.electriccoin.zcash.ui.screen.home.syncing.WalletSyncingInfo
 import co.electriccoin.zcash.ui.screen.home.syncing.WalletSyncingMessageState
 import co.electriccoin.zcash.ui.screen.home.tor.EnableTorMessageState
@@ -61,7 +58,6 @@ import co.electriccoin.zcash.ui.screen.voting.proposallist.VoteProposalListArgs
 import co.electriccoin.zcash.ui.screen.voting.proposallist.VoteProposalListMode
 import co.electriccoin.zcash.ui.screen.voting.scankeystone.ScanKeystoneVotingPCZTRequest
 import co.electriccoin.zcash.ui.screen.voting.signkeystone.SignKeystoneVotingArgs
-import co.electriccoin.zcash.ui.util.CURRENCY_TICKER
 import co.electriccoin.zcash.work.VotingShareTrackingScheduler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -95,6 +91,7 @@ class HomeVM(
     private val refreshActiveVotingSession: RefreshActiveVotingSessionUseCase,
     private val votingShareTrackingScheduler: VotingShareTrackingScheduler,
     private val migrationHomeMessageSource: MigrationHomeMessageSource,
+    private val homeMessageMapper: HomeMessageMapper,
 ) : ViewModel() {
     private var hasSyncErrorBeenShown = false
     private var hasRestoreSuccessBeenShown = false
@@ -140,11 +137,8 @@ class HomeVM(
 
     val state: StateFlow<HomeState?> =
         messageState
-            .map { messageState ->
-                createState(
-                    messageState = messageState
-                )
-            }.stateIn(
+            .map { createState(it) }
+            .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(ANDROID_STATE_FLOW_TIMEOUT),
                 initialValue = null
@@ -355,19 +349,10 @@ class HomeVM(
             }
 
             is HomeMessageData.ShieldFunds -> {
-                ShieldFundsMessageState(
-                    subtitle =
-                        stringRes(
-                            R.string.home_message_transparent_balance_subtitle,
-                            stringRes(data.zatoshi, HIDDEN).asPrivacySensitive(),
-                            CURRENCY_TICKER
-                        ),
-                    onClick =
-                        if (isShieldFundsInfoEnabled) {
-                            { onShieldFundsMessageClick() }
-                        } else {
-                            null
-                        },
+                homeMessageMapper.createState(
+                    data = data,
+                    isShieldFundsInfoEnabled = isShieldFundsInfoEnabled,
+                    onClick = ::onShieldFundsMessageClick,
                     onButtonClick = ::onShieldFundsMessageButtonClick,
                 )
             }
@@ -422,15 +407,18 @@ class HomeVM(
 
     private fun onEnableCurrencyConversionClick() = navigationRouter.forward(ExchangeRateOptInArgs)
 
-    private fun onWalletDisconnectedMessageClick() = navigationRouter.forward(WalletDisconnectedInfo)
+    private fun onWalletDisconnectedMessageClick() =
+        navigationRouter.forward(WalletDisconnectedInfo)
 
     private fun onWalletBackupMessageClick() = navigationRouter.forward(SeedBackupInfo)
 
-    private fun onWalletBackupMessageButtonClick() = navigationRouter.forward(WalletBackupDetail(false))
+    private fun onWalletBackupMessageButtonClick() =
+        navigationRouter.forward(WalletBackupDetail(false))
 
     private fun onShieldFundsMessageClick() = viewModelScope.launch { shieldFundsFromMessage() }
 
-    private fun onShieldFundsMessageButtonClick() = viewModelScope.launch { shieldFundsFromMessage() }
+    private fun onShieldFundsMessageButtonClick() =
+        viewModelScope.launch { shieldFundsFromMessage() }
 
     private fun onWalletErrorMessageClick(homeMessageData: HomeMessageData.Error) =
         navigateToError(ErrorArgs.SyncError(homeMessageData.synchronizerError))
