@@ -150,6 +150,26 @@ class MigrationDriveOnce(
     }
 
     /**
+     * Lets a caller OTHER than the worker/live-driver pair (currently: [MigrationSendingVM]'s
+     * manual-resume send) mutate the engine's send state under the same [DRIVE_LOCK] that guards
+     * [run] — without going through [run]'s own Prove/Broadcast/Waiting dispatch, which
+     * [MigrationSendingVM] has its own distinct retry/preflight shape for (2026-08-06 DRIVE_LOCK
+     * bypass fix). Returns `null` if the lock is busy (a worker/live-driver step is actively
+     * executing) instead of suspending — callers that need to wait should retry using their own
+     * existing backoff, not add a second one here.
+     */
+    suspend fun <T> withExclusiveAccess(block: suspend () -> T): T? {
+        if (!DRIVE_LOCK.tryLock()) {
+            return null
+        }
+        try {
+            return block()
+        } finally {
+            DRIVE_LOCK.unlock()
+        }
+    }
+
+    /**
      * The engine answers `nextStep` at the SCANNED tip, which can lag wall clock by hours in a
      * backgrounded wallet — nextStep is now Broadcast-authoritative (it checks
      * `next_broadcastable` at the estimated tip internally), so a due broadcast is dispatched

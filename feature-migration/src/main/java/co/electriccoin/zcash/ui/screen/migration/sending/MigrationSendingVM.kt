@@ -3,9 +3,11 @@ package co.electriccoin.zcash.ui.screen.migration.sending
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cash.z.ecc.android.sdk.NetworkPrivacyOptions
+import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.TransferAttemptOutcome
 import cash.z.ecc.android.sdk.TransferResult
 import co.electriccoin.zcash.migration.migrationLog
+import co.electriccoin.zcash.work.MigrationDriveOnce
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.LceState
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
@@ -41,6 +43,7 @@ class MigrationSendingVM(
     private val isMigrationTorEnabledStorageProvider: IsMigrationTorEnabledStorageProvider,
     private val pendingMigrationTorFailureDecisionRepository: PendingMigrationTorFailureDecisionRepository,
     private val pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider,
+    private val migrationDriveOnce: MigrationDriveOnce,
 ) : ViewModel() {
     private val sendLce = mutableLce<Unit>()
     private val failure = MutableStateFlow<SendFailure?>(null)
@@ -114,18 +117,36 @@ class MigrationSendingVM(
 
     private suspend fun sendOnce(useTor: Boolean) {
         val sdk = getOrchardMigrationSdk() ?: error("MigrationSendingVM: no wallet available to send")
+        // The engine-mutating send lives entirely under DRIVE_LOCK (via withExclusiveAccess) so it
+        // can never race MigrationWorker/MigrationLiveDriver's own executeNextPendingTransfer call
+        // for the same transfer (2026-08-06 DRIVE_LOCK bypass fix). Lock acquisition itself retries
+        // on the SAME budget the readiness loop already used (no new retry concept) — once acquired,
+        // the whole readiness loop runs under the one lock acquisition (not re-acquired per attempt),
+        // so a background broadcast can't land in a gap between this screen's own attempts.
+        var acquired = false
         var outcome: TransferAttemptOutcome? = null
-        var attempt = 0
-        while ((outcome == null || outcome is TransferAttemptOutcome.NothingDue || outcome is TransferAttemptOutcome.AwaitingProof) &&
-            attempt < SEND_MAX_ATTEMPTS
-        ) {
-            if (attempt > 0) delay(SEND_RETRY_DELAY_MS)
-            withContext(NonCancellable) {
-                outcome = sdk.executeNextPendingTransfer(NetworkPrivacyOptions(useTor = useTor), useEstimatedTip = true)
-                migrationLog("SendingVM: attempt=${attempt + 1} outcome=$outcome")
-            }
-            attempt++
+        var lockAttempt = 0
+        while (!acquired && lockAttempt < SEND_MAX_ATTEMPTS) {
+            if (lockAttempt > 0) delay(SEND_RETRY_DELAY_MS)
+            val result =
+                migrationDriveOnce.withExclusiveAccess {
+                    acquired = true
+                    sendReadinessLoop(sdk, useTor)
+                }
+            if (result != null) outcome = result
+            lockAttempt++
         }
+        if (!acquired) {
+            // Never got exclusive access — a background step held the lock for the whole retry
+            // budget. Same handling as the pre-existing "not ready yet" path below: no send was
+            // attempted, so this can't be a Tor failure.
+            pendingMigrationTorFailureStorageProvider.store(false)
+            failure.value = SendFailure.NotReady
+            return
+        }
+        // Everything below is a read, a WorkManager enqueue, or app-state/navigation — none of it
+        // mutates the engine's send state, so it stays outside the lock (avoids needless LockBusy
+        // churn against the worker/live-driver for callers that don't need to be excluded).
         when (val o = outcome) {
             is TransferAttemptOutcome.Executed -> {
                 when (val r = o.result) {
@@ -181,6 +202,30 @@ class MigrationSendingVM(
                 failure.value = SendFailure.NotReady
             }
         }
+    }
+
+    /**
+     * The original readiness/retry loop, unchanged — runs entirely inside the caller's
+     * [MigrationDriveOnce.withExclusiveAccess] block (2026-08-06 DRIVE_LOCK bypass fix), so a
+     * background worker/live-driver step can never interleave with it.
+     */
+    private suspend fun sendReadinessLoop(
+        sdk: OrchardMigrationSdk,
+        useTor: Boolean,
+    ): TransferAttemptOutcome? {
+        var outcome: TransferAttemptOutcome? = null
+        var attempt = 0
+        while ((outcome == null || outcome is TransferAttemptOutcome.NothingDue || outcome is TransferAttemptOutcome.AwaitingProof) &&
+            attempt < SEND_MAX_ATTEMPTS
+        ) {
+            if (attempt > 0) delay(SEND_RETRY_DELAY_MS)
+            withContext(NonCancellable) {
+                outcome = sdk.executeNextPendingTransfer(NetworkPrivacyOptions(useTor = useTor), useEstimatedTip = true)
+                migrationLog("SendingVM: attempt=${attempt + 1} outcome=$outcome")
+            }
+            attempt++
+        }
+        return outcome
     }
 
     companion object {

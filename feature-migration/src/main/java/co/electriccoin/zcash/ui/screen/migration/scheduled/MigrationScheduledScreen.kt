@@ -267,3 +267,10 @@ private fun Preview() =
                 )
         )
     }
+
+@PreviewScreens
+@Composable
+private fun PreviewScheduling() =
+    ZcashTheme {
+        MigrationSchedulingView()
+    }
