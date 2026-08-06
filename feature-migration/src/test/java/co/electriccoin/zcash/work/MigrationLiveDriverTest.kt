@@ -19,7 +19,7 @@ class MigrationLiveDriverTest {
             var runCallCount = 0
             val driveOnce =
                 mockk<MigrationDriveOnce> {
-                    coEvery { run(any(), any(), any()) } coAnswers {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
                         runCallCount++
                         DriveOnceResult.Terminal // stops the loop on the very first call
                     }
@@ -45,7 +45,7 @@ class MigrationLiveDriverTest {
             var runCallCount = 0
             val driveOnce =
                 mockk<MigrationDriveOnce> {
-                    coEvery { run(any(), any(), any()) } coAnswers {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
                         runCallCount++
                         if (runCallCount < 3) DriveOnceResult.ReArmed(90.seconds) else DriveOnceResult.Terminal
                     }
@@ -70,7 +70,7 @@ class MigrationLiveDriverTest {
             var runCallCount = 0
             val driveOnce =
                 mockk<MigrationDriveOnce> {
-                    coEvery { run(any(), any(), any()) } coAnswers {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
                         runCallCount++
                         // 0 seconds is exactly what nextWake's floorless privacy-gap term can
                         // return — the loop must not spin on this.
@@ -101,7 +101,7 @@ class MigrationLiveDriverTest {
             var runCallCount = 0
             val driveOnce =
                 mockk<MigrationDriveOnce> {
-                    coEvery { run(any(), any(), any()) } coAnswers {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
                         runCallCount++
                         // A deliberate short constant (e.g. PREP_FAST_TRACK_REARM) opts out of the
                         // anti-spin floor — the loop must honor that and chain back-to-back.
@@ -135,7 +135,7 @@ class MigrationLiveDriverTest {
             var runCallCount = 0
             val driveOnce =
                 mockk<MigrationDriveOnce> {
-                    coEvery { run(any(), any(), any()) } coAnswers {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
                         runCallCount++
                         if (runCallCount < 2) DriveOnceResult.LockBusy(5.seconds) else DriveOnceResult.Terminal
                     }

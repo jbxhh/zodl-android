@@ -33,6 +33,7 @@ import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.datasource.ProposalDataSource
 import co.electriccoin.zcash.ui.common.datasource.ZashiSpendingKeyDataSource
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
+import co.electriccoin.zcash.ui.common.provider.ApplicationStateProvider
 import co.electriccoin.zcash.ui.common.provider.HasLockedOrchardDustStorageProvider
 import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageProvider
 import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
@@ -154,6 +155,7 @@ class MigrationKoinGraphSmokeTest {
                 single<HasSeenMigrationCompleteStorageProvider> { mockk(relaxed = true) }
                 single<HasLockedOrchardDustStorageProvider> { mockk(relaxed = true) }
                 single<IsBackgroundExecutionAvailableProvider> { mockk(relaxed = true) }
+                single<ApplicationStateProvider> { mockk(relaxed = true) }
 
                 // Concrete scheduler classes (registered as factoryOf in providerModule; migration VMs
                 // inject them directly, not via an interface).
