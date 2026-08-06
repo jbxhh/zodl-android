@@ -103,14 +103,16 @@ class MigrationProgressVM(
             val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
             emitAll(
                 migrationTransferStateRepository.observe(accountKeyId).map { published ->
-                    published ?: run {
+                    published ?: runCatching {
                         val sdk = getOrchardMigrationSdk()
                         MigrationLiveReadout(
                             states = sdk.getMigrationTransferStates(),
                             estimatedTip = sdk.estimatedChainTip(),
                             estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
+                            migrationState = sdk.getMigrationState(),
+                            hasOverdueTransfers = sdk.hasOverdueTransfers(),
                         )
-                    }
+                    }.getOrNull()
                 }
             )
         }

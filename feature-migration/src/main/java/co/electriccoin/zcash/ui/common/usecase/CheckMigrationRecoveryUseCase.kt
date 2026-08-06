@@ -88,84 +88,96 @@ class CheckMigrationRecoveryUseCase(
         }
         val sdk = getOrchardMigrationSdk()
 
-        // Worker reconciliation + app-open acceleration. Self-heals after process kill, device
-        // reboot, or an app upgrade that cleared WorkManager state, without requiring the user to
-        // re-enter the migration flow (the worker's re-arm only happens at the end of its own run
-        // and its due alarms don't survive a package update — see OnMigrationSyncCompletedUseCase;
-        // duplicated here because the SYNCED hook needs a synced foreground synchronizer, which a
-        // freshly relaunched app may not reach for minutes).
-        // Gate on the ENGINE's state, not only the app-side plan cache: the cache can be lost
-        // (observed live: repository empty while the engine held a run with 8/9 broadcast and the
-        // last transfer proved) and the engine is the single source of truth — a live in-progress
-        // migration must always have its worker chain running.
-        val engineInProgress = sdk.getMigrationState() is MigrationState.InProgress
-        if (engineInProgress) {
-            val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
-            // The live driver is the fast path while the app is alive — starting it here covers
-            // both cold start (process was killed mid-migration) and every subsequent foreground
-            // return; it is a no-op if already running for this account. It supersedes the old
-            // "accelerate a SCHEDULED worker to run now" logic entirely: the live driver already
-            // drives the account forward on its own once running, so there is nothing left to
-            // separately nudge.
-            migrationLiveDriver.startIfNotRunning(accountKeyId)
-            when (getWorkerRunState(accountKeyId)) {
-                MigrationWorkerRunState.RUNNING, MigrationWorkerRunState.SCHEDULED -> {
-                    // Nothing to do — RUNNING is already executing; SCHEDULED will either fire on
-                    // its own or be superseded by the live driver's own re-arm (reArm's
-                    // MigrationScheduler.schedule call), whichever comes first.
-                    migrationLog("MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) — nothing to do.")
-                }
+        // The whole engine-reading/routing body below is guarded (2026-08-07): a "database is
+        // locked" throw here used to be unguarded and would crash the app-open/foreground-return
+        // path — this use case drives navigation, not a screen with its own LCE error state to
+        // fall back on. On failure, un-stamp the throttle (mirrors the wallet-not-ready branch
+        // above) so a transient read failure doesn't cost a silent 10s window before the next
+        // trigger gets a real attempt.
+        runCatching {
+            // Worker reconciliation + app-open acceleration. Self-heals after process kill, device
+            // reboot, or an app upgrade that cleared WorkManager state, without requiring the user to
+            // re-enter the migration flow (the worker's re-arm only happens at the end of its own run
+            // and its due alarms don't survive a package update — see OnMigrationSyncCompletedUseCase;
+            // duplicated here because the SYNCED hook needs a synced foreground synchronizer, which a
+            // freshly relaunched app may not reach for minutes).
+            // Gate on the ENGINE's state, not only the app-side plan cache: the cache can be lost
+            // (observed live: repository empty while the engine held a run with 8/9 broadcast and the
+            // last transfer proved) and the engine is the single source of truth — a live in-progress
+            // migration must always have its worker chain running.
+            val engineInProgress = sdk.getMigrationState() is MigrationState.InProgress
+            if (engineInProgress) {
+                val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
+                // The live driver is the fast path while the app is alive — starting it here covers
+                // both cold start (process was killed mid-migration) and every subsequent foreground
+                // return; it is a no-op if already running for this account. It supersedes the old
+                // "accelerate a SCHEDULED worker to run now" logic entirely: the live driver already
+                // drives the account forward on its own once running, so there is nothing left to
+                // separately nudge.
+                migrationLiveDriver.startIfNotRunning(accountKeyId)
+                when (getWorkerRunState(accountKeyId)) {
+                    MigrationWorkerRunState.RUNNING, MigrationWorkerRunState.SCHEDULED -> {
+                        // Nothing to do — RUNNING is already executing; SCHEDULED will either fire on
+                        // its own or be superseded by the live driver's own re-arm (reArm's
+                        // MigrationScheduler.schedule call), whichever comes first.
+                        migrationLog("MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) — nothing to do.")
+                    }
 
-                MigrationWorkerRunState.ABSENT -> {
-                    // Revival: recovers the DURABLE background chain after process kill, device
-                    // reboot, or an app upgrade that cleared WorkManager state — the live driver
-                    // covers speed while alive, but only the worker chain survives process death.
-                    migrationLog("MigrationRecovery: migration worker absent — scheduling now.")
-                    scheduleNow(accountKeyId)
+                    MigrationWorkerRunState.ABSENT -> {
+                        // Revival: recovers the DURABLE background chain after process kill, device
+                        // reboot, or an app upgrade that cleared WorkManager state — the live driver
+                        // covers speed while alive, but only the worker chain survives process death.
+                        migrationLog("MigrationRecovery: migration worker absent — scheduling now.")
+                        scheduleNow(accountKeyId)
+                    }
                 }
             }
-        }
 
-        if (pendingMigrationTorFailureStorageProvider.get()) {
-            // The flag only records THAT a background attempt once failed on Tor, not what the
-            // engine's next due transfer needs NOW — the plan moves on (proving, dependency
-            // mining, rescheduling) between when it was set and the next app open, and the flag
-            // is never invalidated by any of that. Re-verify against the engine's live state
-            // before trusting it: only navigate when the earliest not-yet-sent transfer is
-            // actually broadcast-ready. Otherwise this flag is stale (observed live: the flag
-            // survived from an old Tor failure while the actual next-due transfer was stuck
-            // needing PROVE for an unrelated reason) — MigrationSendingVM would immediately hit
-            // AwaitingProof/NothingDue and show a "Couldn't Send" sheet whose message has nothing
-            // to do with Tor, on every single app open, for a transfer that was never going to
-            // attempt a network send in the first place. Clear it instead; the transfer's actual
-            // blocker is already covered by the normal Migration Progress home banner.
-            val nextTransfer =
-                sdk
-                    .getMigrationTransferStates()
-                    ?.transfers
-                    ?.filter { it.isTransfer && !it.isSent }
-                    ?.minByOrNull { it.scheduledHeight }
-            if (nextTransfer?.action == MigrationNextAction.BROADCAST) {
-                // A background attempt failed specifically because of Tor — route through the Sending
-                // screen first rather than straight to MigrationProgressArgs/MigrationTorFailureArgs:
-                // MigrationSendingVM's init{} always attempts a send immediately on construction,
-                // reproducing the exact condition that failed in the background using the current
-                // migration Tor setting. If it fails again, MigrationSendingVM's own existing
-                // sendOnce() logic already forwards to MigrationTorFailureArgs — no need to duplicate
-                // that routing here.
-                migrationLog("MigrationRecovery: pending background Tor failure — redirecting to Sending.")
-                navigationRouter.replaceAll(HomeArgs, MigrationSendingArgs)
-            } else {
-                migrationLog(
-                    "MigrationRecovery: pending background Tor failure flag is stale " +
-                        "(next transfer action=${nextTransfer?.action}) — clearing."
-                )
-                pendingMigrationTorFailureStorageProvider.store(false)
+            if (pendingMigrationTorFailureStorageProvider.get()) {
+                // The flag only records THAT a background attempt once failed on Tor, not what the
+                // engine's next due transfer needs NOW — the plan moves on (proving, dependency
+                // mining, rescheduling) between when it was set and the next app open, and the flag
+                // is never invalidated by any of that. Re-verify against the engine's live state
+                // before trusting it: only navigate when the earliest not-yet-sent transfer is
+                // actually broadcast-ready. Otherwise this flag is stale (observed live: the flag
+                // survived from an old Tor failure while the actual next-due transfer was stuck
+                // needing PROVE for an unrelated reason) — MigrationSendingVM would immediately hit
+                // AwaitingProof/NothingDue and show a "Couldn't Send" sheet whose message has nothing
+                // to do with Tor, on every single app open, for a transfer that was never going to
+                // attempt a network send in the first place. Clear it instead; the transfer's actual
+                // blocker is already covered by the normal Migration Progress home banner.
+                val nextTransfer =
+                    sdk
+                        .getMigrationTransferStates()
+                        ?.transfers
+                        ?.filter { it.isTransfer && !it.isSent }
+                        ?.minByOrNull { it.scheduledHeight }
+                if (nextTransfer?.action == MigrationNextAction.BROADCAST) {
+                    // A background attempt failed specifically because of Tor — route through the Sending
+                    // screen first rather than straight to MigrationProgressArgs/MigrationTorFailureArgs:
+                    // MigrationSendingVM's init{} always attempts a send immediately on construction,
+                    // reproducing the exact condition that failed in the background using the current
+                    // migration Tor setting. If it fails again, MigrationSendingVM's own existing
+                    // sendOnce() logic already forwards to MigrationTorFailureArgs — no need to duplicate
+                    // that routing here.
+                    migrationLog("MigrationRecovery: pending background Tor failure — redirecting to Sending.")
+                    navigationRouter.replaceAll(HomeArgs, MigrationSendingArgs)
+                } else {
+                    migrationLog(
+                        "MigrationRecovery: pending background Tor failure flag is stale " +
+                            "(next transfer action=${nextTransfer?.action}) — clearing."
+                    )
+                    pendingMigrationTorFailureStorageProvider.store(false)
+                }
             }
+            // No stale write-ahead plan clearing anymore: nothing plan-shaped is persisted app-side —
+            // the engine's own state is the single, authoritative record (a commit that never happened
+            // simply leaves the engine NotStarted, and every screen renders that live).
+        }.onFailure { e ->
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            migrationLog("MigrationRecovery: engine read failed (${e.message}) — un-stamping the throttle for a clean retry.", e)
+            throttleMutex.withLock { lastRunMark = null }
         }
-        // No stale write-ahead plan clearing anymore: nothing plan-shaped is persisted app-side —
-        // the engine's own state is the single, authoritative record (a commit that never happened
-        // simply leaves the engine NotStarted, and every screen renders that live).
     }
 
     companion object {

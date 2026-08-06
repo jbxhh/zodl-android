@@ -71,16 +71,28 @@ class MigrationGateImpl(
 ) : MigrationGate {
     // Engine state IS the gate now — no app-side plan marker exists. Selected-account scoped
     // (matches the sync it gates); see post-adoption TODO C2 for the any-account variant.
+    //
+    // Both methods guard their getMigrationState() read (2026-08-07 Fable review): this had been
+    // unguarded, and isRestartAvailable() is called from AdvancedSettingsVM's bare
+    // `viewModelScope.launch` (no LCE, no try/catch of its own) — a "database is locked" throw
+    // there would crash the app straight from the Settings screen. isMigrationActive() is called
+    // from SyncWorker.doWork() every scheduled background-sync run; a throw there would just fail
+    // that one worker run (WorkManager retries), but is guarded the same way for consistency and
+    // to avoid a spurious retry loop on a transient DB-lock read.
     override suspend fun isMigrationActive(): Boolean =
-        getOrchardMigrationSdk().getMigrationState() is cash.z.ecc.android.sdk.MigrationState.InProgress
+        runCatching {
+            getOrchardMigrationSdk().getMigrationState() is cash.z.ecc.android.sdk.MigrationState.InProgress
+        }.getOrDefault(false)
 
     override suspend fun isRestartAvailable(): Boolean =
-        when (getOrchardMigrationSdk().getMigrationState()) {
-            is cash.z.ecc.android.sdk.MigrationState.InProgress,
-            is cash.z.ecc.android.sdk.MigrationState.RequiresAttention -> true
+        runCatching {
+            when (getOrchardMigrationSdk().getMigrationState()) {
+                is cash.z.ecc.android.sdk.MigrationState.InProgress,
+                is cash.z.ecc.android.sdk.MigrationState.RequiresAttention -> true
 
-            else -> false
-        }
+                else -> false
+            }
+        }.getOrDefault(false)
 }
 
 class MigrationSyncedHookImpl(

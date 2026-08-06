@@ -177,6 +177,13 @@ class MigrationLiveDriverImpl(
                 states = sdk.getMigrationTransferStates(),
                 estimatedTip = sdk.estimatedChainTip(),
                 estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
+                // Both added 2026-08-07 so the Home banner (MigrationHomeMessageSourceImpl) can
+                // observe this same readout instead of independently calling getMigrationState()/
+                // hasOverdueTransfers() itself — those two are on the SDK's mutex-gated `logged`
+                // lane, the exact mechanism that produced a live-reproduced ~10-16s Home-banner
+                // load delay tonight.
+                migrationState = sdk.getMigrationState(),
+                hasOverdueTransfers = sdk.hasOverdueTransfers(),
             )
         }.onSuccess { migrationTransferStateRepository.publish(accountKeyId, it) }
             .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }

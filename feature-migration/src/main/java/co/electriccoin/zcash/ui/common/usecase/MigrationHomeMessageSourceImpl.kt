@@ -14,10 +14,13 @@ import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferBlocker
 import co.electriccoin.zcash.ui.common.model.migration.affectedTransferIndices
 import co.electriccoin.zcash.ui.common.model.migration.toMigrationRangeText
 import co.electriccoin.zcash.ui.common.model.migration.toUiKind
+import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageProvider
 import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
 import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessage
 import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessageData
+import co.electriccoin.zcash.ui.common.repository.MigrationLiveReadout
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import co.electriccoin.zcash.ui.screen.home.HomeMessageState
 import co.electriccoin.zcash.ui.screen.home.migration.MigrationBannerPhase
 import co.electriccoin.zcash.ui.screen.home.migration.MigrationMessageState
@@ -32,6 +35,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -45,7 +49,7 @@ import kotlin.time.Instant
 class MigrationHomeMessageSourceImpl(
     private val accountDataSource: AccountDataSource,
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
-    private val getMigrationSnapshot: GetMigrationSnapshotUseCase,
+    private val migrationTransferStateRepository: MigrationTransferStateRepository,
     private val getOrchardBalance: GetOrchardBalanceUseCase,
     private val hasSeenMigrationCompleteStorageProvider: HasSeenMigrationCompleteStorageProvider,
     private val isBackgroundExecutionAvailableProvider: IsBackgroundExecutionAvailableProvider,
@@ -55,45 +59,37 @@ class MigrationHomeMessageSourceImpl(
     override fun observe(): Flow<MigrationHomeMessage?> =
         accountDataSource.selectedAccount.flatMapLatest { account ->
             if (account == null) return@flatMapLatest flowOf(null)
+            val accountKeyId = account.sdkAccount.accountUuid.toStorageKeyId()
             combine(
                 hasSeenMigrationCompleteStorageProvider.observe(),
-                recheckTicker(),
+                // Published by MigrationLiveDriverImpl's own loop (2026-08-07) instead of this
+                // source independently calling getMigrationState()/getMigrationTransferStates()/
+                // hasOverdueTransfers() on its own 15s poll — those three are on the SDK's
+                // mutex-gated `logged` lane or otherwise share its single-threaded DB I/O executor
+                // with the live driver's own prove/broadcast work, which produced a live-reproduced
+                // ~10-16s Home-banner load delay (2026-08-06/07 investigation). See the
+                // repository's own kdoc.
+                liveReadoutFlow(accountKeyId),
                 // Observed, not one-shot: after an IMMEDIATE migration (a plain send-max sweep that
                 // never touches the engine) the balance is the only input that can hide the
                 // "Migrate required" banner once the Orchard funds are spent.
                 getOrchardBalance.observe(),
-            ) { hasSeenComplete, _, orchardBalance ->
-                val sdk = getOrchardMigrationSdk()
-                val sdkState = sdk.getMigrationState()
-                val snapshot = getMigrationSnapshot()
-                // Read atomically alongside sdkState/snapshot above, in the SAME combine firing —
-                // this used to come from a separately-polled flow with its own 15s cadence, which
-                // could disagree with a freshly re-read snapshot's scheduledAt (both are wall-clock/
-                // tip-derived, but on different tip policies per hasOverdueTransfers' own doc: the
-                // estimated-tip snapshot projection advances continuously, the synced-tip-only
-                // overdue check only every 15s), flipping the home banner between "ready to send"
-                // and "N of M done" as time passed between the two reads. A failed read (e.g.
-                // "database is locked" outlasting the SDK's own bounded retry while a sync write
-                // transaction holds the wallet DB) falls back to safe defaults instead of crashing
-                // the flow — observed live as a main-thread crash before this call was guarded.
-                val readyToSendSignal =
-                    runCatching {
-                        ReadyToSendSignal(
-                            isBackgroundExecutionAvailable = isBackgroundExecutionAvailableProvider.isAvailable(),
-                            hasOverdueTransfers = sdk.hasOverdueTransfers(),
+            ) { hasSeenComplete, readout, orchardBalance ->
+                val sdkState = readout?.migrationState
+                val states = readout?.states
+                val snapshot =
+                    states?.let {
+                        migrationSnapshotFrom(
+                            states = it,
+                            estimatedTip = if (readout.estimatedTip >= 0) readout.estimatedTip else it.tipHeight,
+                            secondsPerBlock = readout.estimatedSecondsPerBlock,
                         )
-                    }.getOrDefault(
-                        ReadyToSendSignal(isBackgroundExecutionAvailable = true, hasOverdueTransfers = false)
-                    )
+                    }
                 // UNPROVABLE ANCHOR → immediate, deterministic "Update migration plan" attention
                 // banner (decision 2026-07-30: user-driven — the user must SEE the bad state as
                 // soon as it is known). The SDK synthesizes MigrationBlocker.UNPROVABLE_ANCHOR
                 // from the engine's late-dependency guard (TODO(remove: engine UnprovableAnchor)).
-                val hasUnprovable =
-                    sdk
-                        .getMigrationTransferStates()
-                        ?.transfers
-                        ?.any { it.blocker == MigrationBlocker.UNPROVABLE_ANCHOR } == true
+                val hasUnprovable = states?.transfers?.any { it.blocker == MigrationBlocker.UNPROVABLE_ANCHOR } == true
                 if (snapshot != null && hasUnprovable) {
                     return@combine MigrationHomeMessageData(
                         isRunActive = true,
@@ -108,19 +104,48 @@ class MigrationHomeMessageSourceImpl(
                     (sdkState as? MigrationState.RequiresAttention)?.let { requiresAttention ->
                         attentionInfoFor(requiresAttention.reason, snapshot)
                     } ?: (null to null)
+                // Effectively constant for a plan's lifetime — not worth coupling to the hot
+                // readout above (MigrationTransferStateRepository's own kdoc) — but still a real
+                // SDK call, guarded the same way as everything else here.
+                val dustThreshold =
+                    runCatching { getOrchardMigrationSdk().migrationDustThresholdZatoshi() }
+                        .getOrDefault(MIGRATION_DUST_THRESHOLD_ZATOSHI)
                 migrationMessageFor(
                     sdkState = sdkState,
                     snapshot = snapshot,
                     hasSeenComplete = hasSeenComplete,
                     orchardBalanceZatoshi = orchardBalance?.value ?: 0L,
-                    dustThresholdZatoshi = sdk.migrationDustThresholdZatoshi(),
-                    isBackgroundExecutionAvailable = readyToSendSignal.isBackgroundExecutionAvailable,
-                    hasOverdueTransfers = readyToSendSignal.hasOverdueTransfers,
+                    dustThresholdZatoshi = dustThreshold,
+                    isBackgroundExecutionAvailable = isBackgroundExecutionAvailableProvider.isAvailable(),
+                    hasOverdueTransfers = readout?.hasOverdueTransfers ?: false,
                     attentionKind = attentionKind,
                     attentionRangeText = attentionRangeText,
                 )
             }
         }
+
+    // Cold-start fallback (repository not yet published for this account — before the live driver's
+    // first loop iteration, or no migration in_progress so it never runs at all) reduces to one
+    // direct, guarded SDK read; the repository's OWN emission cadence otherwise drives updates. The
+    // ticker is still needed alongside it: wall-clock-dependent decisions (`next.scheduledAt <= now`)
+    // must keep re-evaluating even on a beat where the readout itself hasn't changed — but when the
+    // repository already holds a value, a tick just re-emits it (map is pure, no extra SDK call);
+    // only the true cold-start case re-reads the SDK on every tick.
+    private fun liveReadoutFlow(accountKeyId: String): Flow<MigrationLiveReadout?> =
+        combine(migrationTransferStateRepository.observe(accountKeyId), recheckTicker()) { published, _ -> published }
+            .map { published -> published ?: fetchFreshReadout() }
+
+    private suspend fun fetchFreshReadout(): MigrationLiveReadout? =
+        runCatching {
+            val sdk = getOrchardMigrationSdk()
+            MigrationLiveReadout(
+                states = sdk.getMigrationTransferStates(),
+                estimatedTip = sdk.estimatedChainTip(),
+                estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
+                migrationState = sdk.getMigrationState(),
+                hasOverdueTransfers = sdk.hasOverdueTransfers(),
+            )
+        }.getOrNull()
 
     override fun createMessageState(data: MigrationHomeMessage): HomeMessageState {
         data as MigrationHomeMessageData
@@ -232,15 +257,9 @@ class MigrationHomeMessageSourceImpl(
         }
     }
 
-    private data class ReadyToSendSignal(
-        val isBackgroundExecutionAvailable: Boolean,
-        val hasOverdueTransfers: Boolean,
-    )
-
     // A bare trigger, no data of its own: wall-clock "has this transfer's due time arrived yet"
-    // can't be recomputed reactively, so something has to re-fire the combine periodically. The
-    // actual reads (isBackgroundExecutionAvailable, hasOverdueTransfers) happen inside the combine
-    // lambda itself now, atomically alongside sdkState/snapshot — see the comment there.
+    // can't be recomputed reactively, so something has to re-fire liveReadoutFlow's combine
+    // periodically — see that function's own comment for what it does and doesn't cause on each tick.
     private fun recheckTicker(): Flow<Unit> =
         flow {
             while (true) {

@@ -1,17 +1,25 @@
 package co.electriccoin.zcash.ui.common.repository
 
+import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationTransferStates
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class MigrationTransferStateRepositoryTest {
-    private fun readout(tipHeight: Long, estimatedTip: Long = tipHeight, estimatedSecondsPerBlock: Long = 75L) =
-        MigrationLiveReadout(
-            states = MigrationTransferStates(transfers = emptyList(), tipHeight = tipHeight),
-            estimatedTip = estimatedTip,
-            estimatedSecondsPerBlock = estimatedSecondsPerBlock,
-        )
+    private fun readout(
+        tipHeight: Long,
+        estimatedTip: Long = tipHeight,
+        estimatedSecondsPerBlock: Long = 75L,
+        migrationState: MigrationState? = MigrationState.Complete,
+        hasOverdueTransfers: Boolean = false,
+    ) = MigrationLiveReadout(
+        states = MigrationTransferStates(transfers = emptyList(), tipHeight = tipHeight),
+        estimatedTip = estimatedTip,
+        estimatedSecondsPerBlock = estimatedSecondsPerBlock,
+        migrationState = migrationState,
+        hasOverdueTransfers = hasOverdueTransfers,
+    )
 
     @Test
     fun observe_before_any_publish_is_null() {
@@ -43,7 +51,16 @@ class MigrationTransferStateRepositoryTest {
         // former means "genuinely nothing to show", the latter means "fall back to a direct read".
         val repo = MigrationTransferStateRepositoryImpl()
         repo.publish("account-1", readout(1L))
-        repo.publish("account-1", MigrationLiveReadout(states = null, estimatedTip = -1L, estimatedSecondsPerBlock = 0L))
+        repo.publish(
+            "account-1",
+            MigrationLiveReadout(
+                states = null,
+                estimatedTip = -1L,
+                estimatedSecondsPerBlock = 0L,
+                migrationState = null,
+                hasOverdueTransfers = false,
+            )
+        )
         val republished = repo.observe("account-1").value
         assertNull(republished?.states)
         assertEquals(-1L, republished?.estimatedTip) // the readout ITSELF is not null

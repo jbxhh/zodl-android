@@ -1,14 +1,17 @@
 package co.electriccoin.zcash.ui.common.repository
 
+import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationTransferStates
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * One atomic live readout of the migration engine: the per-transfer states plus the tip-estimate
- * pair needed to render them (`OrchardMigrationSdk.estimatedChainTip()`/`estimatedSecondsPerBlock()`)
- * — all three are read together from the same call site, at the same instant, so a consumer never
- * pairs a fresh [states] with a stale tip estimate or vice versa.
+ * One atomic live readout of the migration engine: the per-transfer states, the tip-estimate pair
+ * needed to render them (`OrchardMigrationSdk.estimatedChainTip()`/`estimatedSecondsPerBlock()`),
+ * the derived [MigrationState], and whether a due transfer is overdue — all read together from the
+ * same call site, at the same instant, so a consumer never pairs a fresh field with a stale one
+ * (2026-08-06/07: the ready-to-send flicker this repository's sibling fix closed for the Home banner
+ * was exactly this — `scheduledAt` and `hasOverdueTransfers` read at different instants).
  *
  * [estimatedTip] follows [cash.z.ecc.android.sdk.OrchardMigrationSdk.estimatedChainTip]'s own
  * "negative means unavailable" convention — callers fall back to `states.tipHeight` in that case,
@@ -18,6 +21,8 @@ data class MigrationLiveReadout(
     val states: MigrationTransferStates?,
     val estimatedTip: Long,
     val estimatedSecondsPerBlock: Long,
+    val migrationState: MigrationState?,
+    val hasOverdueTransfers: Boolean,
 )
 
 /**

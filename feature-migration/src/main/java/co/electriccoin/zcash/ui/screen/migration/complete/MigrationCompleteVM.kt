@@ -13,6 +13,7 @@ import co.electriccoin.zcash.ui.common.model.LceState
 import co.electriccoin.zcash.ui.common.model.SubmitResult
 import co.electriccoin.zcash.ui.common.model.groupLce
 import co.electriccoin.zcash.ui.common.model.guardLoading
+import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
 import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
 import co.electriccoin.zcash.ui.common.model.mutableLce
@@ -199,7 +200,14 @@ class MigrationCompleteVM(
                 // migrationMessageFor() then naturally re-evaluates to REQUIRED (plan == null) even
                 // though the SDK's own MigrationState is still Complete (it only advances once the
                 // next round is actually committed).
-                val dustThreshold = getOrchardMigrationSdk().migrationDustThresholdZatoshi()
+                // Guarded (2026-08-07 Fable review): this sat in a try/finally with no catch — the
+                // finally block (navigate back) would still run on a "database is locked" throw,
+                // but the exception then propagated past it uncaught, crashing the app right after
+                // navigating. Falls back to the same MIGRATION_DUST_THRESHOLD_ZATOSHI constant
+                // migrationMessageFor itself defaults to.
+                val dustThreshold =
+                    runCatching { getOrchardMigrationSdk().migrationDustThresholdZatoshi() }
+                        .getOrDefault(MIGRATION_DUST_THRESHOLD_ZATOSHI)
                 val moreRoundsNeeded =
                     getSelectedWalletAccount() is KeystoneAccount &&
                         getOrchardBalance().value > dustThreshold
