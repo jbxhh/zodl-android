@@ -58,13 +58,16 @@ class MigrationSyncWorker(
         val accountKeyId = inputData.getString(MigrationScheduler.KEY_ACCOUNT_KEY_ID)
             ?: return Result.success()
 
-        val sdk = getOrchardMigrationSdk(accountKeyId) ?: run {
+        val sdk = runCatching { getOrchardMigrationSdk(accountKeyId) }.getOrElse {
             // The wallet isn't up yet — happens deterministically right after an app
             // update/reboot, when WorkManager greedily re-runs the restored job before the
             // synchronizer initializes. Returning success here silently BREAKS the
             // self-rechaining lane (no re-arm ever happens again — observed live: both lanes
             // dead after a reinstall). Retry lets WorkManager back off and re-run until the
-            // SDK is reachable, at which point the normal run re-arms the chain.
+            // SDK is reachable, at which point the normal run re-arms the chain. A stale job
+            // whose account is permanently gone never reaches this point — the account lookup
+            // suspends instead of throwing, and both account-deleting flows (Keystone
+            // disconnect, wallet reset) cancel the lanes at the source.
             Twig.debug { "MIGRATION_DIAG LaneA: SDK not ready — retrying via WorkManager backoff." }
             return Result.retry()
         }

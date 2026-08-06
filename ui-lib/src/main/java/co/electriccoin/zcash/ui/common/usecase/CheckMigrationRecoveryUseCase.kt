@@ -9,6 +9,7 @@ import co.electriccoin.zcash.spackle.Twig
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
+import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.common.repository.MigrationPlanRepository
 import co.electriccoin.zcash.ui.screen.home.HomeArgs
 import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingArgs
@@ -38,6 +39,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class CheckMigrationRecoveryUseCase(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
+    private val persistableWalletProvider: PersistableWalletProvider,
     private val navigationRouter: NavigationRouter,
     private val migrationPlanRepository: MigrationPlanRepository,
     private val pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider,
@@ -68,11 +70,12 @@ class CheckMigrationRecoveryUseCase(
         // (observed live: 1st call = SDK null + throttle stamped, 2nd call 3s later = throttled;
         // both lanes stayed dead after a reinstall). Un-stamp the throttle so the next trigger
         // (foreground/unlock/onStart all re-fire) gets a real attempt once the wallet is up.
-        val sdk = getOrchardMigrationSdk() ?: run {
+        if (persistableWalletProvider.getPersistableWallet() == null) {
             synchronized(CheckMigrationRecoveryUseCase) { lastRunElapsedMs = 0L }
             Twig.debug { "MIGRATION_DIAG MigrationRecovery: SDK not ready — will retry on next trigger." }
             return
         }
+        val sdk = getOrchardMigrationSdk()
 
         // (a) Lane A reconciliation — if a plan exists but the Lane A unique work is absent
         // (ENQUEUED or RUNNING), re-schedule it. This self-heals after process kill, device

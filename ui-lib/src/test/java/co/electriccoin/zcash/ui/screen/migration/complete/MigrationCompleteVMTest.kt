@@ -286,11 +286,16 @@ class MigrationCompleteVMTest {
         account: WalletAccount,
         orchardBalanceZatoshi: Long,
         router: FakeNavigationRouter,
-        // Defaults to "no wallet available" rather than a relaxed auto-mock — a relaxed mock's
-        // nested migrationDustThresholdZatoshi() call would otherwise answer 0L instead of falling
-        // through to the real MIGRATION_DUST_THRESHOLD_ZATOSHI fallback, breaking the boundary
+        // Defaults to a strict SDK stub answering the real MIGRATION_DUST_THRESHOLD_ZATOSHI (and a
+        // null summary) rather than a relaxed auto-mock — a relaxed mock's nested
+        // migrationDustThresholdZatoshi() call would otherwise answer 0L, breaking the boundary
         // tests below.
-        getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase = mockk { coEvery { this@mockk() } returns null },
+        getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase = mockk {
+            coEvery { this@mockk() } returns mockk {
+                coEvery { getMigrationSummary() } returns null
+                coEvery { migrationDustThresholdZatoshi() } returns MIGRATION_DUST_THRESHOLD_ZATOSHI
+            }
+        },
         zashiSpendingKeyDataSource: ZashiSpendingKeyDataSource = mockk(relaxed = true),
         biometricRepository: BiometricRepository = mockk(relaxed = true),
         proposalDataSource: ProposalDataSource = mockk(relaxed = true),

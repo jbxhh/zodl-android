@@ -10,6 +10,7 @@ import co.electriccoin.zcash.ui.common.model.migration.MigrationPlan
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransfer
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferStatus
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
+import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.common.repository.MigrationPlanRepository
 import co.electriccoin.zcash.ui.screen.home.HomeArgs
 import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteArgs
@@ -63,7 +64,10 @@ class CheckMigrationRecoveryUseCaseTest {
         isLaneBActive: suspend (String) -> Boolean = { true },
     ) = CheckMigrationRecoveryUseCase(
         getOrchardMigrationSdk = mockk<GetOrchardMigrationSdkUseCase> {
-            coEvery { this@mockk() } returns sdk
+            coEvery { this@mockk() } returns (sdk ?: mockk())
+        },
+        persistableWalletProvider = mockk<PersistableWalletProvider> {
+            coEvery { getPersistableWallet() } returns if (sdk == null) null else mockk()
         },
         navigationRouter = navigationRouter,
         migrationPlanRepository = migrationPlanRepository,

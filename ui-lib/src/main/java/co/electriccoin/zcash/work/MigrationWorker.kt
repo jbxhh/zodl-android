@@ -59,10 +59,11 @@ class MigrationWorker(
                 Twig.warn { "MIGRATION_DIAG MigrationWorker: no accountKeyId in inputData — falling back to selected account $it (pre-upgrade job)" }
             }
 
-        val sdk = getOrchardMigrationSdk(accountKeyId) ?: run {
+        val sdk = runCatching { getOrchardMigrationSdk(accountKeyId) }.getOrElse {
             // Same reasoning as MigrationSyncWorker: a not-yet-initialized wallet right after an
             // app update/reboot must not silently consume (and thereby kill) the self-rechaining
-            // lane — retry until the SDK is reachable.
+            // lane — retry until the SDK is reachable. Stale jobs for permanently-deleted
+            // accounts are cancelled at the source (Keystone disconnect, wallet reset) instead.
             Twig.debug { "MIGRATION_DIAG LaneB: SDK not ready — retrying via WorkManager backoff." }
             return Result.retry()
         }

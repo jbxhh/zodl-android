@@ -7,7 +7,7 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.UUID
 import kotlin.test.Test
-import kotlin.test.assertNull
+import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 class FindAccountByKeyIdTest {
@@ -21,12 +21,12 @@ class FindAccountByKeyIdTest {
         val a = account(UUID.fromString("00112233-4455-6677-8899-aabbccddeeff"))
         val b = account(UUID.fromString("ffeeddcc-bbaa-9988-7766-554433221100"))
         val keyA = a.sdkAccount.accountUuid.toStorageKeyId()
-        assertSame(a, listOf(a, b).findByAccountKeyId(keyA))
+        assertSame(a, listOf(a, b).firstByAccountKeyId(keyA))
     }
 
     @Test
-    fun returnsNullWhenNoAccountMatches() {
+    fun throwsWhenNoAccountMatches() {
         val a = account(UUID.fromString("00112233-4455-6677-8899-aabbccddeeff"))
-        assertNull(listOf(a).findByAccountKeyId("no-such-key"))
+        assertFailsWith<NoSuchElementException> { listOf(a).firstByAccountKeyId("no-such-key") }
     }
 }

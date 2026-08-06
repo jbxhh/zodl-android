@@ -9,6 +9,6 @@ class LockOrchardBalanceUseCase(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
 ) {
     suspend operator fun invoke() {
-        getOrchardMigrationSdk()?.lockRemainingOrchardBalance()
+        getOrchardMigrationSdk().lockRemainingOrchardBalance()
     }
 }

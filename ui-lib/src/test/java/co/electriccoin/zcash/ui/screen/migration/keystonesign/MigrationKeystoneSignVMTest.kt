@@ -504,7 +504,7 @@ class MigrationKeystoneSignVMTest {
 
     @Test
     fun noSdkAvailableShowsFailureSheet() = runTest {
-        // SDK unavailable (returns null) → VM error("no wallet available") → onFailure → sheet.
+        // SDK unavailable (no persisted wallet → invoke throws) → onFailure → sheet.
         val pendingSchedule = PendingMigrationScheduleRepositoryImpl()
             .apply { set(testAccountKeyId, schedule()) }
         val pendingPczts = PendingKeystoneMigrationPcztsRepositoryImpl()
@@ -512,7 +512,7 @@ class MigrationKeystoneSignVMTest {
         val vm = MigrationKeystoneSignVM(
             args = MigrationKeystoneSignArgs(mode = MigrationMode.AUTOMATIC),
             getSelectedWalletAccount = testGetSelectedWalletAccount,
-            getOrchardMigrationSdk = mockk { coEvery { this@mockk() } returns null },
+            getOrchardMigrationSdk = mockk { coEvery { this@mockk() } throws IllegalStateException("no wallet available") },
             pendingSchedule = pendingSchedule,
             pendingKeystonePczts = pendingPczts,
             navigationRouter = router,

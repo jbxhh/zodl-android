@@ -335,6 +335,7 @@ val useCaseModule =
         factory {
             CheckMigrationRecoveryUseCase(
                 getOrchardMigrationSdk = get(),
+                persistableWalletProvider = get(),
                 navigationRouter = get(),
                 migrationPlanRepository = get(),
                 pendingMigrationTorFailureStorageProvider = get(),

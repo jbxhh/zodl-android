@@ -124,7 +124,7 @@ class GetHomeMessageUseCase(
                 getOrchardBalance.observe(),
             ) { plan, hasSeenComplete, readyToSendSignal, orchardBalance ->
                 val sdk = getOrchardMigrationSdk()
-                val sdkState = sdk?.getMigrationState()
+                val sdkState = sdk.getMigrationState()
                 // Only computed when actually needed (RequiresAttention) — an extra
                 // getMigrationTransferStates() read on every other state would be wasted work.
                 val (attentionKind, attentionRangeText) =
@@ -136,8 +136,7 @@ class GetHomeMessageUseCase(
                     plan = plan,
                     hasSeenComplete = hasSeenComplete,
                     orchardBalanceZatoshi = orchardBalance?.value ?: 0L,
-                    dustThresholdZatoshi = sdk?.migrationDustThresholdZatoshi()
-                        ?: MIGRATION_DUST_THRESHOLD_ZATOSHI,
+                    dustThresholdZatoshi = sdk.migrationDustThresholdZatoshi(),
                     isBackgroundExecutionAvailable = readyToSendSignal.isBackgroundExecutionAvailable,
                     hasOverdueTransfers = readyToSendSignal.hasOverdueTransfers,
                     attentionKind = attentionKind,
@@ -165,8 +164,7 @@ class GetHomeMessageUseCase(
                 runCatching {
                     ReadyToSendSignal(
                         isBackgroundExecutionAvailable = isBackgroundExecutionAvailableProvider.isAvailable(),
-                        hasOverdueTransfers = getOrchardMigrationSdk()?.hasOverdueTransfers()
-                            ?: false,
+                        hasOverdueTransfers = getOrchardMigrationSdk().hasOverdueTransfers(),
                     )
                 }.onSuccess { emit(it) }
                 delay(READY_TO_SEND_RECHECK_INTERVAL)

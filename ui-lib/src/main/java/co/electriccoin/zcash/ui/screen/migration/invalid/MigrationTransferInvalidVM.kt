@@ -53,8 +53,8 @@ class MigrationTransferInvalidVM(
     init {
         loadLce.execute {
             val sdk = getOrchardMigrationSdk()
-            val reason = (sdk?.getMigrationState() as? MigrationState.RequiresAttention)?.reason
-            val liveStates = sdk?.getMigrationTransferStates()
+            val reason = (sdk.getMigrationState() as? MigrationState.RequiresAttention)?.reason
+            val liveStates = sdk.getMigrationTransferStates()
             recoveryInfo.value = RecoveryInfo(reason, liveStates)
         }
     }
@@ -93,7 +93,7 @@ class MigrationTransferInvalidVM(
     }
 
     private fun onContinue() = restartLce.execute {
-        val sdk = getOrchardMigrationSdk() ?: error("MigrationTransferInvalidVM: no wallet available to restart")
+        val sdk = getOrchardMigrationSdk()
         // restartCurrentMigrationStep()'s own doc requires its returned schedule to go through the
         // normal user confirmation flow rather than being discarded — hand it to MigrationReviewVM
         // instead of letting it independently re-propose (see RestartMigrationScheduleRepository's

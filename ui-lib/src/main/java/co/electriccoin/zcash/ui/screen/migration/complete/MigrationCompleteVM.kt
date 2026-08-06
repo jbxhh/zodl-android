@@ -13,7 +13,6 @@ import co.electriccoin.zcash.ui.common.model.LceState
 import co.electriccoin.zcash.ui.common.model.SubmitResult
 import co.electriccoin.zcash.ui.common.model.groupLce
 import co.electriccoin.zcash.ui.common.model.guardLoading
-import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
 import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
 import co.electriccoin.zcash.ui.common.model.mutableLce
@@ -93,9 +92,9 @@ class MigrationCompleteVM(
             // Read the REAL migration summary (amount migrated, transfer count, duration) from the
             // ENGINE's persisted migration data — the single source of truth that survives
             // completion. The app-side plan is cleared once migration finishes, so it can no longer
-            // supply these (it would read 0.000 ZEC / 0 of 0). Null-safe: a missing SDK/summary
+            // supply these (it would read 0.000 ZEC / 0 of 0). Null-safe: a missing summary
             // falls back to zeros.
-            val summary = getOrchardMigrationSdk()?.getMigrationSummary()
+            val summary = getOrchardMigrationSdk().getMigrationSummary()
             // Whatever's still in the real Orchard balance once every transfer has sent is the
             // dust/residual left behind (below the migratable threshold, or an un-migrated
             // opt-in residual — either way, it's what's actually still sitting in Orchard).
@@ -178,8 +177,7 @@ class MigrationCompleteVM(
                 // migrationMessageFor() then naturally re-evaluates to REQUIRED (plan == null) even
                 // though the SDK's own MigrationState is still Complete (it only advances once the
                 // next round is actually committed).
-                val dustThreshold = getOrchardMigrationSdk()?.migrationDustThresholdZatoshi()
-                    ?: MIGRATION_DUST_THRESHOLD_ZATOSHI
+                val dustThreshold = getOrchardMigrationSdk().migrationDustThresholdZatoshi()
                 val moreRoundsNeeded =
                     getSelectedWalletAccount() is KeystoneAccount &&
                         getOrchardBalance().value > dustThreshold
@@ -240,7 +238,7 @@ class MigrationCompleteVM(
         } catch (_: BiometricsCancelledException) {
             return@execute
         }
-        val sdk = getOrchardMigrationSdk() ?: error("MigrationCompleteVM: no wallet available to propose")
+        val sdk = getOrchardMigrationSdk()
         val amount = getOrchardBalance().value
         val proposal = sdk.proposeImmediateMigration()
         pendingMigrateAnywayProposal = MigrateAnywayProposal(proposal, amount)

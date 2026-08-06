@@ -4,6 +4,7 @@ import android.content.Context
 import cash.z.ecc.android.sdk.MigrationState
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
+import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.common.repository.MigrationPlanRepository
 import co.electriccoin.zcash.ui.common.usecase.CheckMigrationRecoveryUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
@@ -90,6 +91,9 @@ class MigrationBackgroundRecoveryScenarioTest {
     ) = CheckMigrationRecoveryUseCase(
         getOrchardMigrationSdk = mockk<GetOrchardMigrationSdkUseCase> {
             coEvery { this@mockk() } returns driver.sdk
+        },
+        persistableWalletProvider = mockk<PersistableWalletProvider> {
+            coEvery { getPersistableWallet() } returns mockk()
         },
         navigationRouter = navigationRouter,
         migrationPlanRepository = migrationPlanRepository,

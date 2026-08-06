@@ -116,7 +116,7 @@ class MigrationSendingVM(
     fun onBack() = navigationRouter.back()
 
     private suspend fun sendOnce(useTor: Boolean) {
-        val sdk = getOrchardMigrationSdk() ?: error("MigrationSendingVM: no wallet available to send")
+        val sdk = getOrchardMigrationSdk()
         var outcome: TransferAttemptOutcome? = null
         var attempt = 0
         while ((outcome == null || outcome is TransferAttemptOutcome.NothingDue || outcome is TransferAttemptOutcome.AwaitingProof) &&

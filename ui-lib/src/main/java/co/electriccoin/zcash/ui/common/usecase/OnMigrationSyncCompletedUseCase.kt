@@ -27,7 +27,7 @@ class OnMigrationSyncCompletedUseCase(
     private val context: Context,
 ) {
     suspend operator fun invoke(accountKeyId: String) {
-        val sdk = getOrchardMigrationSdk(accountKeyId) ?: return
+        val sdk = runCatching { getOrchardMigrationSdk(accountKeyId) }.getOrNull() ?: return
         val proved = sdk.finalizeReadyTransfers()
         val invalidated = sdk.reconcileInvalidations()
         Twig.debug {

@@ -83,7 +83,7 @@ class MigrationKeystoneScanVM(
                 navigationRouter.back()
                 return@launch
             }
-            val sdk = getOrchardMigrationSdk() ?: error("MigrationKeystoneScanVM: no wallet available to sign")
+            val sdk = getOrchardMigrationSdk()
             if (!hasResetDecoder) {
                 sdk.resetKeystoneSignBatchDecoder()
                 hasResetDecoder = true

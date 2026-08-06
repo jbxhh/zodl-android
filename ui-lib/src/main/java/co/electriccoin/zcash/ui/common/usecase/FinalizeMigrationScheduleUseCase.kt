@@ -43,7 +43,7 @@ class FinalizeMigrationScheduleUseCase(
     suspend operator fun invoke(sched: MigrationSchedule, mode: MigrationMode) {
         // Measured block rate — the 75s constant grossly overestimates on the bursty testnet,
         // scheduling Lane B far past the real due heights.
-        val secondsPerBlock = getOrchardMigrationSdk()?.estimatedSecondsPerBlock() ?: 75L
+        val secondsPerBlock = getOrchardMigrationSdk().estimatedSecondsPerBlock()
         persistPlan(sched, mode, secondsPerBlock)
         val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
         logCommittedBoundaries()
@@ -86,7 +86,7 @@ class FinalizeMigrationScheduleUseCase(
         // MigrationKeystoneRound's kdoc. Never persisted as a running campaign counter: "current" is
         // always 1 ("this round, from here"), "total" is whatever the estimate says right now.
         val keystoneRound = if (getSelectedWalletAccount() is KeystoneAccount) {
-            getOrchardMigrationSdk()?.estimateMigrationRunCount()?.takeIf { it > 1 }?.let { MigrationKeystoneRound(current = 1, total = it) }
+            getOrchardMigrationSdk().estimateMigrationRunCount()?.takeIf { it > 1 }?.let { MigrationKeystoneRound(current = 1, total = it) }
         } else {
             null
         }
@@ -107,7 +107,7 @@ class FinalizeMigrationScheduleUseCase(
      * single warning and is otherwise silent, never blocking the commit's scheduling/navigation.
      */
     private suspend fun logCommittedBoundaries() {
-        val states = runCatching { getOrchardMigrationSdk()?.getMigrationTransferStates() }.getOrNull()
+        val states = runCatching { getOrchardMigrationSdk().getMigrationTransferStates() }.getOrNull()
         if (states == null) {
             Twig.debug { "MIGRATION_DIAG committedPlan(app): no live transfer states available post-commit" }
             return
