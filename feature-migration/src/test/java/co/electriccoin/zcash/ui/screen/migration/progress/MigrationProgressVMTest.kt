@@ -108,12 +108,19 @@ class MigrationProgressVMTest {
     @Test
     fun transferRowDisplay_sent_with_mined_time_shows_relative_ago() {
         val t = transfer(isSent = true, minedAt = now - 20.minutes)
-        // Below both privacy floors (10 min testnet / 1 hour mainnet), so the exact "20 min" never
-        // leaks — formatMigrationDuration's own floor governs the exact rendered text.
         val display = transferRowDisplay(t, now, false)
         assertTrue(display.label.asString().startsWith("Sent "), display.label.asString())
         assertTrue(display.label.asString().endsWith(" ago"), display.label.asString())
         assertFalse(display.isReadyNow)
+    }
+
+    @Test
+    fun transferRowDisplay_sent_ago_is_not_floored_by_the_privacy_minimum() {
+        // 2026-08-06 revised decision: an already-mined transfer's exact timing is already public
+        // on-chain, so "Sent X ago" shows the real elapsed time even below the 10 min testnet /
+        // 1 h mainnet privacy floor that still applies to UPCOMING (not-yet-sent) estimates.
+        val t = transfer(isSent = true, minedAt = now - 1.minutes)
+        assertEquals("Sent ~1 min ago", transferRowDisplay(t, now, false).label.asString())
     }
 
     @Test
@@ -229,6 +236,11 @@ class MigrationProgressVMTest {
         val display = sentRowDisplay(minedAt = now - 2.minutes, now = now)
         assertTrue(display.label.asString().startsWith("Sent "))
         assertTrue(display.label.asString().endsWith(" ago"))
+    }
+
+    @Test
+    fun sentRowDisplay_ago_is_not_floored_by_the_privacy_minimum() {
+        assertEquals("Sent ~2 min ago", sentRowDisplay(minedAt = now - 2.minutes, now = now).label.asString())
     }
 
     // ── isAttention: unchanged, explicitly out of scope for this finalization ────────────────

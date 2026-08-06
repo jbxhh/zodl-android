@@ -70,14 +70,24 @@ class MigrationDurationFormatTest {
 
     @Test
     fun formatMigrationDuration_never_reveals_a_duration_below_the_networks_privacy_floor() {
-        // Never show anything more precise than 10 min on testnet / 1 hour on mainnet, in either
-        // direction (an "ago" duration or an upcoming estimate) — 2026-08-03 privacy requirement.
+        // Never show anything more precise than 10 min on testnet / 1 hour on mainnet for an
+        // UPCOMING estimate — 2026-08-03 privacy requirement, still the default (applyPrivacyFloor
+        // defaults to true).
         assertEquals("~10 min", formatMigrationDuration(totalSeconds = 1L, fineGrained = true))
         assertEquals("~10 min", formatMigrationDuration(totalSeconds = 599L, fineGrained = true))
         assertEquals("~10 min", formatMigrationDuration(totalSeconds = 600L, fineGrained = true))
         assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 1L, fineGrained = false))
         assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 3_599L, fineGrained = false))
         assertEquals("~1 hour", formatMigrationDuration(totalSeconds = 3_600L, fineGrained = false))
+    }
+
+    @Test
+    fun formatMigrationDuration_applyPrivacyFloor_false_reveals_the_exact_duration() {
+        // 2026-08-06 revised decision — an already-mined transfer's "ago" label opts out: its exact
+        // timing is already public on-chain, so there is no remaining privacy benefit to flooring it.
+        assertEquals("~1 min", formatMigrationDuration(totalSeconds = 60L, fineGrained = true, applyPrivacyFloor = false))
+        assertEquals("~2 min", formatMigrationDuration(totalSeconds = 130L, fineGrained = false, applyPrivacyFloor = false))
+        assertEquals("~0 min", formatMigrationDuration(totalSeconds = 0L, fineGrained = true, applyPrivacyFloor = false))
     }
 
     @Test

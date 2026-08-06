@@ -503,7 +503,13 @@ internal fun preparationRowDisplay(
 internal fun sentRowDisplay(minedAt: Instant?, now: Instant): MigrationRowDisplay =
     if (minedAt != null) {
         val secondsAgo = (now - minedAt).inWholeSeconds.coerceAtLeast(0L)
-        MigrationRowDisplay(stringRes("Sent ${formatMigrationDuration(secondsAgo)} ago"), isReadyNow = false)
+        // No privacy floor here (2026-08-06 revised decision) — see formatMigrationDuration's own
+        // kdoc: an already-mined transfer's exact timing is already public on-chain, so flooring
+        // this specific label has no privacy benefit left, only less-informative copy.
+        MigrationRowDisplay(
+            stringRes("Sent ${formatMigrationDuration(secondsAgo, applyPrivacyFloor = false)} ago"),
+            isReadyNow = false
+        )
     } else {
         MigrationRowDisplay(stringRes("Sent"), isReadyNow = false)
     }

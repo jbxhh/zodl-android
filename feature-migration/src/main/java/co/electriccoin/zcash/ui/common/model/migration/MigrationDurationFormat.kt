@@ -13,20 +13,29 @@ import co.electriccoin.zcash.migration.BuildConfig
  * — the whole testnet plan spans ~1-2 h (12-block buckets), so integer-hour bucketing collapsed
  * most transfers into an identical "~1 hours" label. Mainnet keeps the coarse hour display.
  *
- * Every duration this formats — a transfer's own "sent/due in" hint or the header's total-span/
- * remaining estimate — is floored at [TESTNET_PRIVACY_FLOOR_SECONDS]/[MAINNET_PRIVACY_FLOOR_SECONDS]
- * (2026-08-03, decision with the user): never reveal a migration timing more precise than that,
- * on either side of "now" (an "ago" as well as an upcoming estimate) — a tighter number could help
- * correlate this wallet's broadcasts across the network. [fineGrained] doubles as the network
+ * A duration describing an UPCOMING moment — a transfer's own "due in" hint, the header's
+ * total-span/remaining estimate — is floored at [TESTNET_PRIVACY_FLOOR_SECONDS]/
+ * [MAINNET_PRIVACY_FLOOR_SECONDS] (2026-08-03, decision with the user): never reveal a migration
+ * timing more precise than that, since a tighter number could help correlate this wallet's
+ * upcoming broadcast across the network before it happens. [fineGrained] doubles as the network
  * selector for which floor applies, matching its own existing default derivation, so callers that
  * pin [fineGrained] for a deterministic test get a deterministic floor for free.
+ *
+ * [applyPrivacyFloor] (default `true`) lets a caller opt OUT for an "ago" duration on an
+ * ALREADY-SENT/mined transaction (2026-08-06, revised decision with the user): the correlation
+ * risk the floor guards against is specific to revealing precise timing before/around the moment
+ * of broadcast; once a transfer is mined, its exact block time is already public on-chain
+ * regardless of what this app's own UI shows, so flooring "Sent 1 min ago" to "Sent ~10 min ago"
+ * has no remaining privacy benefit — it only makes the row less informative. Every OTHER caller
+ * (all upcoming/future estimates) keeps the floor at its previous default.
  */
 fun formatMigrationDuration(
     totalSeconds: Long,
     fineGrained: Boolean = isTestnetBuildFlavor(),
+    applyPrivacyFloor: Boolean = true,
 ): String {
     val floorSeconds = if (fineGrained) TESTNET_PRIVACY_FLOOR_SECONDS else MAINNET_PRIVACY_FLOOR_SECONDS
-    val seconds = totalSeconds.coerceAtLeast(floorSeconds)
+    val seconds = if (applyPrivacyFloor) totalSeconds.coerceAtLeast(floorSeconds) else totalSeconds.coerceAtLeast(0L)
     val hours = seconds / 3600
     val minutesPastHour = (seconds % 3600) / 60
     return when {
