@@ -20,8 +20,10 @@ import co.electriccoin.zcash.ui.common.model.migration.preparationStepTitle
 import co.electriccoin.zcash.ui.common.model.migration.toSnapshot
 import co.electriccoin.zcash.ui.common.model.mutableLce
 import co.electriccoin.zcash.ui.common.model.stateIn
+import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
@@ -33,7 +35,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.MathContext
 import kotlin.time.Clock
@@ -43,6 +47,7 @@ import kotlin.time.Instant
 class MigrationProgressVM(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
+    private val migrationTransferStateRepository: MigrationTransferStateRepository,
     private val navigationRouter: NavigationRouter,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val errorStateMapper: ErrorMapperUseCase,
@@ -53,7 +58,12 @@ class MigrationProgressVM(
         combine(
             exchangeRateRepository.state,
             liveTransferStatesFlow(),
-        ) { rate, liveStates ->
+            // A bare periodic trigger so wall-clock-dependent display (the "in ~X minutes" row
+            // labels, migrationProgressSubtitle) keeps refreshing even on a beat where the
+            // underlying transfer states genuinely haven't changed — decoupled from how often we
+            // actually re-read the engine (see liveTransferStatesFlow's own comment).
+            recheckTicker(),
+        ) { rate, liveStates, _ ->
             // Everything on this screen derives LIVE from the engine's persisted states — no plan
             // cache to diverge, and no app-side "overdue"/countdown: each row renders purely from
             // the engine's per-transaction status (decision with Dominik 2026-07-31). The measured
@@ -70,14 +80,33 @@ class MigrationProgressVM(
             .stateIn(this)
 
     // MigrationPlanRepository's per-transfer status/scheduledAt is a display cache, written once
-    // at propose/commit time. Polling the SDK's own persisted state directly keeps the displayed
+    // at propose/commit time. Reading the engine's own persisted state directly keeps the displayed
     // schedule true to the engine — the single source of truth for the plan — regardless of what
     // the cache last recorded.
+    //
+    // The read itself now comes from MigrationTransferStateRepository, published by
+    // MigrationLiveDriverImpl's own loop, instead of this screen polling
+    // OrchardMigrationSdk.getMigrationTransferStates() on its own timer: that used to mean this
+    // screen's poll and the live driver's prove/broadcast calls competed for the SDK's
+    // single-threaded DB I/O executor, producing a long white-screen wait whenever this screen
+    // opened right as the driver was mid-step (see the repository's own kdoc). `null` from the
+    // repository means the driver hasn't published for this account yet this session (before its
+    // first loop iteration, or no migration in_progress so it never runs) — fall back to one
+    // direct read in that narrow window, same as before this repository existed.
     private fun liveTransferStatesFlow(): Flow<MigrationTransferStates?> =
         flow {
+            val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
+            emitAll(
+                migrationTransferStateRepository.observe(accountKeyId).map { published ->
+                    published ?: getOrchardMigrationSdk().getMigrationTransferStates()
+                }
+            )
+        }
+
+    private fun recheckTicker(): Flow<Unit> =
+        flow {
             while (true) {
-                val sdk = getOrchardMigrationSdk()
-                emit(sdk.getMigrationTransferStates())
+                emit(Unit)
                 delay(OVERDUE_RECHECK_INTERVAL)
             }
         }

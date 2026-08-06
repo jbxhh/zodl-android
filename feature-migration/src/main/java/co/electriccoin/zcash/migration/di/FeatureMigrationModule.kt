@@ -28,6 +28,8 @@ import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleReposi
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleRepositoryImpl
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationTorFailureDecisionRepository
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationTorFailureDecisionRepositoryImpl
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepositoryImpl
 import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepository
 import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepositoryImpl
 import co.electriccoin.zcash.ui.common.usecase.CheckMigrationRecoveryUseCase
@@ -101,6 +103,7 @@ val featureMigrationModule =
             MigrationLiveDriverImpl(
                 migrationDriveOnce = get(),
                 getOrchardMigrationSdk = { accountKeyId -> get<GetOrchardMigrationSdkUseCase>().invoke(accountKeyId) },
+                migrationTransferStateRepository = get(),
             )
         }
 
@@ -110,6 +113,7 @@ val featureMigrationModule =
         singleOf(::PendingMigrationTorFailureDecisionRepositoryImpl) bind
             PendingMigrationTorFailureDecisionRepository::class
         singleOf(::PendingKeystoneMigrationPcztsRepositoryImpl) bind PendingKeystoneMigrationPcztsRepository::class
+        singleOf(::MigrationTransferStateRepositoryImpl) bind MigrationTransferStateRepository::class
 
         // Use cases
         factoryOf(::GetOrchardMigrationSdkUseCase)

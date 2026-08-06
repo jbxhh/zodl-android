@@ -2,6 +2,7 @@ package co.electriccoin.zcash.work
 
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.migration.migrationLog
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,7 @@ interface MigrationLiveDriver {
 class MigrationLiveDriverImpl(
     private val migrationDriveOnce: MigrationDriveOnce,
     private val getOrchardMigrationSdk: suspend (String) -> OrchardMigrationSdk?,
+    private val migrationTransferStateRepository: MigrationTransferStateRepository,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) : MigrationLiveDriver {
     /**
@@ -81,18 +83,28 @@ class MigrationLiveDriverImpl(
                         migrationLog("MigrationLiveDriver: SDK unavailable for $accountKeyId — stopping.")
                         return
                     }
-                when (
-                    val result =
-                        migrationDriveOnce.run(
-                            sdk,
-                            accountKeyId,
-                            allowForcedBroadcastWindow = true,
-                            driveByLiveLoop = true,
-                        )
-                    // true: the live driver has no execution-time ceiling (unlike the worker), so
-                    // it is the only safe caller for a forced-broadcast-window wait that can run
-                    // for nearly a full privacy buffer.
-                ) {
+                val result =
+                    migrationDriveOnce.run(
+                        sdk,
+                        accountKeyId,
+                        allowForcedBroadcastWindow = true,
+                        // true: the live driver has no execution-time ceiling (unlike the worker),
+                        // so it is the only safe caller for a forced-broadcast-window wait that can
+                        // run for nearly a full privacy buffer.
+                        driveByLiveLoop = true,
+                    )
+                if (result !is DriveOnceResult.LockBusy) {
+                    // A step actually ran (ReArmed) or the migration reached a terminal state —
+                    // either way, publish one fresh read for every screen/use-case that used to
+                    // poll OrchardMigrationSdk.getMigrationTransferStates() on its own: this is a
+                    // read the driver's loop was already going to serialize through its own
+                    // coroutine, not a second concurrent caller competing for the SDK's
+                    // single-threaded DB I/O executor the way an independent screen poll did.
+                    // Skipped on LockBusy — another caller is mid-step, nothing changed from THIS
+                    // call's perspective, and the winning caller publishes when it finishes.
+                    migrationTransferStateRepository.publish(accountKeyId, sdk.getMigrationTransferStates())
+                }
+                when (result) {
                     is DriveOnceResult.ReArmed -> {
                         // Floor a floorless re-arm value (nextWake's privacy-gap term can be
                         // exactly zero) so this in-process loop never spins tightly — WorkManager

@@ -29,6 +29,7 @@ class MigrationLiveDriverTest {
                 MigrationLiveDriverImpl(
                     migrationDriveOnce = driveOnce,
                     getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = mockk(relaxed = true),
                     scope = this,
                 )
 
@@ -55,6 +56,7 @@ class MigrationLiveDriverTest {
                 MigrationLiveDriverImpl(
                     migrationDriveOnce = driveOnce,
                     getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = mockk(relaxed = true),
                     scope = this,
                 )
 
@@ -82,6 +84,7 @@ class MigrationLiveDriverTest {
                 MigrationLiveDriverImpl(
                     migrationDriveOnce = driveOnce,
                     getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = mockk(relaxed = true),
                     scope = this,
                 )
 
@@ -117,6 +120,7 @@ class MigrationLiveDriverTest {
                 MigrationLiveDriverImpl(
                     migrationDriveOnce = driveOnce,
                     getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = mockk(relaxed = true),
                     scope = this,
                 )
 
@@ -145,6 +149,7 @@ class MigrationLiveDriverTest {
                 MigrationLiveDriverImpl(
                     migrationDriveOnce = driveOnce,
                     getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = mockk(relaxed = true),
                     scope = this,
                 )
 
