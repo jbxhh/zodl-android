@@ -18,6 +18,7 @@ import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
 import co.electriccoin.zcash.ui.common.provider.HasLockedOrchardDustStorageProvider
 import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageProvider
+import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
 import co.electriccoin.zcash.ui.common.repository.BiometricRepository
 import co.electriccoin.zcash.ui.common.repository.KeystoneProposalRepository
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
@@ -299,6 +300,7 @@ class MigrationCompleteVMTest {
         proposalDataSource: ProposalDataSource = mockk(relaxed = true),
         keystoneProposalRepository: KeystoneProposalRepository = mockk(relaxed = true),
         migrationScheduler: MigrationScheduler = mockk(relaxed = true),
+        migrationNotifier: MigrationNotifier = mockk(relaxed = true),
     ) = MigrationCompleteVM(
         getOrchardBalance =
             mockk<GetOrchardBalanceUseCase> {
@@ -319,6 +321,7 @@ class MigrationCompleteVMTest {
         proposalDataSource = proposalDataSource,
         keystoneProposalRepository = keystoneProposalRepository,
         migrationScheduler = migrationScheduler,
+        migrationNotifier = migrationNotifier,
     )
 
     private class FakeNavigationRouter : NavigationRouter {

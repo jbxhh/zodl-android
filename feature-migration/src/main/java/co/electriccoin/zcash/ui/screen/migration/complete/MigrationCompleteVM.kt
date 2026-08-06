@@ -21,6 +21,7 @@ import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.provider.HasLockedOrchardDustStorageProvider
 import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageProvider
+import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
 import co.electriccoin.zcash.ui.common.repository.BiometricRepository
 import co.electriccoin.zcash.ui.common.repository.BiometricRequest
 import co.electriccoin.zcash.ui.common.repository.BiometricsCancelledException
@@ -57,6 +58,7 @@ class MigrationCompleteVM(
     private val proposalDataSource: ProposalDataSource,
     private val keystoneProposalRepository: KeystoneProposalRepository,
     private val migrationScheduler: MigrationScheduler,
+    private val migrationNotifier: MigrationNotifier,
 ) : ViewModel() {
     private data class Summary(
         val totalTransferred: Long,
@@ -105,6 +107,23 @@ class MigrationCompleteVM(
                 lastAt = summary?.lastMinedEpochSeconds ?: 0L,
                 dustZatoshi = getOrchardBalance().value,
             )
+        }
+        // Cancel the background chain and clear any leftover notification as soon as THIS screen
+        // is shown, not deferred until the user taps "Got it" (the previous behavior — onDone()
+        // still cancels the scheduler too, harmlessly idempotent, but the notifier calls only ever
+        // lived there before this change). Reaching this screen at all means the migration is
+        // genuinely over — the whole window between "the completion screen renders" and "the user
+        // dismisses it" is a stretch where a stray step-due alarm or a leftover progress
+        // notification would be showing wrong information right underneath a screen already
+        // telling the user they're done. viewModelScope.launch (not tied to loadLce) so a slow or
+        // failed summary read never delays this — cleanup and content load are independent.
+        viewModelScope.launch {
+            withContext(NonCancellable) {
+                val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
+                migrationScheduler.cancel(accountKeyId)
+                migrationNotifier.cancel(accountKeyId)
+                migrationNotifier.cancelStepDue(accountKeyId)
+            }
         }
     }
 
@@ -184,13 +203,9 @@ class MigrationCompleteVM(
                 val moreRoundsNeeded =
                     getSelectedWalletAccount() is KeystoneAccount &&
                         getOrchardBalance().value > dustThreshold
-                // F3: the current committed migration has reached Complete, so the background
-                // worker chain is stale and must be cancelled. The worker self-cancels on its next
-                // run (its Complete step), but cancelling here is immediate and covers the case
-                // where no further run is scheduled. A subsequent Keystone round re-arms a fresh
-                // chain at its own commit, so cancelling now is safe in both branches below.
-                val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
-                migrationScheduler.cancel(accountKeyId)
+                // The background chain and any leftover notification are already cancelled in
+                // init{} (as soon as this screen was shown, not deferred until now) — a subsequent
+                // Keystone round re-arms a fresh chain at its own commit either way.
                 if (moreRoundsNeeded) {
                     // Nothing to clear anymore — the home banner derives "another round needed"
                     // live from engine Complete × the residual balance (proposal §3); leaving
