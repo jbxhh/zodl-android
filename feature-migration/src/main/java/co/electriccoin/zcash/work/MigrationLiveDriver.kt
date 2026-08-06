@@ -179,6 +179,7 @@ class MigrationLiveDriverImpl(
                 estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
             )
         }.onSuccess { migrationTransferStateRepository.publish(accountKeyId, it) }
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
     }
 }
 
