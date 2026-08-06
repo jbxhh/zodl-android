@@ -56,8 +56,6 @@ class MigrationPlanRepositoryImpl(
     private val encryptedPreferenceProvider: EncryptedPreferenceProvider,
     private val accountDataSource: AccountDataSource,
 ) : MigrationPlanRepository {
-    private val json = Json { ignoreUnknownKeys = true }
-
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observe(): Flow<MigrationPlan?> =
         accountDataSource.selectedAccount.flatMapLatest { account ->
@@ -79,7 +77,7 @@ class MigrationPlanRepositoryImpl(
     override suspend fun save(plan: MigrationPlan) {
         encryptedPreferenceProvider().putString(
             key = currentKey(),
-            value = json.encodeToString(MigrationPlan.serializer(), plan)
+            value = Json.encodeToString(plan)
         )
     }
 
@@ -91,7 +89,7 @@ class MigrationPlanRepositoryImpl(
     override suspend fun save(accountKeyId: String, plan: MigrationPlan) {
         encryptedPreferenceProvider().putString(
             key = PreferenceKey("migration_plan_$accountKeyId"),
-            value = json.encodeToString(MigrationPlan.serializer(), plan)
+            value = Json.encodeToString(plan)
         )
     }
 
@@ -122,5 +120,5 @@ class MigrationPlanRepositoryImpl(
         PreferenceKey("migration_plan_${account.sdkAccount.accountUuid.toStorageKeyId()}")
 
     private fun String.toMigrationPlan(): MigrationPlan? =
-        runCatching { json.decodeFromString<MigrationPlan>(this) }.getOrNull()
+        runCatching { Json.decodeFromString<MigrationPlan>(this) }.getOrNull()
 }

@@ -1,8 +1,13 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package co.electriccoin.zcash.ui.common.model.migration
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import kotlin.time.Instant
 
+@JsonIgnoreUnknownKeys
 @Serializable
 data class MigrationTransfer(
     val index: Int,

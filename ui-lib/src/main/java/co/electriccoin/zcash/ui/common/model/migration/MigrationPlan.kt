@@ -1,8 +1,12 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package co.electriccoin.zcash.ui.common.model.migration
 
 import cash.z.ecc.android.sdk.MigrationSchedule
 import cash.z.ecc.android.sdk.MigrationTransferStates
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -19,6 +23,7 @@ import kotlin.time.Instant
  * Preparations do NOT contribute to [MigrationPlan.totalCount] / [MigrationPlan.completedCount] /
  * [MigrationPlan.isComplete] — those stay crossings-only.
  */
+@JsonIgnoreUnknownKeys
 @Serializable
 data class MigrationPreparation(
     val id: Long,
@@ -49,12 +54,14 @@ data class MigrationPreparation(
  * the plan) — never a persisted, incrementing campaign counter, which is why `current` is always
  * literally `1` ("this round, from here") rather than tracking progress across rounds.
  */
+@JsonIgnoreUnknownKeys
 @Serializable
 data class MigrationKeystoneRound(
     val current: Int,
     val total: Int
 )
 
+@JsonIgnoreUnknownKeys
 @Serializable
 data class MigrationPlan(
     val id: String,
