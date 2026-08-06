@@ -526,21 +526,28 @@ private data class TxDetails(
 
 /**
  * For an ordinary external send, [TransactionOverview.netValue] correctly nets out change
- * returned to this account. Two same-account cases collapse it down to just the fee instead of
- * the real value, and both need [TransactionOverview.totalReceived] instead:
+ * returned to this account. Three same-account cases collapse it down to just the fee instead of
+ * the real value, and all need [TransactionOverview.totalReceived] instead:
  * - A *mined* cross-pool transfer (e.g. a pool migration), where the scanner's change-detection
  *   heuristic misclassifies the crossing output as change ([TransactionOverview.sentNoteCount]
  *   and [TransactionOverview.receivedNoteCount] both end up 0).
- * - A *pending* migration transaction read from `v_transactions_with_pending_migrations` (not
- *   yet broadcast — see `z/wt/migration_fixes/spec/2026-08-06-activity-pending-migrations-plan.md`
- *   Task 1), which has a different shape: `sentNoteCount == 0` but `receivedNoteCount >= 1`, so
- *   it doesn't match the first case's note-count coincidence and needs its own check via
- *   [TransactionOverview.zip318Kind] instead.
+ * - A *pending* (not-yet-broadcast) migration transaction read from `v_transactions_with_pending_migrations`
+ *   (see `z/wt/migration_fixes/spec/2026-08-06-activity-pending-migrations-plan.md` Task 1),
+ *   which has a different shape: `sentNoteCount == 0` but `receivedNoteCount >= 1`. Requires
+ *   [TransactionOverview.raw] `== null` AND [TransactionOverview.minedHeight] `== null` to
+ *   distinguish from ordinary sends: [Zip318Kind.TRANSFER] is deliberately built in canonical
+ *   shape to blend into the migration anonymity set ("Nothing observable on chain separates
+ *   such a payment from a wallet's own transfer"), so shape alone is insufficient. An ordinary
+ *   send to a third party can also have [Zip318Kind.TRANSFER], and those must show [netValue]
+ *   (nothing comes back). The `raw == null && minedHeight == null` gates ensure we only apply
+ *   [totalReceived] to genuinely not-yet-broadcast rows (for which the migration schema provides
+ *   the crossing amount). A mined transaction can have `raw == null` indefinitely if unenhanced
+ *   after a restore, so [minedHeight] != null is the terminal indicator of confirmation.
  */
 internal fun sentTransactionAmount(transaction: TransactionOverview): Zatoshi =
     if ((transaction.sentNoteCount == 0 && transaction.receivedNoteCount == 0) ||
-        transaction.zip318Kind == Zip318Kind.PREPARATION ||
-        transaction.zip318Kind == Zip318Kind.TRANSFER
+        (transaction.raw == null && transaction.minedHeight == null &&
+            (transaction.zip318Kind == Zip318Kind.PREPARATION || transaction.zip318Kind == Zip318Kind.TRANSFER))
     ) {
         transaction.totalReceived
     } else {
