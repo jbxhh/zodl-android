@@ -3,6 +3,7 @@ package co.electriccoin.zcash.ui.common.usecase
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
 import co.electriccoin.zcash.ui.common.model.KeystoneAccount
+import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.repository.BiometricRepository
 import co.electriccoin.zcash.ui.common.repository.BiometricRequest
 import co.electriccoin.zcash.ui.design.util.stringRes
@@ -12,7 +13,8 @@ import kotlinx.coroutines.withContext
 
 class DisconnectUseCase(
     private val accountDataSource: AccountDataSource,
-    private val biometricRepository: BiometricRepository
+    private val biometricRepository: BiometricRepository,
+    private val deleteAccountMigrationSteps: DeleteAccountMigrationStepsUseCase,
 ) {
     private val logger = loggableNot("DisconnectUseCase")
 
@@ -28,6 +30,8 @@ class DisconnectUseCase(
             accountDataSource.deleteAccount(keystoneAccount)
 
             logger("deleteAccount success")
+
+            deleteAccountMigrationSteps(keystoneAccount.sdkAccount.accountUuid.toStorageKeyId())
 
             // Explicitly select Zashi account after disconnecting Keystone
             val zashiAccount = accountDataSource.getZashiAccount()

@@ -11,16 +11,12 @@ import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.DebugForceBackgroundExecutionUnavailable
 import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
-import co.electriccoin.zcash.ui.common.provider.MigrationShiftCounterStorageProvider
 import co.electriccoin.zcash.ui.common.repository.EphemeralAddressRepository
-import co.electriccoin.zcash.ui.common.repository.MigrationPlanRepository
-import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepository
 import co.electriccoin.zcash.ui.common.usecase.CheckMigrationRecoveryUseCase
 import co.electriccoin.zcash.ui.common.usecase.CopyToClipboardUseCase
+import co.electriccoin.zcash.ui.common.usecase.DeleteAccountMigrationStepsUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.design.component.listitem.ListItemState
-import co.electriccoin.zcash.work.MigrationScheduler
-import co.electriccoin.zcash.work.MigrationSyncScheduler
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.advancedsettings.debug.db.DebugDBArgs
 import co.electriccoin.zcash.ui.screen.advancedsettings.debug.orchardbalance.DebugOrchardBalanceArgs
@@ -36,10 +32,8 @@ class DebugVM(
     private val ephemeralAddressRepository: EphemeralAddressRepository,
     private val accountDataSource: AccountDataSource,
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
-    private val migrationPlanRepository: MigrationPlanRepository,
+    private val deleteAccountMigrationSteps: DeleteAccountMigrationStepsUseCase,
     private val pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider,
-    private val migrationShiftCounterStorageProvider: MigrationShiftCounterStorageProvider,
-    private val restartMigrationScheduleRepository: RestartMigrationScheduleRepository,
     private val migrationNotifier: MigrationNotifier,
     private val checkMigrationRecovery: CheckMigrationRecoveryUseCase,
     private val context: Context,
@@ -152,33 +146,19 @@ class DebugVM(
 
     private fun onSetMockOrchardBalanceClick() = navigationRouter.forward(DebugOrchardBalanceArgs)
 
-    // Wipes the current account's in-progress migration entirely (see OrchardMigrationSdk.
-    // clearMigration's kdoc) so a fresh propose/commit can be tested immediately, instead of
-    // waiting out or resuming whatever migration is already in progress.
+    /**
+     * Wipes the current account's in-progress migration entirely — the engine's own run (see
+     * [cash.z.ecc.android.sdk.OrchardMigrationSdk.clearMigration]'s kdoc; this debug-only wipe is
+     * the whole point of the button) plus every app-side leftover
+     * ([co.electriccoin.zcash.ui.common.usecase.DeleteAccountMigrationStepsUseCase]) — so a fresh
+     * propose/commit can be tested immediately, instead of waiting out or resuming whatever
+     * migration is already in progress.
+     */
     private fun onMigrationRestartClick() =
         viewModelScope.launch {
             val accountKeyId = accountDataSource.getSelectedAccount().sdkAccount.accountUuid.toStorageKeyId()
-            getOrchardMigrationSdk()?.clearMigration()
-            // Cancel both background lanes so they don't fire for a migration that no longer exists.
-            MigrationScheduler(context).cancel(accountKeyId)
-            MigrationSyncScheduler(context).cancel(accountKeyId)
-            // Without this, GetHomeMessageUseCase.migrationMessageFor's `plan == null` fallback
-            // never fires: the stale app-side plan blocks the home banner even though the SDK's
-            // migration state is back to NotStarted, so no "start a new migration" message shows.
-            migrationPlanRepository.clear()
-            // A leftover Tor-failure flag would keep routing every app launch into the Sending
-            // recovery screen for a migration that no longer exists.
-            pendingMigrationTorFailureStorageProvider.store(accountKeyId, false)
-            // Transfer ids restart from the same values on a fresh plan, so a stale counter
-            // could resume mid-count and escalate the new plan's first shift prematurely.
-            migrationShiftCounterStorageProvider.reset(accountKeyId)
-            // An unconsumed restart schedule (invalid-screen Continue → debug restart instead of
-            // Review) would otherwise be silently used by the next Review entry in place of a
-            // fresh proposal over the post-clear balance.
-            restartMigrationScheduleRepository.consume(accountKeyId)
-            // Dismiss whatever migration notification is still showing — its tap routes into
-            // the migration that was just cleared.
-            migrationNotifier.cancel(accountKeyId)
+            getOrchardMigrationSdk().clearMigration()
+            deleteAccountMigrationSteps(accountKeyId)
             navigationRouter.forward(
                 DebugTextArgs(
                     title = "Migration restart",

@@ -45,6 +45,14 @@ interface MigrationPlanRepository {
     )
 
     suspend fun clear()
+
+    /**
+     * Removes the migration plan keyed by the passed [accountKeyId] (see [load]), independent of
+     * whichever account is currently selected. Used when the account itself is deleted (Keystone
+     * disconnect) or a worker wakes for an account that no longer exists — the plan can never be
+     * acted on again, so it is dropped along with the account's background lanes.
+     */
+    suspend fun clear(accountKeyId: String)
 }
 
 /**
@@ -107,6 +115,10 @@ class MigrationPlanRepositoryImpl(
 
     override suspend fun clear() {
         encryptedPreferenceProvider().remove(currentKey())
+    }
+
+    override suspend fun clear(accountKeyId: String) {
+        encryptedPreferenceProvider().remove(PreferenceKey("migration_plan_$accountKeyId"))
     }
 
     private suspend fun loadByKey(key: PreferenceKey): MigrationPlan? =

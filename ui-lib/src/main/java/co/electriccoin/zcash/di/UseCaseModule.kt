@@ -21,6 +21,7 @@ import co.electriccoin.zcash.ui.common.usecase.CreateOrUpdateTransactionNoteUseC
 import co.electriccoin.zcash.ui.common.usecase.CreateProposalUseCase
 import co.electriccoin.zcash.ui.common.usecase.CreateVotingKeystonePcztEncoderUseCase
 import co.electriccoin.zcash.ui.common.usecase.DeleteABContactUseCase
+import co.electriccoin.zcash.ui.common.usecase.DeleteAccountMigrationStepsUseCase
 import co.electriccoin.zcash.ui.common.usecase.DeleteTransactionNoteUseCase
 import co.electriccoin.zcash.ui.common.usecase.DeriveKeystoneAccountUnifiedAddressUseCase
 import co.electriccoin.zcash.ui.common.usecase.DisconnectUseCase
@@ -256,6 +257,7 @@ val useCaseModule =
         factoryOf(::GetTransactionMetadataUseCase)
         factoryOf(::FlipTransactionBookmarkUseCase)
         factoryOf(::DeleteTransactionNoteUseCase)
+        factoryOf(::DeleteAccountMigrationStepsUseCase)
         factoryOf(::DisconnectUseCase)
         factoryOf(::CreateOrUpdateTransactionNoteUseCase)
         factoryOf(::MarkTxMemoAsReadUseCase)
