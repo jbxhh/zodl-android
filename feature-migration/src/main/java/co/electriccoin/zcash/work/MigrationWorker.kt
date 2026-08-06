@@ -53,8 +53,11 @@ class MigrationWorker(
                 MigrationSdkLookup.NotReady -> {
                     // A not-yet-initialized wallet right after an app update/reboot must not
                     // silently consume (and thereby kill) the self-rechaining loop — retry until
-                    // the SDK is reachable.
+                    // the SDK is reachable. Stamp the heartbeat here too so the dead-man's-switch
+                    // (MigrationTransferDueReceiver) sees the worker as alive-but-waiting instead
+                    // of mistaking this in-flight WorkManager backoff for a missed run.
                     migrationLog("Worker: SDK not ready — retrying via WorkManager backoff.")
+                    MigrationWorkerHeartbeat.stampRun(applicationContext, accountKeyId)
                     return Result.retry()
                 }
 

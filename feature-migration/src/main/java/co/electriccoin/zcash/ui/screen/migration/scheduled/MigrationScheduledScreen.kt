@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.R
+import co.electriccoin.zcash.ui.common.compose.DisableScreenTimeout
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.GradientBgScaffold
 import co.electriccoin.zcash.ui.design.component.ZashiButton
@@ -69,6 +70,7 @@ fun MigrationScheduledScreen() {
 // card, but every value is a shimmer placeholder since the schedule isn't committed yet.
 @Composable
 private fun MigrationSchedulingView() {
+    DisableScreenTimeout()
     GradientBgScaffold(
         startColor = ZashiColors.Utility.SuccessGreen.utilitySuccess100,
         endColor = ZashiColors.Surfaces.bgPrimary,

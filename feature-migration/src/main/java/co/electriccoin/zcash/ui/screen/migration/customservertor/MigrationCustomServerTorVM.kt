@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import cash.z.ecc.sdk.ANDROID_STATE_FLOW_TIMEOUT
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
+import co.electriccoin.zcash.ui.common.provider.IsMigrationTorEnabledStorageProvider
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.chooseserver.ChooseServerArgs
 import co.electriccoin.zcash.ui.screen.migration.battery.MigrationBatteryArgs
@@ -14,10 +15,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class MigrationCustomServerTorVM(
     private val args: MigrationCustomServerTorArgs,
     private val navigationRouter: NavigationRouter,
+    private val isMigrationTorEnabledStorageProvider: IsMigrationTorEnabledStorageProvider,
 ) : ViewModel() {
     val state: StateFlow<MigrationCustomServerTorState?> =
         flowOf(
@@ -62,13 +65,18 @@ class MigrationCustomServerTorVM(
             initialValue = null,
         )
 
-    private fun onContinueWithoutTor() =
+    private fun onContinueWithoutTor() {
+        // Persists the migration-scoped Tor setting so subsequent broadcasts for this account don't
+        // keep retrying Tor against a custom server that was just confirmed not to support it —
+        // mirrors MigrationPrivacyVM.onConfirm() / MigrationTorFailureVM.onContinueWithoutTor().
+        viewModelScope.launch { isMigrationTorEnabledStorageProvider.store(false) }
         navigationRouter.forward(
             when (args.mode) {
                 MigrationMode.IMMEDIATE -> MigrationReviewArgs(mode = args.mode)
                 MigrationMode.AUTOMATIC -> MigrationBatteryArgs
             }
         )
+    }
 
     private fun onSwitchServer() = navigationRouter.forward(ChooseServerArgs)
 

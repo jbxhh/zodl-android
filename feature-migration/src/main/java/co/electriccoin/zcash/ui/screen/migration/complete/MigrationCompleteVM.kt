@@ -249,24 +249,24 @@ class MigrationCompleteVM(
                 return@execute
             }
             val sdk = getOrchardMigrationSdk() ?: error("MigrationCompleteVM: no wallet available to propose")
-            val amount = getOrchardBalance().value
+            val amount = getOrchardBalance()
             val proposal = sdk.proposeImmediateMigration()
-            pendingMigrateAnywayProposal = MigrateAnywayProposal(proposal, Zatoshi(amount))
+            pendingMigrateAnywayProposal = MigrateAnywayProposal(proposal, amount)
             submitMigrateAnyway(proposal, amount)
         }
 
     private suspend fun retryMigrateAnyway() {
         val cached = pendingMigrateAnywayProposal ?: return
-        submitMigrateAnyway(cached.proposal, cached.amountZatoshi.value)
+        submitMigrateAnyway(cached.proposal, cached.amountZatoshi)
     }
 
-    private suspend fun submitMigrateAnyway(proposal: Proposal, amountZatoshi: Long) {
+    private suspend fun submitMigrateAnyway(proposal: Proposal, amountZatoshi: Zatoshi) {
         if (getSelectedWalletAccount() is KeystoneAccount) {
             // Keystone can't sign in-process — adopt the already-built send-max proposal into the
             // app's existing generic external-signer pipeline exactly as an ordinary Keystone send
             // does (no migration-specific PCZT/QR machinery — one ordinary PCZT, same as any
             // regular Keystone send).
-            keystoneProposalRepository.setMigrationSweepProposal(proposal, Zatoshi(amountZatoshi))
+            keystoneProposalRepository.setMigrationSweepProposal(proposal, amountZatoshi)
             // Required before navigating — SignKeystoneTransactionVM's QR encoder is built from the
             // already-created PCZT (createPCZTEncoder() reads KeystoneProposalRepository's cached
             // proposalPczt); it never calls createPCZTFromProposal() itself.

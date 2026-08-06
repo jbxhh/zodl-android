@@ -91,7 +91,7 @@ class MigrationReviewVM(
 
         data class Immediate(
             val proposal: Proposal,
-            val amountZatoshi: Long
+            val amountZatoshi: Zatoshi
         ) : ReviewProposal()
     }
 
@@ -110,7 +110,7 @@ class MigrationReviewVM(
             val sdk = getOrchardMigrationSdk() ?: error("MigrationReviewVM: no wallet available to propose")
             when (args.mode) {
                 MigrationMode.IMMEDIATE -> {
-                    val amount = getOrchardBalance().value
+                    val amount = getOrchardBalance()
                     ReviewProposal.Immediate(sdk.proposeImmediateMigration(), amount)
                 }
 
@@ -243,16 +243,16 @@ class MigrationReviewVM(
         val fee = proposal.proposal.totalFeeRequired()
         return MigrationReviewState(
             mode = args.mode,
-            totalAmount = stringRes(Zatoshi(proposal.amountZatoshi)),
-            totalFiatAmount = fiatAmount(Zatoshi(proposal.amountZatoshi), exchangeRateState),
+            totalAmount = stringRes(proposal.amountZatoshi),
+            totalFiatAmount = fiatAmount(proposal.amountZatoshi, exchangeRateState),
             estimatedDuration = stringRes(formatMigrationDuration(0L)),
             transfers =
                 listOf(
                     MigrationReviewTransferState(
                         index = 1,
                         totalCount = 1,
-                        amount = stringRes(Zatoshi(proposal.amountZatoshi)),
-                        fiatAmount = fiatAmount(Zatoshi(proposal.amountZatoshi), exchangeRateState),
+                        amount = stringRes(proposal.amountZatoshi),
+                        fiatAmount = fiatAmount(proposal.amountZatoshi, exchangeRateState),
                         scheduledLabel = stringRes("Send immediately"),
                     )
                 ),
@@ -385,7 +385,7 @@ class MigrationReviewVM(
     // MigrationSweepTransactionProposal, then hand off to SubmitProposalUseCase (biometrics + async
     // broadcast + Transaction Progress screen, whose sending/success states already render the
     // migration-sweep "…migrated to Ironwood" copy). No migration-specific screen or handoff.
-    private fun onConfirmImmediate(proposal: Proposal, amountZatoshi: Long) =
+    private fun onConfirmImmediate(proposal: Proposal, amountZatoshi: Zatoshi) =
         confirmLce.execute {
             if (getSelectedWalletAccount() is KeystoneAccount) {
                 // Keystone can't sign in-process — adopt the already-built send-max proposal into the
@@ -409,14 +409,14 @@ class MigrationReviewVM(
                 } catch (_: BiometricsCancelledException) {
                     return@execute
                 }
-                keystoneProposalRepository.setMigrationSweepProposal(proposal, Zatoshi(amountZatoshi))
+                keystoneProposalRepository.setMigrationSweepProposal(proposal, amountZatoshi)
                 // Required before navigating — SignKeystoneTransactionVM's QR encoder is built from
                 // the already-created PCZT (createPCZTEncoder() reads KeystoneProposalRepository's
                 // cached proposalPczt); it never calls createPCZTFromProposal() itself.
                 keystoneProposalRepository.createPCZTFromProposal()
                 navigationRouter.forward(SignKeystoneTransactionArgs)
             } else {
-                zashiProposalRepository.setMigrationSweepProposal(proposal, Zatoshi(amountZatoshi))
+                zashiProposalRepository.setMigrationSweepProposal(proposal, amountZatoshi)
                 submitProposal()
             }
         }

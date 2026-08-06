@@ -13,6 +13,7 @@ import cash.z.ecc.android.sdk.model.TransactionState.Expired
 import cash.z.ecc.android.sdk.model.TransactionState.Pending
 import cash.z.ecc.android.sdk.model.WalletAddress
 import cash.z.ecc.android.sdk.model.Zatoshi
+import cash.z.ecc.android.sdk.model.Zip318Kind
 import cash.z.ecc.android.sdk.type.AddressType
 import co.electriccoin.zcash.spackle.Twig
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
@@ -330,21 +331,6 @@ class TransactionRepositoryImpl(
             }
         }
 
-    /**
-     * For an ordinary external send, [TransactionOverview.netValue] correctly nets out change
-     * returned to this account. For a same-account cross-pool transfer (e.g. a pool migration),
-     * the scanner's change-detection heuristic misclassifies the crossing output as change
-     * ([TransactionOverview.sentNoteCount] and [TransactionOverview.receivedNoteCount] both end up
-     * 0), which collapses [TransactionOverview.netValue] down to just the fee. [TransactionOverview.totalReceived]
-     * still reflects the real crossing amount in that case.
-     */
-    private fun sentTransactionAmount(transaction: TransactionOverview): Zatoshi =
-        if (transaction.sentNoteCount == 0 && transaction.receivedNoteCount == 0) {
-            transaction.totalReceived
-        } else {
-            transaction.netValue
-        }
-
     private fun createTransactionState(minedHeight: BlockHeight?, isSyncing: Boolean): TransactionState? =
         when {
             minedHeight != null -> Confirmed
@@ -537,6 +523,36 @@ private data class TxDetails(
     val outputs: List<TransactionOutput>,
     val recipient: String?,
 )
+
+/**
+ * For an ordinary external send, [TransactionOverview.netValue] correctly nets out change
+ * returned to this account. Three same-account cases collapse it down to just the fee instead of
+ * the real value, and all need [TransactionOverview.totalReceived] instead:
+ * - A *mined* cross-pool transfer (e.g. a pool migration), where the scanner's change-detection
+ *   heuristic misclassifies the crossing output as change ([TransactionOverview.sentNoteCount]
+ *   and [TransactionOverview.receivedNoteCount] both end up 0).
+ * - A *pending* (not-yet-broadcast) migration transaction read from `v_transactions_with_pending_migrations`
+ *   (see `z/wt/migration_fixes/spec/2026-08-06-activity-pending-migrations-plan.md` Task 1),
+ *   which has a different shape: `sentNoteCount == 0` but `receivedNoteCount >= 1`. Requires
+ *   [TransactionOverview.raw] `== null` AND [TransactionOverview.minedHeight] `== null` to
+ *   distinguish from ordinary sends: [Zip318Kind.TRANSFER] is deliberately built in canonical
+ *   shape to blend into the migration anonymity set ("Nothing observable on chain separates
+ *   such a payment from a wallet's own transfer"), so shape alone is insufficient. An ordinary
+ *   send to a third party can also have [Zip318Kind.TRANSFER], and those must show [netValue]
+ *   (nothing comes back). The `raw == null && minedHeight == null` gates ensure we only apply
+ *   [totalReceived] to genuinely not-yet-broadcast rows (for which the migration schema provides
+ *   the crossing amount). A mined transaction can have `raw == null` indefinitely if unenhanced
+ *   after a restore, so [minedHeight] != null is the terminal indicator of confirmation.
+ */
+internal fun sentTransactionAmount(transaction: TransactionOverview): Zatoshi =
+    if ((transaction.sentNoteCount == 0 && transaction.receivedNoteCount == 0) ||
+        (transaction.raw == null && transaction.minedHeight == null &&
+            (transaction.zip318Kind == Zip318Kind.PREPARATION || transaction.zip318Kind == Zip318Kind.TRANSFER))
+    ) {
+        transaction.totalReceived
+    } else {
+        transaction.netValue
+    }
 
 /**
  * Chooses the address to display as a transaction's recipient from its [recipients]. An external

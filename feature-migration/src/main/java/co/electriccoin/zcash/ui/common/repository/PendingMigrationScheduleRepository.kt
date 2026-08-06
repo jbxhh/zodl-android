@@ -19,9 +19,17 @@ interface PendingMigrationScheduleRepository {
     fun set(accountKeyId: String, schedule: MigrationSchedule)
 
     /**
-     * Reads and clears the stored schedule in one step.
-     * Returns `null` **and clears** the stored value when the stored account key id differs from
-     * [accountKeyId]. Use only for one-shot, non-reactive consumption.
+     * Reads the stored schedule. Clears the stored value **only** when the stored account key id
+     * differs from [accountKeyId] — a matching read intentionally leaves the value in place.
+     * Returns `null` in both the "nothing stored" and the "cleared due to mismatch" cases.
+     *
+     * The value is left in place on a match because the Keystone sign/scan flow re-reads the same
+     * schedule across multiple rounds of a single multi-round signing session (see
+     * `MigrationKeystoneScanVM.onScanned`, `MigrationKeystoneSignVM.buildBatch`, and
+     * `MigrationScheduledVM.finalizeIfPendingKeystoneBatch`) — clearing on every matching read
+     * would wipe it out after round 1 and bounce the user back to Confirm Transfer Plan mid-batch.
+     * Callers are responsible for calling [clear] explicitly once the schedule is fully consumed
+     * (see `MigrationKeystoneSignVM.onReject` and `MigrationScheduledVM`'s post-broadcast cleanup).
      *
      * **Do NOT call this inside a reactive context** (e.g. inside a `combine`, `map`, or `flow`
      * block): on an account-mismatch emission the clearing side-effect would permanently destroy
@@ -51,6 +59,8 @@ class PendingMigrationScheduleRepositoryImpl : PendingMigrationScheduleRepositor
     override fun get(accountKeyId: String): MigrationSchedule? {
         val current = pending.value ?: return null
         return if (current.first == accountKeyId) {
+            // Intentionally not cleared here — see the [get] KDoc: multi-round Keystone sign/scan
+            // re-reads this value across several rounds before an explicit [clear] call.
             current.second
         } else {
             pending.value = null
