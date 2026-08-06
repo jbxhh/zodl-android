@@ -17,6 +17,7 @@ import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.ScheduleNextMigrationWindowUseCase
 import co.electriccoin.zcash.ui.screen.migration.success.MigrationSuccessArgs
 import co.electriccoin.zcash.ui.screen.migration.torfailure.MigrationTorFailureArgs
+import co.electriccoin.zcash.work.MigrationDriveOnce
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -313,6 +314,12 @@ class MigrationSendingVMTest {
                 every { decision } returns MutableStateFlow(null)
             },
         pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider = mockk(relaxed = true),
+        migrationDriveOnce: MigrationDriveOnce =
+            mockk {
+                coEvery { withExclusiveAccess<Any?>(any()) } coAnswers {
+                    firstArg<suspend () -> Any?>().invoke()
+                }
+            },
     ) = MigrationSendingVM(
         getOrchardMigrationSdk =
             mockk<GetOrchardMigrationSdkUseCase> {
@@ -328,6 +335,7 @@ class MigrationSendingVMTest {
             },
         pendingMigrationTorFailureDecisionRepository = torDecisionRepository,
         pendingMigrationTorFailureStorageProvider = pendingMigrationTorFailureStorageProvider,
+        migrationDriveOnce = migrationDriveOnce,
     )
 
     private class FakeNavigationRouter : NavigationRouter {
