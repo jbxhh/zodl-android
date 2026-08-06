@@ -83,7 +83,12 @@ class MigrationLiveDriverImpl(
                     }
                 when (
                     val result =
-                        migrationDriveOnce.run(sdk, accountKeyId, allowForcedBroadcastWindow = true)
+                        migrationDriveOnce.run(
+                            sdk,
+                            accountKeyId,
+                            allowForcedBroadcastWindow = true,
+                            driveByLiveLoop = true,
+                        )
                     // true: the live driver has no execution-time ceiling (unlike the worker), so
                     // it is the only safe caller for a forced-broadcast-window wait that can run
                     // for nearly a full privacy buffer.

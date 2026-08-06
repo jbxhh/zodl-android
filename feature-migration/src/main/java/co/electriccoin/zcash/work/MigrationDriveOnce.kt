@@ -92,11 +92,13 @@ class MigrationDriveOnce(
         sdk: OrchardMigrationSdk,
         accountKeyId: String,
         allowForcedBroadcastWindow: Boolean = false,
+        driveByLiveLoop: Boolean = false,
     ): DriveOnceResult {
         if (!DRIVE_LOCK.tryLock()) {
             migrationLog("MigrationDriveOnce: another drive is in progress — skipping, short retry.")
             return DriveOnceResult.LockBusy(SKIP_RETRY_DELAY)
         }
+        liveLoopActive = driveByLiveLoop
         try {
             // This IS a run — stamp the heartbeat regardless of which caller drove it, so the
             // dead-man's-switch alarm (MigrationTransferDueReceiver) never fires a spurious
@@ -233,7 +235,7 @@ class MigrationDriveOnce(
                     broadcastRun(sdk, accountKeyId, nextStep.transferId, allowForcedBroadcastWindow)
                 } else {
                     val chainDelay = sdk.privacySyncBufferDuration()
-                    MigrationScheduler(applicationContext).schedule(accountKeyId, chainDelay)
+                    scheduleUnlessLiveLoop(accountKeyId, chainDelay)
                     migrationLog("MigrationDriveOnce: sync done, next=$nextStep — broadcast run in $chainDelay")
                     DriveOnceResult.ReArmed(chainDelay)
                 }
@@ -315,7 +317,7 @@ class MigrationDriveOnce(
                 val closeable = synchronizerProvider.getSynchronizerOrNull() as? CloseableSynchronizer
                 if (closeable == null) {
                     val deferDelay = sdk.privacySyncBufferDuration()
-                    MigrationScheduler(applicationContext).schedule(accountKeyId, deferDelay)
+                    scheduleUnlessLiveLoop(accountKeyId, deferDelay)
                     migrationLog("MigrationDriveOnce: no pausable synchronizer — deferring broadcast $deferDelay.")
                     return DriveOnceResult.ReArmed(deferDelay)
                 }
@@ -350,7 +352,7 @@ class MigrationDriveOnce(
                 // Quiet-gap-only defer (nothing running to pause, or the worker caller, or genuinely
                 // backgrounded) — unchanged from today's behavior.
                 val deferDelay = if (prepFastTrack) PREP_FAST_TRACK_REARM else sdk.privacySyncBufferDuration()
-                MigrationScheduler(applicationContext).schedule(accountKeyId, deferDelay)
+                scheduleUnlessLiveLoop(accountKeyId, deferDelay)
                 migrationLog("MigrationDriveOnce: deferring broadcast $deferDelay — a sync source is live or the quiet gap is unmet.")
                 return DriveOnceResult.ReArmed(deferDelay)
             }
@@ -461,7 +463,7 @@ class MigrationDriveOnce(
                     // sleep past inter-layer prep windows and compress the serial prep tail toward
                     // the crossings' anchor boundaries — the exact tx9 latency condition (review H1).
                     if (nextDueUnsentIsPreparation(postStates, sdk.estimatedChainTip())) {
-                        MigrationScheduler(applicationContext).schedule(accountKeyId, PREP_FAST_TRACK_REARM)
+                        scheduleUnlessLiveLoop(accountKeyId, PREP_FAST_TRACK_REARM)
                         migrationLog("MigrationDriveOnce: ready preparation next — chaining in $PREP_FAST_TRACK_REARM")
                         if (!sentWasPrep && snapshot != null) {
                             migrationNotifier.notifyTransferComplete(accountKeyId, snapshot.completedCount, snapshot.totalCount)
@@ -603,6 +605,21 @@ class MigrationDriveOnce(
     }
 
     /**
+     * Every WorkManager (re)schedule funnels through here so [liveLoopActive] gates it in one
+     * place. While the live driver drives this call, it will locally `delay(...)` on the returned
+     * Duration itself — re-enqueuing the durable WorkManager job is redundant, and REPLACE-cancels
+     * whatever WorkManager run might be in flight for no benefit (2026-08-06 REPLACE-race fix: this
+     * produced the START/STOP-canceled churn seen in that diagnosis). Whatever job was already
+     * pending before the live driver started is left untouched and still serves as the
+     * crash-safety backstop if the live driver dies unexpectedly.
+     */
+    private fun scheduleUnlessLiveLoop(accountKeyId: String, delay: Duration) {
+        if (!liveLoopActive) {
+            MigrationScheduler(applicationContext).schedule(accountKeyId, delay)
+        }
+    }
+
+    /**
      * The "when?" half of the loop (core sync call 2026-08-05 §2.4's end-state): one future run
      * at the engine's own next execution point ([MigrationPeek], from a fresh [OrchardMigrationSdk.nextStep]
      * call) folded with the app's privacy quiet-gap term — see [nextWake]. Falls back to a flat
@@ -628,7 +645,7 @@ class MigrationDriveOnce(
                 peek = peek,
             )
         val armed = maxOf(delay ?: migrationCadence(), floor)
-        MigrationScheduler(applicationContext).schedule(accountKeyId, armed)
+        scheduleUnlessLiveLoop(accountKeyId, armed)
         // The full "why" of the chosen wake, so timing is diagnosable from logs alone: the
         // engine's own peek, the tip estimate, and the floor.
         migrationLog(
@@ -643,6 +660,13 @@ class MigrationDriveOnce(
     companion object {
         /** Process-wide: worker and live driver share this one instance. */
         private val DRIVE_LOCK = Mutex()
+
+        // Set at the top of run() (inside the DRIVE_LOCK critical section) and read by every
+        // scheduleUnlessLiveLoop call in the same execution. Safe without its own lock: DRIVE_LOCK
+        // already guarantees only one run() call is ever inside its try block at a time,
+        // process-wide, and kotlinx.coroutines.sync.Mutex's lock/unlock pair gives the memory-
+        // visibility guarantee a plain var needs here (2026-08-06 REPLACE-race fix).
+        private var liveLoopActive = false
 
         /**
          * How long a caller that lost the lock race waits before trying again. Deliberately
