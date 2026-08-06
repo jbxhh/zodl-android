@@ -174,7 +174,12 @@ class MigrationDriveOnce(
             }
 
             WaitingDisposition.RE_ARM -> {
-                DriveOnceResult.ReArmed(reArm(sdk, accountKeyId))
+                // Mirrors COMPLETION_SWEEP above: a passive wait can never let the scanned tip
+                // catch up to a boundary the engine's peek says will become Prove-ready — only a
+                // real sync can. syncRun's own else-fallback (below) safely re-arms if, after
+                // syncing, there is still genuinely nothing due — no busy-loop risk. Root cause
+                // and live diagnosis: 2026-08-06 overnight stall (spec in z/wt/migration/spec/).
+                syncRun(sdk, accountKeyId, allowForcedBroadcastWindow = false)
             }
         }
     }
