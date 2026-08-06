@@ -29,7 +29,6 @@ import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
-import co.electriccoin.zcash.ui.screen.migration.sending.MigrationSendingArgs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -251,11 +250,6 @@ class MigrationProgressVM(
 
     private fun onBack() = sendLce.guardLoading { navigationRouter.back() }
 
-    // Privacy buffer bookkeeping (keeping sync paused post-broadcast) is entirely SDK-owned — the
-    // SDK notices this transfer was overdue and sets it internally. The actual broadcast, its
-    // failure/retry sheet, and re-arming the next window all live on the Sending screen now
-    // (see MigrationSendingVM), reused instead of duplicated here.
-    private fun onSendNow() = navigationRouter.forward(MigrationSendingArgs)
 
     // "Reschedule" no longer mutates the plan — a missed-but-unexpired transfer needs NO plan
     // change by design (ZIP 374: the signature does not cover the anchor, so it proves late
