@@ -11,6 +11,13 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 - Preference file creation no longer serializes behind one global lock: a slow or hung encrypted-preferences creation (e.g. blocked on the Keystore) no longer delays every other preference file, including the ones startup flows like the wallet secret and home state depend on. Preference-provider instances are now correctly cached instead of being rebuilt on every access, and steady-state preference reads/writes no longer take a lock at all.
 - Opening the automatic migration progress screen no longer shows a blank screen while it loads. The migration schedule now appears immediately and a loading indicator is shown on screens that are still waiting for their content.
 
+## [3.9.0 (2329)] - 2026-08-07
+
+### Added:
+- We added Move to Ironwood, a guided migration that moves your Orchard funds into the new Ironwood shielded pool.
+- We added two ways to migrate: a private option that splits your balance into smaller transfers sent automatically in the background over time, or an immediate single transfer.
+- We added Tor protection, progress notifications, Keystone support, and a home screen banner for tracking your migration.
+
 ## [3.9.0 (2029)] - 2026-07-31
 
 ### Fixed:

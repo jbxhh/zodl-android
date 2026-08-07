@@ -12,6 +12,13 @@ directly impact users rather than highlighting other key architectural updates.*
 
 ## [Unreleased]
 
+## [3.9.0 (2329)] - 2026-08-07
+
+### Added:
+- We added Move to Ironwood, a guided migration that moves your Orchard funds into the new Ironwood shielded pool.
+- We added two ways to migrate: a private option that splits your balance into smaller transfers sent automatically in the background over time, or an immediate single transfer.
+- We added Tor protection, progress notifications, Keystone support, and a home screen banner for tracking your migration.
+
 ## [3.8.1 (2027)] - 2026-07-30
 
 ### Fixed:

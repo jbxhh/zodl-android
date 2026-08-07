@@ -12,6 +12,13 @@ directly impact users rather than highlighting other key architectural updates.*
 
 ## [Unreleased]
 
+## [3.9.0 (2329)] - 2026-08-07
+
+### Añadido:
+- Añadimos «Mover a Ironwood», una migración guiada que traslada tus fondos de Orchard al nuevo pool protegido Ironwood.
+- Añadimos dos formas de migrar: una opción privada que divide tu saldo en transferencias más pequeñas enviadas automáticamente en segundo plano con el tiempo, o una transferencia única inmediata.
+- Añadimos protección Tor, notificaciones de progreso, compatibilidad con Keystone y un aviso en la pantalla de inicio para seguir tu migración.
+
 ## [3.8.1 (2027)] - 2026-07-30
 
 ### Corregido:
