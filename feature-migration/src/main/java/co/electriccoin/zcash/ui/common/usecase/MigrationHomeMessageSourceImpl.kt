@@ -19,9 +19,6 @@ import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageP
 import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
 import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessage
 import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessageData
-import co.electriccoin.zcash.ui.common.repository.MigrationLiveReadout
-import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
-import co.electriccoin.zcash.ui.common.repository.readUnreconciledLiveReadout
 import co.electriccoin.zcash.ui.screen.home.HomeMessageState
 import co.electriccoin.zcash.ui.screen.home.migration.MigrationBannerPhase
 import co.electriccoin.zcash.ui.screen.home.migration.MigrationMessageState
@@ -29,18 +26,12 @@ import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteArgs
 import co.electriccoin.zcash.ui.screen.migration.invalid.MigrationTransferInvalidArgs
 import co.electriccoin.zcash.ui.screen.migration.progress.MigrationProgressArgs
 import co.electriccoin.zcash.ui.screen.migration.setup.MigrationSetupArgs
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /**
@@ -52,7 +43,7 @@ import kotlin.time.Instant
 class MigrationHomeMessageSourceImpl(
     private val accountDataSource: AccountDataSource,
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
-    private val migrationTransferStateRepository: MigrationTransferStateRepository,
+    private val observeMigrationLiveReadout: ObserveMigrationLiveReadoutUseCase,
     private val getOrchardBalance: GetOrchardBalanceUseCase,
     private val hasSeenMigrationCompleteStorageProvider: HasSeenMigrationCompleteStorageProvider,
     private val isBackgroundExecutionAvailableProvider: IsBackgroundExecutionAvailableProvider,
@@ -72,7 +63,7 @@ class MigrationHomeMessageSourceImpl(
                 // with the live driver's own prove/broadcast work, which produced a live-reproduced
                 // ~10-16s Home-banner load delay (2026-08-06/07 investigation). See the
                 // repository's own kdoc.
-                liveReadoutFlow(accountKeyId),
+                observeMigrationLiveReadout(accountKeyId),
                 // Observed, not one-shot: after an IMMEDIATE migration (a plain send-max sweep that
                 // never touches the engine) the balance is the only input that can hide the
                 // "Migrate required" banner once the Orchard funds are spent.
@@ -126,38 +117,6 @@ class MigrationHomeMessageSourceImpl(
                 )
             }
         }
-
-    // Cold-start fallback (repository not yet published for this account — before the live driver's
-    // first loop iteration, or no migration in_progress so it never runs at all) reduces to one
-    // direct, guarded SDK read; the repository's OWN emission cadence otherwise drives updates. The
-    // ticker is still needed alongside it: wall-clock-dependent decisions (`next.scheduledAt <= now`)
-    // must keep re-evaluating even on a beat where the readout itself hasn't changed — but when the
-    // repository already holds a value, a tick just re-emits it (map is pure, no extra SDK call);
-    // only the true cold-start case re-reads the SDK on every tick.
-    //
-    // flowOn(Dispatchers.Default): fetchFreshReadout() itself never touches the mutex (see its own
-    // doc), but it still hops onto the SDK's shared single-threaded DB-IO executor — keep that wait
-    // off whichever dispatcher collects this flow (2026-08-07 read/write-separation design).
-    private fun liveReadoutFlow(accountKeyId: String): Flow<MigrationLiveReadout?> =
-        combine(migrationTransferStateRepository.observe(accountKeyId), recheckTicker()) { published, _ -> published }
-            .map { published -> published ?: fetchFreshReadout() }
-            .flowOn(Dispatchers.Default)
-
-    // Deliberately reads via readUnreconciledLiveReadout() (the SDK's mutex-free loggedRead lane)
-    // instead of getMigrationState()/hasOverdueTransfers() — this is a UI-triggered display-only
-    // read, and per the 2026-08-07 read/write-separation design no UI path should ever take
-    // MIGRATION_DB_ACCESS_MUTEX, not even as a fallback. A just-mined final transfer this account
-    // hasn't reconciled yet simply reads as still-in-progress until the live driver's next publish
-    // supersedes this fallback — the same staleness bound already accepted for the Progress
-    // screen's live readout.
-    //
-    // Read-only, no longer nudges the live driver (2026-08-0X): CheckMigrationRecoveryUseCase now
-    // enumerates every account with an in-progress migration on every app-lifecycle trigger
-    // (onStart/unlock), not just the selected one — that is the sole place migration execution
-    // gets triggered from; this fallback exists purely to give the UI something to render during
-    // the narrow window before the driver's first publish for this account.
-    private suspend fun fetchFreshReadout(): MigrationLiveReadout? =
-        runCatching { getOrchardMigrationSdk().readUnreconciledLiveReadout() }.getOrNull()
 
     override fun createMessageState(data: MigrationHomeMessage): HomeMessageState {
         data as MigrationHomeMessageData
@@ -269,17 +228,6 @@ class MigrationHomeMessageSourceImpl(
         }
     }
 
-    // A bare trigger, no data of its own: wall-clock "has this transfer's due time arrived yet"
-    // can't be recomputed reactively, so something has to re-fire liveReadoutFlow's combine
-    // periodically — see that function's own comment for what it does and doesn't cause on each tick.
-    private fun recheckTicker(): Flow<Unit> =
-        flow {
-            while (true) {
-                emit(Unit)
-                delay(READY_TO_SEND_RECHECK_INTERVAL)
-            }
-        }
-
     // Spec §6.2/§6.3 home-banner support — the affected transfers correlate by stable engine id
     // ON the live snapshot (display index and engine id live on the same row now).
     private fun attentionInfoFor(
@@ -293,10 +241,6 @@ class MigrationHomeMessageSourceImpl(
                 .affectedTransferIndices(snapshot, Clock.System.now())
                 .toMigrationRangeText()
         return kind to rangeText
-    }
-
-    private companion object {
-        val READY_TO_SEND_RECHECK_INTERVAL = 15.seconds
     }
 }
 

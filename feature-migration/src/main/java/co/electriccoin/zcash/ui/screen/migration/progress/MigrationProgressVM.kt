@@ -23,34 +23,26 @@ import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
 import co.electriccoin.zcash.ui.common.repository.MigrationLiveReadout
-import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
-import co.electriccoin.zcash.ui.common.repository.readUnreconciledLiveReadout
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
-import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
+import co.electriccoin.zcash.ui.common.usecase.ObserveMigrationLiveReadoutUseCase
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.MathContext
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class MigrationProgressVM(
-    private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
-    private val migrationTransferStateRepository: MigrationTransferStateRepository,
+    private val observeMigrationLiveReadout: ObserveMigrationLiveReadoutUseCase,
     private val navigationRouter: NavigationRouter,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val errorStateMapper: ErrorMapperUseCase,
@@ -60,11 +52,12 @@ class MigrationProgressVM(
     val state: StateFlow<LceState<MigrationProgressState>> =
         combine(
             exchangeRateRepository.state,
-            // liveReadoutFlow() itself re-emits on every recheckTicker() beat now (folded inside,
-            // 2026-08-0X — closes a gap where this screen's cold-start fallback only ever fired
-            // once per repository-null period instead of re-polling like Home's equivalent
-            // fallback does), so wall-clock-dependent display (the "in ~X minutes" row labels,
-            // migrationProgressSubtitle) keeps refreshing without a separate ticker element here.
+            // liveReadoutFlow() itself re-emits on every internal ticker beat now (folded inside
+            // ObserveMigrationLiveReadoutUseCase — closes a gap where this screen's cold-start
+            // fallback only ever fired once per repository-null period instead of re-polling like
+            // Home's equivalent fallback does), so wall-clock-dependent display (the "in ~X minutes"
+            // row labels, migrationProgressSubtitle) keeps refreshing without a separate ticker
+            // element here.
             liveReadoutFlow(),
         ) { rate, readout ->
             // Everything on this screen derives LIVE from the engine's persisted states — no plan
@@ -90,50 +83,16 @@ class MigrationProgressVM(
     // schedule true to the engine — the single source of truth for the plan — regardless of what
     // the cache last recorded.
     //
-    // The read itself now comes from MigrationTransferStateRepository, published by
-    // MigrationLiveDriverImpl's own loop (states AND the tip-estimate pair together, as one atomic
-    // MigrationLiveReadout — this screen used to call estimatedChainTip()/estimatedSecondsPerBlock()
-    // itself too, which dispatch onto the same single-threaded DB I/O executor as the transfer-state
-    // read), instead of this screen polling the SDK directly on its own timer: that used to mean this
-    // screen's poll and the live driver's prove/broadcast calls competed for that executor, producing
-    // a long white-screen wait whenever this screen opened right as the driver was mid-step (see the
-    // repository's own kdoc). `null` from the repository means the driver hasn't published for this
-    // account yet this session (before its first loop iteration, or no migration in_progress so it
-    // never runs) — fall back to one direct read in that narrow window, same as before this
-    // repository existed.
-    // Reads via readUnreconciledLiveReadout() (the SDK's mutex-free loggedRead lane), never
-    // getMigrationState()/hasOverdueTransfers() — a UI-triggered display-only read must never take
-    // MIGRATION_DB_ACCESS_MUTEX, not even as a fallback (2026-08-07 read/write-separation design).
-    // flowOn(Dispatchers.Default) below keeps the shared single-threaded DB-IO hop off whichever
-    // dispatcher collects this flow, even though the read itself is mutex-free.
-    //
-    // Read-only, no longer nudges the live driver (2026-08-0X): CheckMigrationRecoveryUseCase now
-    // enumerates every account with an in-progress migration on every app-lifecycle trigger
-    // (onStart/unlock), not just the selected one — that is the sole place migration execution
-    // gets triggered from; this fallback exists purely to give the screen something to render
-    // during the narrow window before the driver's first publish for this account.
-    //
-    // recheckTicker() is folded INSIDE this flow (not left to the outer `state` combine, unlike an
-    // earlier version of this VM) so a null repository re-runs the fallback read on every tick
-    // instead of caching a single one-shot fallback value for the rest of the screen's lifetime —
-    // matching MigrationHomeMessageSourceImpl's equivalent flow exactly.
+    // The cache-replay/ticker/mutex-free-SDK-fallback logic itself now lives in
+    // ObserveMigrationLiveReadoutUseCase (folded inside, 2026-08-07 dedup extraction — matches
+    // MigrationHomeMessageSourceImpl's equivalent flow exactly, sharing the one implementation
+    // instead of two near-identical private copies; see that use case's own kdoc for the full
+    // rationale). This wrapper only resolves the account-scoped key each time the flow is
+    // (re)collected.
     private fun liveReadoutFlow(): Flow<MigrationLiveReadout?> =
         flow {
             val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
-            emitAll(
-                combine(migrationTransferStateRepository.observe(accountKeyId), recheckTicker()) { published, _ -> published }
-                    .map { published ->
-                        published ?: runCatching { getOrchardMigrationSdk().readUnreconciledLiveReadout() }.getOrNull()
-                    }
-            )
-        }.flowOn(Dispatchers.Default)
-
-    private fun recheckTicker(): Flow<Unit> =
-        flow {
-            while (true) {
-                emit(Unit)
-                delay(OVERDUE_RECHECK_INTERVAL)
-            }
+            emitAll(observeMigrationLiveReadout(accountKeyId))
         }
 
     fun navigateBack() = navigationRouter.back()
@@ -308,10 +267,6 @@ class MigrationProgressVM(
     // change by design (ZIP 374: the signature does not cover the anchor, so it proves late
     // against its committed boundary and broadcasts late; the engine is the single source of
     private fun onDone() = navigationRouter.backToRoot()
-
-    companion object {
-        private val OVERDUE_RECHECK_INTERVAL = 15.seconds
-    }
 }
 
 /**

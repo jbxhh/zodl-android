@@ -40,6 +40,7 @@ import co.electriccoin.zcash.ui.common.usecase.GetMigrationSnapshotUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.LockOrchardBalanceUseCase
 import co.electriccoin.zcash.ui.common.usecase.MigrationHomeMessageSourceImpl
+import co.electriccoin.zcash.ui.common.usecase.ObserveMigrationLiveReadoutUseCase
 import co.electriccoin.zcash.ui.common.usecase.OnMigrationSyncCompletedUseCase
 import co.electriccoin.zcash.ui.common.usecase.RestartMigrationUseCase
 import co.electriccoin.zcash.ui.common.usecase.ScheduleNextMigrationWindowUseCase
@@ -117,6 +118,7 @@ val featureMigrationModule =
 
         // Use cases
         factoryOf(::GetOrchardMigrationSdkUseCase)
+        factoryOf(::ObserveMigrationLiveReadoutUseCase)
         factoryOf(::GetMigrationSnapshotUseCase)
         factoryOf(::LockOrchardBalanceUseCase)
         factoryOf(::GetMigrationPrivacyOrReviewDestinationUseCase)
