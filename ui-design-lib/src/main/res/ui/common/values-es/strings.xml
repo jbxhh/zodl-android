@@ -1043,9 +1043,9 @@
     <string name="migrationComplete_orchardBalanceLockedBody">%1$s ahora está bloqueado en Orchard. El bloqueo hace que este monto no se pueda gastar para proteger tu privacidad.</string>
     <string name="migrationComplete_transfersProgress">%1$d de %2$d enviadas</string>
     <string name="migrationComplete_migrateAnywayFailureNetworkError">No se pudo conectar a la red. Revisa tu conexión e inténtalo de nuevo.</string>
-    <string name="migrationComplete_migrateAnywayFailureRejected">La red rechazó esta transacción. Contacta con soporte.</string>
-    <string name="migrationComplete_migrateAnywayFailureError">Ocurrió un error al enviar. Contacta con soporte.</string>
-    <string name="migrationComplete_migrateAnywayFailurePartial">Se enviaron algunas partes de esta transacción, pero no todas. Contacta con soporte.</string>
+    <string name="migrationComplete_migrateAnywayFailureRejected">La red rechazó esta transacción. Comunícate con el soporte.</string>
+    <string name="migrationComplete_migrateAnywayFailureError">Ocurrió un error al enviar. Comunícate con el soporte.</string>
+    <string name="migrationComplete_migrateAnywayFailurePartial">Se enviaron algunas partes de esta transacción, pero no todas. Comunícate con el soporte.</string>
 
     <string name="migrationNotifPermission_title">Permitir notificaciones</string>
     <string name="migrationNotifPermission_subtitle">Si se pierde una transferencia programada o falla un envío en segundo plano, podemos enviarte una notificación local para que abras Zodl. Recibe avisos sobre:</string>
@@ -1068,7 +1068,7 @@
     <string name="migrationTorFailure_body">No pudimos establecer una conexión Tor. Puedes continuar sin la protección de Tor, o cancelar e intentarlo de nuevo.</string>
     <string name="migrationTorFailure_riskBody">Sin Tor, tu dirección IP queda expuesta al servidor y podría vincularse con los montos de la migración.</string>
 
-    <string name="migrationSetup_title">Pasar a Ironwood</string>
+    <string name="migrationSetup_title">Mover a Ironwood</string>
     <string name="migrationSetup_bodyPrefix">La última actualización de la red Zcash requiere mover tu </string>
     <string name="migrationSetup_bodyFiatSuffix"> (%1$s)</string>
     <string name="migrationSetup_bodySuffix"> del pool de Orchard al nuevo pool de Ironwood. Tus fondos están seguros.</string>
@@ -1098,13 +1098,13 @@
     <string name="migrationPreparationDetails_title">Preparar tu saldo</string>
     <string name="migrationPreparationDetails_body">Tu saldo debe dividirse en notas del tamaño de una transferencia en %1$d pasos antes de que comiencen tus transferencias programadas.</string>
     <string name="migrationPreparationDetails_stepsTitle">Pasos de preparación</string>
-    <string name="migrationPreparationDetails_amountBeingSplitTitle">Monto en división</string>
+    <string name="migrationPreparationDetails_amountBeingSplitTitle">Monto a dividir</string>
 
     <string name="migrationTransferInvalid_planUpdateTitle">Actualizar plan de migración</string>
     <string name="migrationTransferInvalid_planUpdateBody">Algunas notas de Orchard se gastaron fuera del flujo de migración, lo que invalidó el plan de transferencias prefirmado. El plan debe volver a crearse para el saldo restante. No se pierden fondos: solo se descartan las transacciones prefirmadas.</string>
     <string name="migrationTransferInvalid_planUpdateFirstStep">Se descarta la transferencia invalidada</string>
     <string name="migrationTransferInvalid_transferExpiredTitle">La transferencia ya no es válida</string>
-    <string name="migrationTransferInvalid_transferExpiredBodyPlural">La transferencia %1$s caducó sin enviarse: la app no se abrió a tiempo para transmitirlas. El plan de migración debe volver a crearse para el saldo restante. No se pierden fondos: solo se descartan las transacciones prefirmadas.</string>
+    <string name="migrationTransferInvalid_transferExpiredBodyPlural">Las transferencias %1$s caducaron sin enviarse: la app no se abrió a tiempo para transmitirlas. El plan de migración debe volver a crearse para el saldo restante. No se pierden fondos: solo se descartan las transacciones prefirmadas.</string>
     <string name="migrationTransferInvalid_transferExpiredBodySingular">La transferencia %1$s caducó sin enviarse: la app no se abrió a tiempo para transmitirla. El plan de migración debe volver a crearse para el saldo restante. No se pierden fondos: solo se descartan las transacciones prefirmadas.</string>
     <string name="migrationTransferInvalid_expiredStepLabelPlural">Se descartan las transferencias caducadas</string>
     <string name="migrationTransferInvalid_expiredStepLabelSingular">Se descarta la transferencia caducada</string>
