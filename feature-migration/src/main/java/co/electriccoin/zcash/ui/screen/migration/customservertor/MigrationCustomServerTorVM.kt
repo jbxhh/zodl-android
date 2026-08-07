@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationCustomServerTorVM(
     private val args: MigrationCustomServerTorArgs,
@@ -26,35 +27,15 @@ class MigrationCustomServerTorVM(
         flowOf(
             MigrationCustomServerTorState(
                 body =
-                    stringRes(
-                        when (args.mode) {
-                            MigrationMode.IMMEDIATE -> {
-                                "The migration transaction can't be broadcast over Tor when you're using a " +
-                                    "custom server. If you continue, this transaction will be sent without " +
-                                    "Tor's IP protection."
-                            }
-
-                            MigrationMode.AUTOMATIC -> {
-                                "Migration transactions can't be broadcast over Tor when you're using a " +
-                                    "custom server. If you continue, these transactions will be sent without " +
-                                    "Tor's IP protection."
-                            }
-                        }
-                    ),
+                    when (args.mode) {
+                        MigrationMode.IMMEDIATE -> stringRes(DesignR.string.migrationCustomServerTor_bodyImmediate)
+                        MigrationMode.AUTOMATIC -> stringRes(DesignR.string.migrationCustomServerTor_bodyAutomatic)
+                    },
                 riskBody =
-                    stringRes(
-                        when (args.mode) {
-                            MigrationMode.IMMEDIATE -> {
-                                "Without Tor, your IP address is exposed to the custom server and could be " +
-                                    "linked to your full balance."
-                            }
-
-                            MigrationMode.AUTOMATIC -> {
-                                "Without Tor, your IP address is exposed to the custom server and could be " +
-                                    "linked to the migration amounts."
-                            }
-                        }
-                    ),
+                    when (args.mode) {
+                        MigrationMode.IMMEDIATE -> stringRes(DesignR.string.migrationCustomServerTor_riskBodyImmediate)
+                        MigrationMode.AUTOMATIC -> stringRes(DesignR.string.migrationCustomServerTor_riskBodyAutomatic)
+                    },
                 onContinueWithoutTor = ::onContinueWithoutTor,
                 onSwitchServer = ::onSwitchServer,
                 onBack = ::onBack,

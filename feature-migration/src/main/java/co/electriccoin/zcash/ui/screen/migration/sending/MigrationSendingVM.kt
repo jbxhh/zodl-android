@@ -33,6 +33,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
+import co.electriccoin.zcash.ui.design.util.StringResource
+import co.electriccoin.zcash.ui.design.util.stringRes
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationSendingVM(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
@@ -56,10 +59,10 @@ class MigrationSendingVM(
         data object NotReady : SendFailure
     }
 
-    private fun SendFailure.message(): String =
+    private fun SendFailure.message(): StringResource =
         when (this) {
             is SendFailure.Engine -> migrationFailureMessage(result)
-            SendFailure.NotReady -> "This transfer isn't ready to send yet. Please try again in a moment."
+            SendFailure.NotReady -> stringRes(DesignR.string.migrationSending_notReady)
         }
 
     init {

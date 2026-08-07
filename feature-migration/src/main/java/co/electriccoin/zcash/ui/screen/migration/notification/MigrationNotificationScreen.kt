@@ -40,11 +40,13 @@ import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
+import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
 data object MigrationNotificationArgs
@@ -104,38 +106,34 @@ fun MigrationNotificationView(state: MigrationNotificationState) {
                     .scaffoldPadding(padding),
         ) {
             Text(
-                text = "Allow Notifications",
+                text = stringRes(DesignR.string.migrationNotifPermission_title).getValue(),
                 style = ZashiTypography.header6,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text =
-                    "If a scheduled transfer is missed or a background submission fails, we can " +
-                        "send you a local notification and prompt you to open Zodl. Get notified about:",
+                text = stringRes(DesignR.string.migrationNotifPermission_subtitle).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
             Spacer(Modifier.height(24.dp))
             NotificationFeatureItem(
                 icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_annotation_check,
-                title = "Migration Status",
-                body = "We will inform you whenever your funds are fully migrated to Ironwood.",
+                title = stringRes(DesignR.string.migrationNotifPermission_statusTitle).getValue(),
+                body = stringRes(DesignR.string.migrationNotifPermission_statusBody).getValue(),
             )
             Spacer(Modifier.height(16.dp))
             NotificationFeatureItem(
                 icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_bell_ringing,
-                title = "Action Needed",
-                body = "If we miss a window, we will prompt you to open the app and send a transfer manually.",
+                title = stringRes(DesignR.string.migrationNotifPermission_actionNeededTitle).getValue(),
+                body = stringRes(DesignR.string.migrationNotifPermission_actionNeededBody).getValue(),
             )
             Spacer(Modifier.height(16.dp))
             NotificationFeatureItem(
                 icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_announcement,
-                title = "Transfer Plan Changes",
-                body =
-                    "If allocated funds are spent or a scheduled transfer can no longer be sent, " +
-                        "we'll let you know.",
+                title = stringRes(DesignR.string.migrationNotifPermission_planChangesTitle).getValue(),
+                body = stringRes(DesignR.string.migrationNotifPermission_planChangesBody).getValue(),
             )
             Spacer(Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -147,16 +145,14 @@ fun MigrationNotificationView(state: MigrationNotificationState) {
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text =
-                        "Without notifications, you'll need to open Zodl to check migration " +
-                            "progress and approve any manual transfers yourself.",
+                    text = stringRes(DesignR.string.migrationNotifPermission_warningHint).getValue(),
                     style = ZashiTypography.textXs,
                     color = ZashiColors.Utility.WarningYellow.utilityOrange700,
                 )
             }
             Spacer(Modifier.height(24.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Skip"), onClick = state.onSkip),
+                state = ButtonState(text = stringRes(DesignR.string.migration_common_skip), onClick = state.onSkip),
                 modifier = Modifier.fillMaxWidth(),
                 defaultPrimaryColors =
                     ZashiButtonDefaults.secondaryColors(
@@ -166,7 +162,7 @@ fun MigrationNotificationView(state: MigrationNotificationState) {
             )
             Spacer(Modifier.height(12.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Allow"), onClick = state.onAllow),
+                state = ButtonState(text = stringRes(DesignR.string.migration_common_allow), onClick = state.onAllow),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

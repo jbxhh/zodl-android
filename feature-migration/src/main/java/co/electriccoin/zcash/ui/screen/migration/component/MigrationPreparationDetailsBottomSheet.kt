@@ -34,6 +34,7 @@ import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 /**
  * "Prepare Your Balance" detail sheet — Figma "PR App Designs Q3'26", node 5207:16023
@@ -63,16 +64,14 @@ fun MigrationPreparationDetailsBottomSheet(details: MigrationPreparationDetails?
                     .verticalScroll(rememberScrollState()),
         ) {
             Text(
-                text = "Prepare Your Balance",
+                text = stringRes(DesignR.string.migrationPreparationDetails_title).getValue(),
                 style = ZashiTypography.header5,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text =
-                    "Your balance needs to be split into transfer-sized notes across ${details.stepCount} steps " +
-                        "before your scheduled transfers begin.",
+                text = stringRes(DesignR.string.migrationPreparationDetails_body, details.stepCount).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
@@ -85,7 +84,7 @@ fun MigrationPreparationDetailsBottomSheet(details: MigrationPreparationDetails?
                         .padding(16.dp),
             ) {
                 Text(
-                    text = "Preparation Steps",
+                    text = stringRes(DesignR.string.migrationPreparationDetails_stepsTitle).getValue(),
                     style = ZashiTypography.textMd,
                     fontWeight = FontWeight.SemiBold,
                     color = ZashiColors.Text.textPrimary,
@@ -108,7 +107,7 @@ fun MigrationPreparationDetailsBottomSheet(details: MigrationPreparationDetails?
                         .padding(12.dp),
             ) {
                 Text(
-                    text = "Amount Being Split",
+                    text = stringRes(DesignR.string.migrationPreparationDetails_amountBeingSplitTitle).getValue(),
                     style = ZashiTypography.textXs,
                     color = ZashiColors.Text.textTertiary,
                     modifier = Modifier.weight(1f),
@@ -122,7 +121,7 @@ fun MigrationPreparationDetailsBottomSheet(details: MigrationPreparationDetails?
             }
             Spacer(Modifier.height(24.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Got it"), onClick = details.onDismiss),
+                state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = details.onDismiss),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

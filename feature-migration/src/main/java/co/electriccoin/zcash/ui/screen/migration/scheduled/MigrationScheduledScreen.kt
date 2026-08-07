@@ -43,6 +43,7 @@ import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import co.electriccoin.zcash.ui.screen.migration.component.MigrationFailureBottomSheet
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 data class MigrationScheduledState(
     val totalAmount: StringResource,
@@ -99,7 +100,7 @@ private fun MigrationSchedulingView() {
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Scheduling...",
+                    text = stringRes(DesignR.string.migrationScheduled_schedulingTitle).getValue(),
                     style = ZashiTypography.header5,
                     fontWeight = FontWeight.SemiBold,
                     color = ZashiColors.Text.textPrimary,
@@ -107,7 +108,7 @@ private fun MigrationSchedulingView() {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Your ZEC migration schedule is getting confirmed.",
+                    text = stringRes(DesignR.string.migrationScheduled_schedulingSubtitle).getValue(),
                     style = ZashiTypography.textSm,
                     color = ZashiColors.Text.textTertiary,
                     textAlign = TextAlign.Center,
@@ -122,16 +123,16 @@ private fun MigrationSchedulingView() {
                             .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    SkeletonSummaryRow(label = "Total to transfer")
-                    SkeletonSummaryRow(label = "Pool")
-                    SkeletonSummaryRow(label = "Transfers")
-                    SkeletonSummaryRow(label = "Duration")
+                    SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_totalToTransferLabel).getValue())
+                    SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_poolLabel).getValue())
+                    SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_transfersLabel).getValue())
+                    SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_durationLabel).getValue())
                 }
             }
             ZashiButton(
                 state =
                     ButtonState(
-                        text = stringRes("Scheduling..."),
+                        text = stringRes(DesignR.string.migrationScheduled_schedulingTitle),
                         isEnabled = false,
                         isLoading = true,
                         onClick = {},
@@ -189,7 +190,7 @@ fun MigrationScheduledView(state: MigrationScheduledState) {
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Migration Scheduled",
+                    text = stringRes(DesignR.string.migrationScheduled_doneTitle).getValue(),
                     style = ZashiTypography.header5,
                     fontWeight = FontWeight.SemiBold,
                     color = ZashiColors.Text.textPrimary,
@@ -197,7 +198,7 @@ fun MigrationScheduledView(state: MigrationScheduledState) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Your ZEC will be migrated to the Ironwood pool based on the schedule you approved.",
+                    text = stringRes(DesignR.string.migrationScheduled_doneSubtitle).getValue(),
                     style = ZashiTypography.textSm,
                     color = ZashiColors.Text.textTertiary,
                     textAlign = TextAlign.Center,
@@ -212,10 +213,22 @@ fun MigrationScheduledView(state: MigrationScheduledState) {
                             .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    SummaryRow(label = "Total to transfer", value = state.totalAmount.getValue())
-                    SummaryRow(label = "Pool", value = "Orchard → Ironwood")
-                    SummaryRow(label = "Transfers", value = state.transfersProgress.getValue())
-                    SummaryRow(label = "Duration", value = state.duration.getValue())
+                    SummaryRow(
+                        label = stringRes(DesignR.string.migrationScheduled_totalToTransferLabel).getValue(),
+                        value = state.totalAmount.getValue(),
+                    )
+                    SummaryRow(
+                        label = stringRes(DesignR.string.migrationScheduled_poolLabel).getValue(),
+                        value = stringRes(DesignR.string.migrationScheduled_poolValue).getValue(),
+                    )
+                    SummaryRow(
+                        label = stringRes(DesignR.string.migrationScheduled_transfersLabel).getValue(),
+                        value = state.transfersProgress.getValue(),
+                    )
+                    SummaryRow(
+                        label = stringRes(DesignR.string.migrationScheduled_durationLabel).getValue(),
+                        value = state.duration.getValue(),
+                    )
                 }
                 state.backgroundHint?.let {
                     Spacer(Modifier.height(12.dp))
@@ -227,7 +240,7 @@ fun MigrationScheduledView(state: MigrationScheduledState) {
                 }
             }
             ZashiButton(
-                state = ButtonState(text = stringRes("Done"), onClick = state.onDone),
+                state = ButtonState(text = stringRes(DesignR.string.migration_status_done), onClick = state.onDone),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

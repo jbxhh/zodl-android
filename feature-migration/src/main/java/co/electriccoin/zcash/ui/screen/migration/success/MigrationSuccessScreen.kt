@@ -32,9 +32,11 @@ import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
+import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 data class MigrationSuccessState(
     val onViewTransaction: (() -> Unit)?,
@@ -81,7 +83,7 @@ fun MigrationSuccessView(state: MigrationSuccessState) {
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Sent!",
+                    text = stringRes(DesignR.string.migrationSuccess_title).getValue(),
                     style = ZashiTypography.header5,
                     fontWeight = FontWeight.SemiBold,
                     color = ZashiColors.Text.textPrimary,
@@ -89,7 +91,7 @@ fun MigrationSuccessView(state: MigrationSuccessState) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Your ZEC were successfully\nsent to Ironwood.",
+                    text = stringRes(DesignR.string.migrationSuccess_subtitle).getValue(),
                     style = ZashiTypography.textSm,
                     color = ZashiColors.Text.textTertiary,
                     textAlign = TextAlign.Center,
@@ -97,14 +99,14 @@ fun MigrationSuccessView(state: MigrationSuccessState) {
             }
             state.onViewTransaction?.let { onView ->
                 ZashiButton(
-                    state = ButtonState(text = stringRes("View Transaction"), onClick = onView),
+                    state = ButtonState(text = stringRes(DesignR.string.migrationSuccess_viewTransaction), onClick = onView),
                     modifier = Modifier.fillMaxWidth(),
                     defaultPrimaryColors = ZashiButtonDefaults.secondaryColors(),
                 )
                 Spacer(Modifier.height(8.dp))
             }
             ZashiButton(
-                state = ButtonState(text = stringRes("Close"), onClick = state.onClose),
+                state = ButtonState(text = stringRes(DesignR.string.general_close), onClick = state.onClose),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

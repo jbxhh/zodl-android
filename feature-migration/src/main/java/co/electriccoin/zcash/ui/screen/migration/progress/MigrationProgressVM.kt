@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import java.math.BigDecimal
 import java.math.MathContext
+import co.electriccoin.zcash.ui.design.R as DesignR
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -107,7 +108,7 @@ class MigrationProgressVM(
         val totalZatoshi = snapshot.transfers.sumOf { it.amountZatoshi }
         val totalAmount = stringRes(Zatoshi(totalZatoshi))
         return MigrationProgressState(
-            title = stringRes("Migration Progress"),
+            title = stringRes(DesignR.string.migration_common_progressTitle),
             subtitle = stringRes(subtitle),
             totalAmount = totalAmount,
             totalFiatAmount = fiatAmount(Zatoshi(totalZatoshi), exchangeRateState),

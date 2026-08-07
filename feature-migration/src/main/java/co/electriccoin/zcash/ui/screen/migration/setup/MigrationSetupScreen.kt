@@ -61,6 +61,7 @@ import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIcons
 import co.electriccoin.zcash.ui.screen.common.WalletHeaderIconsState
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Composable
 fun MigrationSetupScreen() {
@@ -100,7 +101,7 @@ fun MigrationSetupView(state: MigrationSetupState) {
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Move to Ironwood",
+                text = stringRes(DesignR.string.migrationSetup_title).getValue(),
                 style = ZashiTypography.header6,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
@@ -117,7 +118,7 @@ fun MigrationSetupView(state: MigrationSetupState) {
                 color = ZashiColors.Text.textTertiary,
             )
             Text(
-                text = "Find out more",
+                text = stringRes(DesignR.string.migrationSetup_findOutMore).getValue(),
                 style = ZashiTypography.textSm.copy(textDecoration = TextDecoration.Underline),
                 fontWeight = FontWeight.Medium,
                 color = ZashiColors.Text.textPrimary,
@@ -133,14 +134,14 @@ fun MigrationSetupView(state: MigrationSetupState) {
             when (state.mode) {
                 MigrationMode.IMMEDIATE -> {
                     MigrationDisclaimerRow(
-                        text = "All funds transferred in this transaction will be revealed on-chain.",
+                        text = stringRes(DesignR.string.migrationSetup_immediateWarning).getValue(),
                         tint = ZashiColors.Utility.WarningYellow.utilityOrange700,
                     )
                 }
 
                 MigrationMode.AUTOMATIC -> {
                     MigrationDisclaimerRow(
-                        text = "The amount of an individual transfer across pools is revealed on-chain.",
+                        text = stringRes(DesignR.string.migrationSetup_automaticWarning).getValue(),
                         tint = ZashiColors.Text.textTertiary,
                     )
                 }
@@ -149,7 +150,7 @@ fun MigrationSetupView(state: MigrationSetupState) {
             ZashiButton(
                 state =
                     ButtonState(
-                        text = stringRes("Next"),
+                        text = stringRes(DesignR.string.general_next),
                         onClick = state.onConfirm,
                     ),
                 modifier = Modifier.fillMaxWidth(),
@@ -160,17 +161,22 @@ fun MigrationSetupView(state: MigrationSetupState) {
 
 // MOB-1620 (Figma node 3925:16408): the balance figure is a distinct, brighter emphasis color
 // against the rest of this muted sentence, not just bold-in-the-same-tertiary-gray.
-private fun buildMigrationBodyText(zecAmount: String, fiatAmount: String?, emphasisColor: Color) =
-    buildAnnotatedString {
-        append("Latest Zcash network upgrade requires moving your ")
+@Composable
+private fun buildMigrationBodyText(zecAmount: String, fiatAmount: String?, emphasisColor: Color): androidx.compose.ui.text.AnnotatedString {
+    val prefix = stringRes(DesignR.string.migrationSetup_bodyPrefix).getValue()
+    val fiatSuffix = fiatAmount?.let { stringRes(DesignR.string.migrationSetup_bodyFiatSuffix, it).getValue() }
+    val suffix = stringRes(DesignR.string.migrationSetup_bodySuffix).getValue()
+    return buildAnnotatedString {
+        append(prefix)
         withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = emphasisColor)) {
             append(zecAmount)
         }
-        if (fiatAmount != null) {
-            append(" ($fiatAmount)")
+        if (fiatSuffix != null) {
+            append(fiatSuffix)
         }
-        append(" from the Orchard pool to the new Ironwood pool. Your funds are safe.")
+        append(suffix)
     }
+}
 
 @Composable
 private fun MigrationDisclaimerRow(
@@ -209,16 +215,16 @@ private fun MigrationModeSelector(
     ) {
         MigrationModeOption(
             mode = MigrationMode.AUTOMATIC,
-            title = "Migrate with Privacy",
-            subtitle = "Split transfers over time · Scheduled in background · Maximum privacy",
+            title = stringRes(DesignR.string.migrationSetup_automaticTitle).getValue(),
+            subtitle = stringRes(DesignR.string.migrationSetup_automaticSubtitle).getValue(),
             isWarning = false,
             selected = selected,
             onSelect = onSelect,
         )
         MigrationModeOption(
             mode = MigrationMode.IMMEDIATE,
-            title = "Migrate Immediately",
-            subtitle = "Single transfer · Sends now · Less privacy",
+            title = stringRes(DesignR.string.migrationSetup_immediateTitle).getValue(),
+            subtitle = stringRes(DesignR.string.migrationSetup_immediateSubtitle).getValue(),
             isWarning = true,
             selected = selected,
             onSelect = onSelect,

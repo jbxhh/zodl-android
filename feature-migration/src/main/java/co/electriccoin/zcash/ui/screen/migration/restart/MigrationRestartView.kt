@@ -172,21 +172,14 @@ private fun Preview() =
             state =
                 MigrationRestartState(
                     onBack = {},
-                    body =
-                        stringRes(
-                            "If your migration looks stuck, you can restart it safely. This creates a new " +
-                                "plan for your remaining funds. Completed transfers are not affected."
-                        ),
-                    migratedLabel = stringRes("Migrated"),
-                    migratedValue = stringRes("7 of 11 transfers"),
-                    remainingLabel = stringRes("Remaining balance"),
+                    body = stringRes(DesignR.string.restartMigration_body),
+                    migratedLabel = stringRes(DesignR.string.restartMigration_summaryMigratedLabel),
+                    migratedValue = stringRes(DesignR.string.restartMigration_summaryMigratedValue, 7, 11),
+                    remainingLabel = stringRes(DesignR.string.restartMigration_summaryRemainingLabel),
                     remainingValue = stringRes("3.070 ZEC"),
-                    warning = stringRes("This cancels the current migration plan. It cannot be undone once confirmed."),
-                    support =
-                        stringRes(
-                            "If restarting doesn't resolve the issue, please reach out to Zodl Support via Send Feedback."
-                        ),
-                    nextButton = ButtonState(text = stringRes("Next"), onClick = {}),
+                    warning = stringRes(DesignR.string.restartMigration_warning),
+                    support = stringRes(DesignR.string.restartMigration_support),
+                    nextButton = ButtonState(text = stringRes(DesignR.string.restartMigration_next), onClick = {}),
                     confirmationDialog = null,
                 )
         )

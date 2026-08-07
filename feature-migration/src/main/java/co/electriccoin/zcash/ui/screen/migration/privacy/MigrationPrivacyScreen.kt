@@ -49,6 +49,7 @@ import co.electriccoin.zcash.ui.design.util.stringRes
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
 data class MigrationPrivacyArgs(
@@ -86,7 +87,7 @@ fun MigrationPrivacyView(
             )
             Spacer(16.dp)
             Text(
-                text = "Enable Tor Protection",
+                text = stringRes(DesignR.string.migration_common_enableTorProtectionTitle).getValue(),
                 style = ZashiTypography.textXl,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
@@ -101,7 +102,7 @@ fun MigrationPrivacyView(
             TorToggleCard(innerState.checkbox)
             Spacer(32.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes("Got it"), onClick = innerState.onConfirm),
+                state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = innerState.onConfirm),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -185,20 +186,11 @@ private fun Preview() =
         MigrationPrivacyView(
             state =
                 MigrationPrivacyState(
-                    body =
-                        stringRes(
-                            "If Tor is available in your region, we strongly recommend enabling it to prevent " +
-                                "linking the migration amounts to your IP address. You can also use a trusted VPN " +
-                                "if Tor is unavailable in your region."
-                        ),
+                    body = stringRes(DesignR.string.migrationPrivacy_bodyAutomatic),
                     checkbox =
                         CheckboxState(
-                            title = stringRes("Enable Tor Protection"),
-                            subtitle =
-                                stringRes(
-                                    "Routes your connection through the Tor network for enhanced anonymity and " +
-                                        "privacy protection."
-                                ),
+                            title = stringRes(DesignR.string.migration_common_enableTorProtectionTitle),
+                            subtitle = stringRes(DesignR.string.migration_common_torCheckboxSubtitle),
                             isChecked = true,
                             onClick = {},
                         ),

@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Suppress("LongParameterList")
 class MigrationScheduledVM(
@@ -135,7 +136,7 @@ class MigrationScheduledVM(
             migrationLog("MigrationScheduled: finalizeIfPendingKeystoneBatch failed: $e")
             failureSheet.update {
                 MigrationTransferFailureState(
-                    message = "Something went wrong finalizing your migration schedule. Please try again.",
+                    message = stringRes(DesignR.string.migrationScheduled_finalizeErrorMessage),
                     onRetry = {
                         failureSheet.value = null
                         viewModelScope.launch { finalizeIfPendingKeystoneBatch() }
@@ -164,13 +165,13 @@ class MigrationScheduledVM(
                     ).inWholeSeconds
                 val backgroundHint =
                     if (!isBackgroundExecutionAvailableProvider.isAvailable()) {
-                        stringRes("Transfers run when you open the app — enable background activity in Settings for automatic sending.")
+                        stringRes(DesignR.string.migrationScheduled_backgroundActivityHint)
                     } else {
                         null
                     }
                 MigrationScheduledState(
                     totalAmount = stringRes(Zatoshi(total)),
-                    transfersProgress = stringRes("0 of $count"),
+                    transfersProgress = stringRes(DesignR.string.migrationScheduled_transfersProgressPending, count),
                     duration = stringRes(formatMigrationDuration(span)),
                     backgroundHint = backgroundHint,
                     onDone = ::onDone,

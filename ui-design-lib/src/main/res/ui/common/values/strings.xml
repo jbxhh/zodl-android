@@ -1290,4 +1290,199 @@ Your vote can no longer be submitted.</string>
     <string name="restartMigration_confirmMessage">A new plan will be created for your remaining %1$s. The %2$d transfers already completed stay as they are and won\'t be repeated.</string>
     <string name="restartMigration_confirmPrimary">Confirm restart</string>
 
+    <!-- ===== migration (feature-migration screens UI copy) ===== -->
+    <string name="migration_common_gotIt">Got it</string>
+    <string name="migration_common_skip">Skip</string>
+    <string name="migration_common_allow">Allow</string>
+    <string name="migration_common_continue">Continue</string>
+    <string name="migration_common_retry">Retry</string>
+    <string name="migration_common_dismiss">Dismiss</string>
+    <string name="migration_common_continueWithoutTor">Continue without Tor</string>
+    <string name="migration_common_tryAgain">Try again</string>
+    <string name="migration_common_whatAreTheRisks">What are the risks?</string>
+    <string name="migration_common_splitBalanceTitle">Split Balance</string>
+    <string name="migration_common_splitBalanceNumbered">Split balance %1$d</string>
+    <string name="migration_common_transferTitle">Transfer %1$d</string>
+    <string name="migration_common_showDetails">Show details</string>
+    <string name="migration_common_progressTitle">Migration Progress</string>
+    <string name="migration_common_enableTorProtectionTitle">Enable Tor Protection</string>
+    <string name="migration_common_torCheckboxSubtitle">Routes your connection through the Tor network for enhanced anonymity and privacy protection.</string>
+
+    <!-- Only this one status word is resource-backed: it's a plain button label (Scheduled
+         screen), not one of the dynamic per-row status functions in MigrationProgressVM /
+         MigrationPreparationDetails / MigrationReviewVM. Those stay English-literal ByString on
+         purpose — they're unit-tested in plain JVM tests via a StringResource.ByString-only
+         reflection helper with no Android Context available to resolve a real resource
+         (MigrationPreparationDetailsTest, MigrationProgressVMTest, MigrationReviewPlanShapeTest).
+         Localizing them needs that test harness reworked first; tracked as a known gap. -->
+    <string name="migration_status_done">Done</string>
+
+    <string name="migrationPrivacy_bodyImmediate">If Tor is available in your region, we strongly recommend enabling it to prevent linking your balance to your IP address. You can also use a trusted VPN if Tor is unavailable in your region.</string>
+    <string name="migrationPrivacy_bodyAutomatic">If Tor is available in your region, we strongly recommend enabling it to prevent linking the migration amounts to your IP address. You can also use a trusted VPN if Tor is unavailable in your region.</string>
+
+    <string name="migrationKeystoneScan_instructions">Scan the QR code shown on your Keystone device after signing.</string>
+    <string name="migrationKeystoneScan_errorMessage">Something went wrong while processing that scan. Please try again.</string>
+    <string name="migrationKeystoneScan_firmwareUnsupported">Your Keystone firmware doesn\'t support migration yet. Update your Keystone device, then come back to retry.</string>
+
+    <string name="migrationSuccess_title">Sent!</string>
+    <string name="migrationSuccess_subtitle">Your ZEC were successfully\nsent to Ironwood.</string>
+    <string name="migrationSuccess_viewTransaction">View Transaction</string>
+
+    <string name="migrationSending_title">Sending...</string>
+    <string name="migrationSending_subtitle">Your ZEC are being sent to\nIronwood...</string>
+
+    <string name="migrationProgress_subtitleComplete">All %1$d transfers are complete.</string>
+    <string name="migrationProgress_subtitlePreStart">Your balance splits into %1$d transfers over %2$s. There are %3$d remaining transfers.</string>
+    <string name="migrationProgress_subtitleInProgressRemaining">Your balance splits into %1$d transfers. About %2$s remaining. There are %3$d remaining transfers.</string>
+    <string name="migrationProgress_subtitleInProgressLate">Your balance splits into %1$d transfers. Finishing up… There are %2$d remaining transfers.</string>
+    <string name="migrationProgress_orchardLabel">Orchard</string>
+    <string name="migrationProgress_ironwoodLabel">Ironwood</string>
+
+    <string name="migrationComplete_title">Migration Complete</string>
+    <string name="migrationComplete_subtitle">Your ZEC is now in the Ironwood pool.</string>
+    <string name="migrationComplete_totalTransferredLabel">Total transferred</string>
+    <string name="migrationComplete_remainingDustLabel">Remaining dust</string>
+    <string name="migrationComplete_transfersLabel">Transfers</string>
+    <string name="migrationComplete_durationLabel">Duration</string>
+    <string name="migrationComplete_orchardBalanceRemainingTitle">Orchard balance remaining</string>
+    <string name="migrationComplete_orchardBalanceRemainingBody">%1$s stayed in Orchard. An amount this specific can identify you on the network. To protect your privacy, we recommend locking this balance rather than migrating it.</string>
+    <string name="migrationComplete_migrateAnyway">Migrate anyway</string>
+    <string name="migrationComplete_migrating">Migrating…</string>
+    <string name="migrationComplete_lockBalance">Lock balance</string>
+    <string name="migrationComplete_lockingBalance">Locking balance…</string>
+    <string name="migrationComplete_orchardBalanceLockedTitle">Orchard balance locked</string>
+    <string name="migrationComplete_orchardBalanceLockedBody">%1$s is now locked in Orchard. Locking keeps this amount unspendable to protect your privacy.</string>
+    <string name="migrationComplete_transfersProgress">%1$d of %2$d sent</string>
+    <string name="migrationComplete_migrateAnywayFailureNetworkError">Couldn\'t reach the network. Check your connection and try again.</string>
+    <string name="migrationComplete_migrateAnywayFailureRejected">The network rejected this transaction. Please contact support.</string>
+    <string name="migrationComplete_migrateAnywayFailureError">Something went wrong while sending. Please contact support.</string>
+    <string name="migrationComplete_migrateAnywayFailurePartial">Some but not all of this transaction\'s parts were sent. Please contact support.</string>
+
+    <string name="migrationNotifPermission_title">Allow Notifications</string>
+    <string name="migrationNotifPermission_subtitle">If a scheduled transfer is missed or a background submission fails, we can send you a local notification and prompt you to open Zodl. Get notified about:</string>
+    <string name="migrationNotifPermission_statusTitle">Migration Status</string>
+    <string name="migrationNotifPermission_statusBody">We will inform you whenever your funds are fully migrated to Ironwood.</string>
+    <string name="migrationNotifPermission_actionNeededTitle">Action Needed</string>
+    <string name="migrationNotifPermission_actionNeededBody">If we miss a window, we will prompt you to open the app and send a transfer manually.</string>
+    <string name="migrationNotifPermission_planChangesTitle">Transfer Plan Changes</string>
+    <string name="migrationNotifPermission_planChangesBody">If allocated funds are spent or a scheduled transfer can no longer be sent, we\'ll let you know.</string>
+    <string name="migrationNotifPermission_warningHint">Without notifications, you\'ll need to open Zodl to check migration progress and approve any manual transfers yourself.</string>
+
+    <string name="migrationCustomServerTor_title">Your Server Doesn\'t Support Tor</string>
+    <string name="migrationCustomServerTor_bodyImmediate">The migration transaction can\'t be broadcast over Tor when you\'re using a custom server. If you continue, this transaction will be sent without Tor\'s IP protection.</string>
+    <string name="migrationCustomServerTor_bodyAutomatic">Migration transactions can\'t be broadcast over Tor when you\'re using a custom server. If you continue, these transactions will be sent without Tor\'s IP protection.</string>
+    <string name="migrationCustomServerTor_riskBodyImmediate">Without Tor, your IP address is exposed to the custom server and could be linked to your full balance.</string>
+    <string name="migrationCustomServerTor_riskBodyAutomatic">Without Tor, your IP address is exposed to the custom server and could be linked to the migration amounts.</string>
+    <string name="migrationCustomServerTor_switchServer">Switch Server</string>
+
+    <string name="migrationTorFailure_title">Couldn\'t Connect to Tor</string>
+    <string name="migrationTorFailure_body">We couldn\'t establish a Tor connection. You can proceed without Tor protection, or cancel and try again.</string>
+    <string name="migrationTorFailure_riskBody">Without Tor, your IP address is exposed to the server and could be linked to the migration amounts.</string>
+
+    <string name="migrationSetup_title">Move to Ironwood</string>
+    <string name="migrationSetup_bodyPrefix">Latest Zcash network upgrade requires moving your </string>
+    <string name="migrationSetup_bodyFiatSuffix"> (%1$s)</string>
+    <string name="migrationSetup_bodySuffix"> from the Orchard pool to the new Ironwood pool. Your funds are safe.</string>
+    <string name="migrationSetup_findOutMore">Find out more</string>
+    <string name="migrationSetup_immediateWarning">All funds transferred in this transaction will be revealed on-chain.</string>
+    <string name="migrationSetup_automaticWarning">The amount of an individual transfer across pools is revealed on-chain.</string>
+    <string name="migrationSetup_automaticTitle">Migrate with Privacy</string>
+    <string name="migrationSetup_automaticSubtitle">Split transfers over time · Scheduled in background · Maximum privacy</string>
+    <string name="migrationSetup_immediateTitle">Migrate Immediately</string>
+    <string name="migrationSetup_immediateSubtitle">Single transfer · Sends now · Less privacy</string>
+
+    <string name="migrationLockExplainer_title">What does locking do?</string>
+    <string name="migrationLockExplainer_bullet1Prefix">Locking marks this balance as </string>
+    <string name="migrationLockExplainer_bullet1Bold">unspendable</string>
+    <string name="migrationLockExplainer_bullet1Suffix">, so it can\'t compromise your privacy in future transactions.</string>
+    <string name="migrationLockExplainer_bullet2Bold">The lock lives on this Zodl/Keystone instance only.</string>
+    <string name="migrationLockExplainer_bullet2Suffix"> Restoring your wallet won\'t carry it over.</string>
+    <string name="migrationLockExplainer_bullet3Prefix">A future release will let you </string>
+    <string name="migrationLockExplainer_bullet3Bold">unlock this balance.</string>
+
+    <string name="migrationFailureSheet_title">Couldn\'t Send</string>
+    <string name="migrationFailureMessage_networkError">Couldn\'t reach the network. Check your connection and try again.</string>
+    <string name="migrationFailureMessage_invalidNote">This transfer\'s note was already spent elsewhere. Reschedule to plan a new one.</string>
+    <string name="migrationFailureMessage_expired">This transfer\'s anchor expired. Reschedule to plan a new one.</string>
+    <string name="migrationSending_notReady">This transfer isn\'t ready to send yet. Please try again in a moment.</string>
+
+    <string name="migrationPreparationDetails_title">Prepare Your Balance</string>
+    <string name="migrationPreparationDetails_body">Your balance needs to be split into transfer-sized notes across %1$d steps before your scheduled transfers begin.</string>
+    <string name="migrationPreparationDetails_stepsTitle">Preparation Steps</string>
+    <string name="migrationPreparationDetails_amountBeingSplitTitle">Amount Being Split</string>
+
+    <string name="migrationTransferInvalid_planUpdateTitle">Update Migration Plan</string>
+    <string name="migrationTransferInvalid_planUpdateBody">Some Orchard notes were spent outside the migration flow, which invalidated the pre-signed transfer plan. The plan needs to be re-created for the remaining balance. No funds are lost — only the pre-signed transactions are discarded.</string>
+    <string name="migrationTransferInvalid_planUpdateFirstStep">The invalidated transfer is discarded</string>
+    <string name="migrationTransferInvalid_transferExpiredTitle">Transfer No Longer Valid</string>
+    <string name="migrationTransferInvalid_transferExpiredBodyPlural">Transfer %1$s expired without being sent — the app wasn\'t opened in time to broadcast them. The migration plan needs to be re-created for the remaining balance. No funds are lost — only the pre-signed transactions are discarded.</string>
+    <string name="migrationTransferInvalid_transferExpiredBodySingular">Transfer %1$s expired without being sent — the app wasn\'t opened in time to broadcast it. The migration plan needs to be re-created for the remaining balance. No funds are lost — only the pre-signed transactions are discarded.</string>
+    <string name="migrationTransferInvalid_expiredStepLabelPlural">Expired transfers are discarded</string>
+    <string name="migrationTransferInvalid_expiredStepLabelSingular">Expired transfer is discarded</string>
+    <string name="migrationTransferInvalid_whatHappensNextTitle">What Happens Next</string>
+    <string name="migrationTransferInvalid_remainingBalanceReproposed">Remaining balance is re-proposed</string>
+    <string name="migrationTransferInvalid_transfersDoneProgress">%1$d of %2$d transfers done; migration will continue.</string>
+
+    <string name="migrationHowItWorks_title">How This Works</string>
+    <string name="migrationHowItWorks_subtitle">Moving funds between Zcash pools reveals the amount of each transfer. Here\'s how we protect your privacy during migration.</string>
+    <string name="migrationHowItWorks_splitScheduleTitle">Split and schedule</string>
+    <string name="migrationHowItWorks_splitScheduleDescription">Your balance is divided into smaller amounts and spaced out over time, so they\'re harder to link together.</string>
+    <string name="migrationHowItWorks_approveOnceTitle">Approve once</string>
+    <string name="migrationHowItWorks_approveOnceDescription">Zodl handles the rest, sending each transfer automatically in its scheduled window while the app runs in the background.</string>
+    <string name="migrationHowItWorks_ifSomethingFailsTitle">If something fails</string>
+    <string name="migrationHowItWorks_ifSomethingFailsDescription">We\'ll notify you so you can complete it manually.</string>
+    <string name="migrationHowItWorks_largeBalanceTitle">Large balance</string>
+    <string name="migrationHowItWorks_largeBalanceDescription">If your wallet holds large balance or many small notes, migration may run across multiple scheduled rounds.</string>
+    <string name="migrationHowItWorks_disclaimer">Choosing this option may require a small amount (less than 0.01 ZEC) to be left in the Orchard pool, and which won\'t be transferred.</string>
+
+    <string name="migrationReview_title">Review Transfer</string>
+    <string name="migrationReview_immediateBody">Your full Orchard balance will be transferred to Ironwood in a single on-chain transfer. Once confirmed, this transfer cannot be cancelled.</string>
+    <string name="migrationReview_feeLabel">Fee</string>
+    <string name="migrationReview_amountLabel">Amount</string>
+    <string name="migrationReview_signing">Signing...</string>
+    <string name="migrationReview_confirm">Confirm</string>
+    <string name="migrationReview_confirmTransferPlanTitle">Confirm Transfer Plan</string>
+    <string name="migrationReview_privacyBody">Your balance splits into %1$d transfers over %2$s. Approve once and we\'ll handle the rest — just keep the app running in the background. Amounts are randomized for privacy. If we miss a window, Zodl will prompt you on next open.</string>
+    <string name="migrationReview_roundOfTotal">Round %1$d of %2$d</string>
+    <string name="migrationReview_startMigration">Start Migration</string>
+    <string name="migrationReview_sendImmediately">Send immediately</string>
+
+    <string name="migrationKeystoneSign_prepareErrorMessage">Couldn\'t prepare the migration for signing. Try again.</string>
+    <string name="migrationKeystoneSign_barTitle">Sign Transaction</string>
+    <string name="migrationKeystoneSign_scanWithKeystone">Scan with your Keystone wallet%1$s</string>
+    <string name="migrationKeystoneSign_roundSuffix"> (%1$d of %2$d)</string>
+    <string name="migrationKeystoneSign_subtitle">After you have signed with Keystone, tap on the Get Signature button below.</string>
+    <string name="migrationKeystoneSign_badgeHardware">Hardware</string>
+    <string name="migrationKeystoneSign_getSignature">Get Signature</string>
+    <string name="migrationKeystoneSign_reject">Reject</string>
+
+    <string name="migrationBattery_title">Allow Background Delivery</string>
+    <string name="migrationBattery_body">To send migration transfers at their scheduled times, Zodl needs to keep running in the background. Allow background activity for Zodl in your device settings.</string>
+    <string name="migrationBattery_scheduledWindowsTitle">Transfers send at their scheduled windows</string>
+    <string name="migrationBattery_scheduledWindowsBody">Zodl wakes up and sends each transfer at its scheduled time — no action needed.</string>
+    <string name="migrationBattery_noNeedToOpenTitle">No need to open the app for each send</string>
+    <string name="migrationBattery_noNeedToOpenBody">Once the schedule is committed, all transfers are sent in the background.</string>
+    <string name="migrationBattery_fixedScheduleTitle">Sends on a fixed schedule, not your activity</string>
+    <string name="migrationBattery_fixedScheduleBody">Transfers go out at set network-wide times, so they\'re not linked to when you open Zodl.</string>
+    <string name="migrationBattery_withoutPermissionHint">Without this permission, you\'ll need to open Zodl manually at each scheduled time to send.</string>
+
+    <string name="migrationScheduled_schedulingTitle">Scheduling...</string>
+    <string name="migrationScheduled_schedulingSubtitle">Your ZEC migration schedule is getting confirmed.</string>
+    <string name="migrationScheduled_totalToTransferLabel">Total to transfer</string>
+    <string name="migrationScheduled_poolLabel">Pool</string>
+    <string name="migrationScheduled_poolValue">Orchard → Ironwood</string>
+    <string name="migrationScheduled_transfersLabel">Transfers</string>
+    <string name="migrationScheduled_durationLabel">Duration</string>
+    <string name="migrationScheduled_doneTitle">Migration Scheduled</string>
+    <string name="migrationScheduled_doneSubtitle">Your ZEC will be migrated to the Ironwood pool based on the schedule you approved.</string>
+    <string name="migrationScheduled_finalizeErrorMessage">Something went wrong finalizing your migration schedule. Please try again.</string>
+    <string name="migrationScheduled_backgroundActivityHint">Transfers run when you open the app — enable background activity in Settings for automatic sending.</string>
+    <string name="migrationScheduled_transfersProgressPending">0 of %1$d</string>
+
+    <string name="migrationHome_completeTitle">Migration complete</string>
+    <string name="migrationHome_requiredTitle">Migration Required</string>
+    <string name="migrationHome_readyToSendTitle">Transfer Ready</string>
+    <string name="migrationHome_attentionTitle">Migration needs attention</string>
+    <string name="migrationHome_defaultSubtitle">Move your funds to Ironwood.</string>
+
 </resources>
