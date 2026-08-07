@@ -18,6 +18,15 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 - Opening the automatic migration progress screen no longer shows a blank screen while it loads. The migration schedule now appears immediately and a
   loading indicator is shown on screens that are still waiting for their content.
 
+## [3.9.0 (2339)] - 2026-08-08
+
+### Added:
+
+- We added Move to Ironwood, a guided migration that moves your Orchard funds into the new Ironwood shielded pool.
+- We added two ways to migrate: a private option that splits your balance into smaller transfers sent automatically in the background over time, or an
+  immediate single transfer.
+- We added Tor protection, progress notifications, Keystone support, and a home screen banner for tracking your migration.
+
 ## [3.9.0 (2329)] - 2026-08-07
 
 ### Added:
