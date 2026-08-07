@@ -9,6 +9,7 @@ import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.LceState
+import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
 import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
@@ -28,12 +29,10 @@ import co.electriccoin.zcash.ui.common.usecase.GetMigrationSnapshotUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.design.util.stringRes
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -52,7 +51,7 @@ class MigrationScheduledVM(
     private val isMigrationTorEnabledStorageProvider: IsMigrationTorEnabledStorageProvider,
     private val synchronizerProvider: SynchronizerProvider,
 ) : ViewModel() {
-    private val loadLce = mutableLce<Unit>()
+    private val loadLce = mutableLce<LiveMigrationSnapshot?>()
 
     // True while a completed Keystone batch's accumulated signatures are still being applied,
     // stored, and finalized — the last leg of that flow (Tor submit, schedule storage) has no
@@ -63,70 +62,96 @@ class MigrationScheduledVM(
 
     init {
         viewModelScope.launch { finalizeIfPendingKeystoneBatch() }
+        // Fires exactly once — isFinalizing only ever transitions true -> false, never back.
+        viewModelScope.launch {
+            isFinalizing.first { !it }
+            loadLce.execute { getMigrationSnapshot() }
+        }
     }
 
     private suspend fun finalizeIfPendingKeystoneBatch() {
-        val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
-        val sched = pendingSchedule.get(accountKeyId)
-        val pending = pendingKeystonePczts.get(accountKeyId)
-        if (sched == null || pending == null) {
-            // Hot-wallet (Zashi) path — FinalizeMigrationScheduleUseCase already ran before
-            // navigating here, so the schedule is already committed. Nothing left to do.
-            isFinalizing.value = false
-            return
-        }
-        val sdk = getOrchardMigrationSdk()
-        val splitSignedPczt = pending.accumulatedSplitSigned
-        if (splitSignedPczt != null) {
-            val useTor = isMigrationTorEnabledStorageProvider.get()
-            val splitResult =
-                sdk.storeSignedNoteSplitPczt(
-                    splitSignedPczt,
-                    NetworkPrivacyOptions(useTor = useTor),
-                )
-            if (splitResult !is TransferResult.Success) {
-                failureSheet.update {
-                    MigrationTransferFailureState(
-                        message = migrationFailureMessage(splitResult),
-                        onRetry = {
-                            failureSheet.value = null
-                            viewModelScope.launch { finalizeIfPendingKeystoneBatch() }
-                        },
-                        onDismiss = { failureSheet.value = null },
-                    )
-                }
+        try {
+            val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
+            val sched = pendingSchedule.get(accountKeyId)
+            val pending = pendingKeystonePczts.get(accountKeyId)
+            if (sched == null || pending == null) {
+                // Hot-wallet (Zashi) path — FinalizeMigrationScheduleUseCase already ran before
+                // navigating here, so the schedule is already committed. Nothing left to do.
+                isFinalizing.value = false
                 return
             }
-            // Classify zip318_kind (PREPARATION) immediately — this broadcast's raw bytes are
-            // already stored locally, so without this the normal enhancement queue would skip it
-            // forever and the Activity row would stay "Sent" instead of "Note split"/"Migrated".
-            // See MigrationDriveOnce.handleExecuted's identical call for transfers.
-            synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(splitResult.txId))
+            val sdk = getOrchardMigrationSdk()
+            val splitSignedPczt = pending.accumulatedSplitSigned
+            if (splitSignedPczt != null) {
+                val useTor = isMigrationTorEnabledStorageProvider.get()
+                val splitResult =
+                    sdk.storeSignedNoteSplitPczt(
+                        splitSignedPczt,
+                        NetworkPrivacyOptions(useTor = useTor),
+                    )
+                if (splitResult !is TransferResult.Success) {
+                    failureSheet.update {
+                        MigrationTransferFailureState(
+                            message = migrationFailureMessage(splitResult),
+                            onRetry = {
+                                failureSheet.value = null
+                                viewModelScope.launch { finalizeIfPendingKeystoneBatch() }
+                            },
+                            onDismiss = { failureSheet.value = null },
+                        )
+                    }
+                    return
+                }
+                // Classify zip318_kind (PREPARATION) immediately — this broadcast's raw bytes are
+                // already stored locally, so without this the normal enhancement queue would skip
+                // it forever and the Activity row would stay "Sent" instead of "Note
+                // split"/"Migrated". See MigrationDriveOnce.handleExecuted's identical call for
+                // transfers.
+                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(splitResult.txId))
+            }
+            // Kind-agnostic per-id signature application — extra PREPARATIONS of the note-split
+            // tree go through the same call as the transfers.
+            sdk.storeSignedSchedulePczts(pending.accumulatedPrepSigned + pending.accumulatedTransferSigned)
+            migrationLog(
+                "MigrationScheduled: stored ${pending.accumulatedPrepSigned.size} signed prep + " +
+                    "${pending.accumulatedTransferSigned.size} signed transfer PCZT(s) " +
+                    "(split=${splitSignedPczt != null}) — finalizing the schedule"
+            )
+            // Mode doesn't affect this use case's behavior (only routes IMMEDIATE vs AUTOMATIC
+            // before it), and MigrationScheduledArgs is only ever reached on the AUTOMATIC path.
+            finalizeMigrationSchedule(sched, MigrationMode.AUTOMATIC)
+            pendingSchedule.clear()
+            pendingKeystonePczts.clear()
+            isFinalizing.value = false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            // An unguarded failure here (e.g. a transient "database is locked" from the migration
+            // engine mutex) would otherwise crash the app right after the user completes a
+            // physical Keystone signing ceremony, with the signed batch already applied. Surface
+            // it as a retryable failure instead — isFinalizing deliberately stays true, so the
+            // screen keeps showing its loading state underneath the sheet rather than racing the
+            // snapshot flow against a schedule that was never finalized.
+            migrationLog("MigrationScheduled: finalizeIfPendingKeystoneBatch failed: $e")
+            failureSheet.update {
+                MigrationTransferFailureState(
+                    message = "Something went wrong finalizing your migration schedule. Please try again.",
+                    onRetry = {
+                        failureSheet.value = null
+                        viewModelScope.launch { finalizeIfPendingKeystoneBatch() }
+                    },
+                    onDismiss = { failureSheet.value = null },
+                )
+            }
         }
-        // Kind-agnostic per-id signature application — extra PREPARATIONS of the note-split tree
-        // go through the same call as the transfers.
-        sdk.storeSignedSchedulePczts(pending.accumulatedPrepSigned + pending.accumulatedTransferSigned)
-        migrationLog(
-            "MigrationScheduled: stored ${pending.accumulatedPrepSigned.size} signed prep + " +
-                "${pending.accumulatedTransferSigned.size} signed transfer PCZT(s) " +
-                "(split=${splitSignedPczt != null}) — finalizing the schedule"
-        )
-        // Mode doesn't affect this use case's behavior (only routes IMMEDIATE vs AUTOMATIC before
-        // it), and MigrationScheduledArgs is only ever reached on the AUTOMATIC path.
-        finalizeMigrationSchedule(sched, MigrationMode.AUTOMATIC)
-        pendingSchedule.clear()
-        pendingKeystonePczts.clear()
-        isFinalizing.value = false
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     val state: StateFlow<LceState<MigrationScheduledState>> =
-        isFinalizing
-            .filter { !it }
-            .flatMapLatest { flow { emit(getMigrationSnapshot()) } }
+        loadLce.state
+            .map { it.success }
             .map { snapshot ->
-                // Transient null (SDK not resolved yet) keeps the LCE loading instead of
-                // rendering zeroed stats (review L3).
+                // Transient null (still loading, or SDK not resolved yet) keeps the LCE loading
+                // instead of rendering zeroed stats (review L3).
                 if (snapshot == null) return@map null
                 val total = snapshot.transfers.sumOf { it.amountZatoshi }
                 val count = snapshot.totalCount
