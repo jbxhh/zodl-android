@@ -73,8 +73,9 @@ fun MigrationScheduledScreen() {
 // Figma node 5058:10456 — shown while a Keystone-signed batch is still being stored and
 // finalized (Tor submit, schedule commit). Same layout as [MigrationScheduledView]'s summary
 // card, but every value is a shimmer placeholder since the schedule isn't committed yet.
+// Internal (not private): referenced by MigrationFlowPreviews.kt's aggregated design-review view.
 @Composable
-private fun MigrationSchedulingView() {
+internal fun MigrationSchedulingView() {
     DisableScreenTimeout()
     GradientBgScaffold(
         startColor = ZashiColors.Utility.SuccessGreen.utilitySuccess100,
