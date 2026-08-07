@@ -3,6 +3,7 @@ package co.electriccoin.zcash.work
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -189,7 +190,48 @@ class MigrationLiveDriverTest {
             driver.startIfNotRunning("account-1")
             advanceUntilIdle()
 
-            verify(exactly = 2) { repository.publish("account-1", any()) }
+            // +1 for the priming publish at loop start (before the first driveOnce.run() call,
+            // 2026-08-0X) on top of the 2 step-driven publishes (ReArmed, Terminal — LockBusy still
+            // does not publish).
+            verify(exactly = 3) { repository.publish("account-1", any()) }
+        }
+
+    @Test
+    fun `the priming publish happens before the first driveOnce_run call`() =
+        runTest {
+            // 2026-08-0X: the whole point of the priming publish is to populate the cache BEFORE
+            // the (potentially many-seconds-long) first driveOnce.run() call — verify the ordering
+            // directly, not just the total count (which the other publish-count tests already
+            // cover).
+            val callOrder = mutableListOf<String>()
+            val driveOnce =
+                mockk<MigrationDriveOnce> {
+                    coEvery { run(any(), any(), any(), any()) } coAnswers {
+                        callOrder.add("run")
+                        DriveOnceResult.Terminal
+                    }
+                }
+            val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
+            val repository =
+                mockk<MigrationTransferStateRepository>(relaxed = true) {
+                    every { publish(any(), any()) } answers { callOrder.add("publish") }
+                }
+            val driver =
+                MigrationLiveDriverImpl(
+                    migrationDriveOnce = driveOnce,
+                    getOrchardMigrationSdk = { sdk },
+                    migrationTransferStateRepository = repository,
+                    scope = this,
+                )
+
+            driver.startIfNotRunning("account-1")
+            advanceUntilIdle()
+
+            assertEquals(
+                listOf("publish", "run", "publish"),
+                callOrder,
+                "priming publish, then the first run() call, then Terminal's own publish"
+            )
         }
 
     @Test
@@ -252,10 +294,11 @@ class MigrationLiveDriverTest {
             driver.startIfNotRunning("account-1")
             advanceUntilIdle()
 
-            // One publish for the ReArmed call itself, then one more every 60s across the 250s
+            // One priming publish at loop start (2026-08-0X, before the first driveOnce.run()),
+            // one publish for the ReArmed call itself, then one more every 60s across the 250s
             // wait (at 60/120/180/240s — 4 periodic refreshes), then one for the Terminal call:
-            // 1 + 4 + 1 = 6. The old single delay() would have left the repository stale for the
-            // whole 250s span instead.
-            verify(exactly = 6) { repository.publish("account-1", any()) }
+            // 1 + 1 + 4 + 1 = 7. The old single delay() would have left the repository stale for
+            // the whole 250s span instead.
+            verify(exactly = 7) { repository.publish("account-1", any()) }
         }
 }

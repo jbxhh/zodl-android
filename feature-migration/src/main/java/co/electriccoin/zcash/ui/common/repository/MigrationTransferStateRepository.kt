@@ -1,7 +1,9 @@
 package co.electriccoin.zcash.ui.common.repository
 
+import cash.z.ecc.android.sdk.MigrationNextAction
 import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationTransferStates
+import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,6 +26,31 @@ data class MigrationLiveReadout(
     val migrationState: MigrationState?,
     val hasOverdueTransfers: Boolean,
 )
+
+/**
+ * Builds a [MigrationLiveReadout] entirely from the SDK's mutex-free `loggedRead` lane
+ * (`getMigrationTransferStates()`, `getMigrationStateUnreconciled()`, the no-DB tip estimators) —
+ * never [OrchardMigrationSdk.getMigrationState]/`hasOverdueTransfers()`, which take
+ * `MIGRATION_DB_ACCESS_MUTEX` (2026-08-07 read/write-separation design). `hasOverdueTransfers` is
+ * derived from the same pure transfer-states read: `ready && action == BROADCAST` is exactly the
+ * "should the engine broadcast this now" signal the mutating `hasOverdueTransfers()` call itself
+ * checks internally.
+ *
+ * The single shared shape for every caller that wants a display-only readout without triggering
+ * any mutex-gated engine work — the Home/Progress cold-start fallbacks and the live driver's own
+ * priming publish (see [co.electriccoin.zcash.work.MigrationLiveDriverImpl]) all call this instead
+ * of hand-rolling the same five-field construction three times and risking them drifting apart.
+ */
+suspend fun OrchardMigrationSdk.readUnreconciledLiveReadout(): MigrationLiveReadout {
+    val states = getMigrationTransferStates()
+    return MigrationLiveReadout(
+        states = states,
+        estimatedTip = estimatedChainTip(),
+        estimatedSecondsPerBlock = estimatedSecondsPerBlock(),
+        migrationState = getMigrationStateUnreconciled(),
+        hasOverdueTransfers = states?.transfers?.any { it.ready && it.action == MigrationNextAction.BROADCAST } == true,
+    )
+}
 
 /**
  * The live migration engine's readout, published by `MigrationLiveDriverImpl`'s own loop after

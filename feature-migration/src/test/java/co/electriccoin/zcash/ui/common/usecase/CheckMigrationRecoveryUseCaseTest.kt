@@ -7,7 +7,11 @@ import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationTransferState
 import cash.z.ecc.android.sdk.MigrationTransferStates
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
+import cash.z.ecc.android.sdk.fixture.AccountFixture
 import co.electriccoin.zcash.ui.NavigationRouter
+import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
+import co.electriccoin.zcash.ui.common.model.WalletAccount
+import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
 import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.screen.home.HomeArgs
@@ -22,9 +26,22 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
+import java.util.UUID
 import kotlin.test.Test
 
 class CheckMigrationRecoveryUseCaseTest {
+    // A single test account — mirrors the pattern used across the other migration VM/use-case
+    // tests (e.g. MigrationKeystoneScanVMTest) so accountDataSource.getAllAccounts() has exactly
+    // one account for the multi-account driver-start/worker-revival loop to iterate.
+    private val testSdkAccount =
+        AccountFixture.new(
+            accountUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
+        )
+    private val testAccountKeyId = testSdkAccount.accountUuid.toStorageKeyId()
+    private val testWalletAccount: WalletAccount =
+        mockk(relaxed = true) {
+            every { sdkAccount } returns testSdkAccount
+        }
     @kotlin.test.BeforeTest
     fun resetThrottle() {
         CheckMigrationRecoveryUseCase.resetRunThrottleForTests()
@@ -61,6 +78,10 @@ class CheckMigrationRecoveryUseCaseTest {
             mockk<GetOrchardMigrationSdkUseCase> {
                 if (sdk != null) {
                     coEvery { this@mockk() } returns sdk
+                    // Explicit-account overload — used by the driver-start/worker-revival loop,
+                    // which now enumerates accountDataSource.getAllAccounts() instead of only the
+                    // selected account.
+                    coEvery { this@mockk(any()) } returns sdk
                 }
             },
         persistableWalletProvider =
@@ -69,7 +90,10 @@ class CheckMigrationRecoveryUseCaseTest {
             },
         navigationRouter = navigationRouter,
         pendingMigrationTorFailureStorageProvider = pendingMigrationTorFailureStorageProvider,
-        getSelectedWalletAccount = mockk<GetSelectedWalletAccountUseCase>(relaxed = true),
+        accountDataSource =
+            mockk<AccountDataSource>(relaxed = true) {
+                coEvery { getAllAccounts() } returns if (sdk != null) listOf(testWalletAccount) else emptyList()
+            },
         context = mockk<Context>(relaxed = true),
         getWorkerRunState = getWorkerRunState,
         scheduleNow = scheduleNow,

@@ -2,18 +2,22 @@ package co.electriccoin.zcash.ui.common.model.migration.sim
 
 import android.content.Context
 import cash.z.ecc.android.sdk.MigrationState
+import cash.z.ecc.android.sdk.fixture.AccountFixture
 import co.electriccoin.zcash.ui.NavigationRouter
+import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
+import co.electriccoin.zcash.ui.common.model.WalletAccount
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
 import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.common.usecase.CheckMigrationRecoveryUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
-import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.usecase.MigrationWorkerRunState
 import co.electriccoin.zcash.work.MigrationLiveDriver
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import java.util.UUID
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -40,6 +44,17 @@ import kotlin.test.assertTrue
  * unit-test `Context` mock); this file drives them against the FakeSdk-derived InProgress state.
  */
 class MigrationBackgroundRecoveryScenarioTest {
+    // A single test account so accountDataSource.getAllAccounts() has exactly one account for the
+    // driver-start/worker-revival loop to iterate — mirrors CheckMigrationRecoveryUseCaseTest.
+    private val testSdkAccount =
+        AccountFixture.new(
+            accountUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
+        )
+    private val testWalletAccount: WalletAccount =
+        mockk(relaxed = true) {
+            every { sdkAccount } returns testSdkAccount
+        }
+
     @BeforeTest
     fun resetThrottle() {
         CheckMigrationRecoveryUseCase.resetRunThrottleForTests()
@@ -93,6 +108,10 @@ class MigrationBackgroundRecoveryScenarioTest {
         getOrchardMigrationSdk =
             mockk<GetOrchardMigrationSdkUseCase> {
                 coEvery { this@mockk() } returns driver.sdk
+                // Explicit-account overload — used by the driver-start/worker-revival loop, which
+                // now enumerates accountDataSource.getAllAccounts() instead of only the selected
+                // account.
+                coEvery { this@mockk(any()) } returns driver.sdk
             },
         persistableWalletProvider =
             mockk<PersistableWalletProvider>(relaxed = true) {
@@ -103,7 +122,10 @@ class MigrationBackgroundRecoveryScenarioTest {
             mockk<PendingMigrationTorFailureStorageProvider> {
                 coEvery { get() } returns pendingMigrationTorFailure
             },
-        getSelectedWalletAccount = mockk<GetSelectedWalletAccountUseCase>(relaxed = true),
+        accountDataSource =
+            mockk<AccountDataSource>(relaxed = true) {
+                coEvery { getAllAccounts() } returns listOf(testWalletAccount)
+            },
         context = mockk<Context>(relaxed = true),
         getWorkerRunState = getWorkerRunState,
         scheduleNow = scheduleNow,

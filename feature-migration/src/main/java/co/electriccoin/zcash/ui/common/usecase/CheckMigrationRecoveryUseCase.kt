@@ -8,6 +8,7 @@ import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
+import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
 import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
@@ -24,30 +25,39 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Single source of truth for migration re-entry routing on app launch/foreground — MainActivity's
- * onStart() and RootNavGraph's secretState-driven redirect both delegate here instead of calling
- * the SDK checks directly, so the two never drift out of sync with each other or with this
- * ordering. Cheap and idempotent (NavigationRouter dedupes identical commands).
+ * Single source of truth for migration re-entry routing AND for starting/reviving migration
+ * execution on app-lifecycle events — MainActivity's onStart() and RootNavGraph's
+ * secretState-driven redirect both delegate here instead of calling the SDK checks directly, so
+ * the two never drift out of sync with each other or with this ordering. Cheap and idempotent
+ * (NavigationRouter dedupes identical commands; the driver-start/worker-revival block below is
+ * per-account idempotent too).
  *
  * After Task 6 (remove app-open auto-navigation), the ONLY auto-navigation that fires here is the
  * Tor-failure branch: a pending background Tor failure routes to the Sending screen so that
  * MigrationSendingVM's init{} reproduces the exact condition, using its own existing routing to
- * resolve or re-surface the failure.
+ * resolve or re-surface the failure. That branch stays scoped to the currently SELECTED account —
+ * it's about what to show the user right now, unlike the driver-start/worker-revival block below.
  *
  * All other migration states (RequiresAttention, ReadyToSend, Overdue, Complete, the
  * unprovable-anchor attention state) are reachable exclusively via the home banner + button
  * (HomeVM.onMigrationMessageClick), preventing repeated screen hijacking on every launch during a
  * healthy migration.
  *
- * The worker-revival block and the stale-write-ahead-plan clear are NOT navigation — they are
- * retained unchanged.
+ * The driver-start/worker-revival block enumerates EVERY account (2026-08-0X), not just the
+ * selected one: `MigrationLiveDriver`/`MigrationDriveOnce.DRIVE_LOCK` are per-account already, and
+ * a migration committed for a Keystone account keeps running whether or not that account is
+ * currently selected in the UI — this is the sole place migration execution gets triggered from
+ * (besides `FinalizeMigrationScheduleUseCase`'s own post-commit start for the account that was
+ * just committed), so it must not silently skip a non-selected account. It and the
+ * stale-write-ahead-plan clear are NOT navigation — they are retained unchanged in spirit, just
+ * widened from one account to all of them.
  */
 class CheckMigrationRecoveryUseCase(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
     private val persistableWalletProvider: PersistableWalletProvider,
     private val navigationRouter: NavigationRouter,
     private val pendingMigrationTorFailureStorageProvider: PendingMigrationTorFailureStorageProvider,
-    private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,
+    private val accountDataSource: AccountDataSource,
     private val context: Context,
     private val migrationLiveDriver: MigrationLiveDriver,
     /** Extracted for testability — production default checks WorkManager. */
@@ -95,12 +105,15 @@ class CheckMigrationRecoveryUseCase(
         // above) so a transient read failure doesn't cost a silent 10s window before the next
         // trigger gets a real attempt.
         runCatching {
-            // Worker reconciliation + app-open acceleration. Self-heals after process kill, device
-            // reboot, or an app upgrade that cleared WorkManager state, without requiring the user to
-            // re-enter the migration flow (the worker's re-arm only happens at the end of its own run
-            // and its due alarms don't survive a package update — see OnMigrationSyncCompletedUseCase;
-            // duplicated here because the SYNCED hook needs a synced foreground synchronizer, which a
-            // freshly relaunched app may not reach for minutes).
+            // Worker reconciliation + app-open acceleration, for EVERY account (2026-08-0X — was
+            // selected-account-only; a Keystone account's committed migration must keep getting the
+            // live-driver fast path and worker revival regardless of which account is selected in
+            // the UI right now). Self-heals after process kill, device reboot, or an app upgrade
+            // that cleared WorkManager state, without requiring the user to re-enter the migration
+            // flow (the worker's re-arm only happens at the end of its own run and its due alarms
+            // don't survive a package update — see OnMigrationSyncCompletedUseCase; duplicated here
+            // because the SYNCED hook needs a synced foreground synchronizer, which a freshly
+            // relaunched app may not reach for minutes).
             // Gate on the ENGINE's state, not only the app-side plan cache: the cache can be lost
             // (observed live: repository empty while the engine held a run with 8/9 broadcast and the
             // last transfer proved) and the engine is the single source of truth — a live in-progress
@@ -109,30 +122,33 @@ class CheckMigrationRecoveryUseCase(
             // getMigrationStateUnreconciled(), not getMigrationState(): this router never mutates
             // (2026-08-07 read/write-separation design) — it starts the live driver below regardless,
             // which reconciles on its own first cycle, so any staleness here self-corrects immediately.
-            val engineInProgress = sdk.getMigrationStateUnreconciled() is MigrationState.InProgress
-            if (engineInProgress) {
-                val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
-                // The live driver is the fast path while the app is alive — starting it here covers
-                // both cold start (process was killed mid-migration) and every subsequent foreground
-                // return; it is a no-op if already running for this account. It supersedes the old
-                // "accelerate a SCHEDULED worker to run now" logic entirely: the live driver already
-                // drives the account forward on its own once running, so there is nothing left to
-                // separately nudge.
-                migrationLiveDriver.startIfNotRunning(accountKeyId)
-                when (getWorkerRunState(accountKeyId)) {
-                    MigrationWorkerRunState.RUNNING, MigrationWorkerRunState.SCHEDULED -> {
-                        // Nothing to do — RUNNING is already executing; SCHEDULED will either fire on
-                        // its own or be superseded by the live driver's own re-arm (reArm's
-                        // MigrationScheduler.schedule call), whichever comes first.
-                        migrationLog("MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) — nothing to do.")
-                    }
+            accountDataSource.getAllAccounts().forEach { account ->
+                val accountKeyId = account.sdkAccount.accountUuid.toStorageKeyId()
+                val accountSdk = getOrchardMigrationSdk(accountKeyId) ?: return@forEach
+                val engineInProgress = accountSdk.getMigrationStateUnreconciled() is MigrationState.InProgress
+                if (engineInProgress) {
+                    // The live driver is the fast path while the app is alive — starting it here
+                    // covers both cold start (process was killed mid-migration) and every subsequent
+                    // foreground return; it is a no-op if already running for this account. It
+                    // supersedes the old "accelerate a SCHEDULED worker to run now" logic entirely:
+                    // the live driver already drives the account forward on its own once running, so
+                    // there is nothing left to separately nudge.
+                    migrationLiveDriver.startIfNotRunning(accountKeyId)
+                    when (getWorkerRunState(accountKeyId)) {
+                        MigrationWorkerRunState.RUNNING, MigrationWorkerRunState.SCHEDULED -> {
+                            // Nothing to do — RUNNING is already executing; SCHEDULED will either fire
+                            // on its own or be superseded by the live driver's own re-arm (reArm's
+                            // MigrationScheduler.schedule call), whichever comes first.
+                            migrationLog("MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) for $accountKeyId — nothing to do.")
+                        }
 
-                    MigrationWorkerRunState.ABSENT -> {
-                        // Revival: recovers the DURABLE background chain after process kill, device
-                        // reboot, or an app upgrade that cleared WorkManager state — the live driver
-                        // covers speed while alive, but only the worker chain survives process death.
-                        migrationLog("MigrationRecovery: migration worker absent — scheduling now.")
-                        scheduleNow(accountKeyId)
+                        MigrationWorkerRunState.ABSENT -> {
+                            // Revival: recovers the DURABLE background chain after process kill, device
+                            // reboot, or an app upgrade that cleared WorkManager state — the live driver
+                            // covers speed while alive, but only the worker chain survives process death.
+                            migrationLog("MigrationRecovery: migration worker absent for $accountKeyId — scheduling now.")
+                            scheduleNow(accountKeyId)
+                        }
                     }
                 }
             }

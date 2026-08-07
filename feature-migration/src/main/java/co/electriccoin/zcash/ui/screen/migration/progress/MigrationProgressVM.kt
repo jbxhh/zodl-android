@@ -1,8 +1,6 @@
 package co.electriccoin.zcash.ui.screen.migration.progress
 
 import androidx.lifecycle.ViewModel
-import cash.z.ecc.android.sdk.MigrationNextAction
-import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -26,6 +24,7 @@ import co.electriccoin.zcash.ui.common.model.withLce
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
 import co.electriccoin.zcash.ui.common.repository.MigrationLiveReadout
 import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
+import co.electriccoin.zcash.ui.common.repository.readUnreconciledLiveReadout
 import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
@@ -33,7 +32,6 @@ import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
-import co.electriccoin.zcash.work.MigrationLiveDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -56,20 +54,19 @@ class MigrationProgressVM(
     private val navigationRouter: NavigationRouter,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val errorStateMapper: ErrorMapperUseCase,
-    private val migrationLiveDriver: MigrationLiveDriver,
 ) : ViewModel() {
     private val sendLce = mutableLce<Unit>()
 
     val state: StateFlow<LceState<MigrationProgressState>> =
         combine(
             exchangeRateRepository.state,
+            // liveReadoutFlow() itself re-emits on every recheckTicker() beat now (folded inside,
+            // 2026-08-0X — closes a gap where this screen's cold-start fallback only ever fired
+            // once per repository-null period instead of re-polling like Home's equivalent
+            // fallback does), so wall-clock-dependent display (the "in ~X minutes" row labels,
+            // migrationProgressSubtitle) keeps refreshing without a separate ticker element here.
             liveReadoutFlow(),
-            // A bare periodic trigger so wall-clock-dependent display (the "in ~X minutes" row
-            // labels, migrationProgressSubtitle) keeps refreshing even on a beat where the
-            // underlying transfer states genuinely haven't changed — decoupled from how often we
-            // actually re-read the engine (see liveReadoutFlow's own comment).
-            recheckTicker(),
-        ) { rate, readout, _ ->
+        ) { rate, readout ->
             // Everything on this screen derives LIVE from the engine's persisted states — no plan
             // cache to diverge, and no app-side "overdue"/countdown: each row renders purely from
             // the engine's per-transaction status (decision with Dominik 2026-07-31). The measured
@@ -104,37 +101,30 @@ class MigrationProgressVM(
     // account yet this session (before its first loop iteration, or no migration in_progress so it
     // never runs) — fall back to one direct read in that narrow window, same as before this
     // repository existed.
-    // Reads via getMigrationStateUnreconciled()/getMigrationTransferStates() (both on the SDK's
-    // mutex-free loggedRead lane), never getMigrationState()/hasOverdueTransfers() — a UI-triggered
-    // display-only read must never take MIGRATION_DB_ACCESS_MUTEX, not even as a fallback (2026-08-07
-    // read/write-separation design). hasOverdueTransfers is derived from the same pure transfer-states
-    // read (ready-to-broadcast is exactly what the mutating hasOverdueTransfers() call itself checks).
+    // Reads via readUnreconciledLiveReadout() (the SDK's mutex-free loggedRead lane), never
+    // getMigrationState()/hasOverdueTransfers() — a UI-triggered display-only read must never take
+    // MIGRATION_DB_ACCESS_MUTEX, not even as a fallback (2026-08-07 read/write-separation design).
     // flowOn(Dispatchers.Default) below keeps the shared single-threaded DB-IO hop off whichever
     // dispatcher collects this flow, even though the read itself is mutex-free.
+    //
+    // Read-only, no longer nudges the live driver (2026-08-0X): CheckMigrationRecoveryUseCase now
+    // enumerates every account with an in-progress migration on every app-lifecycle trigger
+    // (onStart/unlock), not just the selected one — that is the sole place migration execution
+    // gets triggered from; this fallback exists purely to give the screen something to render
+    // during the narrow window before the driver's first publish for this account.
+    //
+    // recheckTicker() is folded INSIDE this flow (not left to the outer `state` combine, unlike an
+    // earlier version of this VM) so a null repository re-runs the fallback read on every tick
+    // instead of caching a single one-shot fallback value for the rest of the screen's lifetime —
+    // matching MigrationHomeMessageSourceImpl's equivalent flow exactly.
     private fun liveReadoutFlow(): Flow<MigrationLiveReadout?> =
         flow {
             val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
             emitAll(
-                migrationTransferStateRepository.observe(accountKeyId).map { published ->
-                    published ?: runCatching {
-                        val sdk = getOrchardMigrationSdk()
-                        val states = sdk.getMigrationTransferStates()
-                        val migrationState = sdk.getMigrationStateUnreconciled()
-                        // Repository empty for this account — nudge the driver toward an
-                        // authoritative, reconciled publish instead of polling forever. Idempotent.
-                        if (migrationState is MigrationState.InProgress) {
-                            migrationLiveDriver.startIfNotRunning(accountKeyId)
-                        }
-                        MigrationLiveReadout(
-                            states = states,
-                            estimatedTip = sdk.estimatedChainTip(),
-                            estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
-                            migrationState = migrationState,
-                            hasOverdueTransfers =
-                                states?.transfers?.any { it.ready && it.action == MigrationNextAction.BROADCAST } == true,
-                        )
-                    }.getOrNull()
-                }
+                combine(migrationTransferStateRepository.observe(accountKeyId), recheckTicker()) { published, _ -> published }
+                    .map { published ->
+                        published ?: runCatching { getOrchardMigrationSdk().readUnreconciledLiveReadout() }.getOrNull()
+                    }
             )
         }.flowOn(Dispatchers.Default)
 

@@ -2,7 +2,6 @@ package co.electriccoin.zcash.ui.common.usecase
 
 import cash.z.ecc.android.sdk.AttentionReason
 import cash.z.ecc.android.sdk.MigrationBlocker
-import cash.z.ecc.android.sdk.MigrationNextAction
 import cash.z.ecc.android.sdk.MigrationState
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
@@ -22,6 +21,7 @@ import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessage
 import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessageData
 import co.electriccoin.zcash.ui.common.repository.MigrationLiveReadout
 import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
+import co.electriccoin.zcash.ui.common.repository.readUnreconciledLiveReadout
 import co.electriccoin.zcash.ui.screen.home.HomeMessageState
 import co.electriccoin.zcash.ui.screen.home.migration.MigrationBannerPhase
 import co.electriccoin.zcash.ui.screen.home.migration.MigrationMessageState
@@ -29,7 +29,6 @@ import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteArgs
 import co.electriccoin.zcash.ui.screen.migration.invalid.MigrationTransferInvalidArgs
 import co.electriccoin.zcash.ui.screen.migration.progress.MigrationProgressArgs
 import co.electriccoin.zcash.ui.screen.migration.setup.MigrationSetupArgs
-import co.electriccoin.zcash.work.MigrationLiveDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -58,7 +57,6 @@ class MigrationHomeMessageSourceImpl(
     private val hasSeenMigrationCompleteStorageProvider: HasSeenMigrationCompleteStorageProvider,
     private val isBackgroundExecutionAvailableProvider: IsBackgroundExecutionAvailableProvider,
     private val navigationRouter: NavigationRouter,
-    private val migrationLiveDriver: MigrationLiveDriver,
 ) : MigrationHomeMessageSource {
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observe(): Flow<MigrationHomeMessage?> =
@@ -142,37 +140,24 @@ class MigrationHomeMessageSourceImpl(
     // off whichever dispatcher collects this flow (2026-08-07 read/write-separation design).
     private fun liveReadoutFlow(accountKeyId: String): Flow<MigrationLiveReadout?> =
         combine(migrationTransferStateRepository.observe(accountKeyId), recheckTicker()) { published, _ -> published }
-            .map { published -> published ?: fetchFreshReadout(accountKeyId) }
+            .map { published -> published ?: fetchFreshReadout() }
             .flowOn(Dispatchers.Default)
 
-    // Deliberately reads via getMigrationStateUnreconciled()/getMigrationTransferStates() (both
-    // on the SDK's mutex-free loggedRead lane) instead of getMigrationState()/hasOverdueTransfers()
-    // — this is a UI-triggered display-only read, and per the 2026-08-07 read/write-separation
-    // design no UI path should ever take MIGRATION_DB_ACCESS_MUTEX, not even as a fallback. A
-    // just-mined final transfer this account hasn't reconciled yet simply reads as still-in-
-    // progress until the live driver's next publish supersedes this fallback — the same staleness
-    // bound already accepted for the Progress screen's live readout. hasOverdueTransfers is derived
-    // from the same pure transfer-states read (ready-to-broadcast is exactly what the mutating
-    // hasOverdueTransfers() call itself checks), not a separate mutating call.
-    private suspend fun fetchFreshReadout(accountKeyId: String): MigrationLiveReadout? =
-        runCatching {
-            val sdk = getOrchardMigrationSdk()
-            val states = sdk.getMigrationTransferStates()
-            val migrationState = sdk.getMigrationStateUnreconciled()
-            // The repository is empty for this account — if a migration is genuinely in progress,
-            // nudge the driver so an authoritative, reconciled publish arrives instead of this
-            // fallback polling forever. Idempotent no-op if already running.
-            if (migrationState is MigrationState.InProgress) {
-                migrationLiveDriver.startIfNotRunning(accountKeyId)
-            }
-            MigrationLiveReadout(
-                states = states,
-                estimatedTip = sdk.estimatedChainTip(),
-                estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
-                migrationState = migrationState,
-                hasOverdueTransfers = states?.transfers?.any { it.ready && it.action == MigrationNextAction.BROADCAST } == true,
-            )
-        }.getOrNull()
+    // Deliberately reads via readUnreconciledLiveReadout() (the SDK's mutex-free loggedRead lane)
+    // instead of getMigrationState()/hasOverdueTransfers() — this is a UI-triggered display-only
+    // read, and per the 2026-08-07 read/write-separation design no UI path should ever take
+    // MIGRATION_DB_ACCESS_MUTEX, not even as a fallback. A just-mined final transfer this account
+    // hasn't reconciled yet simply reads as still-in-progress until the live driver's next publish
+    // supersedes this fallback — the same staleness bound already accepted for the Progress
+    // screen's live readout.
+    //
+    // Read-only, no longer nudges the live driver (2026-08-0X): CheckMigrationRecoveryUseCase now
+    // enumerates every account with an in-progress migration on every app-lifecycle trigger
+    // (onStart/unlock), not just the selected one — that is the sole place migration execution
+    // gets triggered from; this fallback exists purely to give the UI something to render during
+    // the narrow window before the driver's first publish for this account.
+    private suspend fun fetchFreshReadout(): MigrationLiveReadout? =
+        runCatching { getOrchardMigrationSdk().readUnreconciledLiveReadout() }.getOrNull()
 
     override fun createMessageState(data: MigrationHomeMessage): HomeMessageState {
         data as MigrationHomeMessageData

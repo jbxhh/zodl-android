@@ -129,7 +129,7 @@ val featureMigrationModule =
                 persistableWalletProvider = get(),
                 navigationRouter = get(),
                 pendingMigrationTorFailureStorageProvider = get(),
-                getSelectedWalletAccount = get(),
+                accountDataSource = get(),
                 context = get(),
                 migrationLiveDriver = get(),
             )
