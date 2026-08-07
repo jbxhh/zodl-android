@@ -31,7 +31,14 @@ class MigrationTransferStateRepositoryTest {
     fun publish_is_immediately_visible_to_observe() {
         val repo = MigrationTransferStateRepositoryImpl()
         repo.publish("account-1", readout(42L))
-        assertEquals(42L, repo.observe("account-1").value?.states?.tipHeight)
+        assertEquals(
+            42L,
+            repo
+                .observe("account-1")
+                .value
+                ?.states
+                ?.tipHeight
+        )
     }
 
     @Test
@@ -39,8 +46,22 @@ class MigrationTransferStateRepositoryTest {
         val repo = MigrationTransferStateRepositoryImpl()
         repo.publish("account-1", readout(1L))
         repo.publish("account-2", readout(2L))
-        assertEquals(1L, repo.observe("account-1").value?.states?.tipHeight)
-        assertEquals(2L, repo.observe("account-2").value?.states?.tipHeight)
+        assertEquals(
+            1L,
+            repo
+                .observe("account-1")
+                .value
+                ?.states
+                ?.tipHeight
+        )
+        assertEquals(
+            2L,
+            repo
+                .observe("account-2")
+                .value
+                ?.states
+                ?.tipHeight
+        )
     }
 
     @Test

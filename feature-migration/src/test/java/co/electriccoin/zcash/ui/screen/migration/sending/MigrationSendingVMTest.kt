@@ -19,7 +19,6 @@ import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.screen.migration.success.MigrationSuccessArgs
 import co.electriccoin.zcash.ui.screen.migration.torfailure.MigrationTorFailureArgs
 import co.electriccoin.zcash.work.MigrationDriveOnce
-import co.electriccoin.zcash.ui.design.R as DesignR
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -43,6 +42,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MigrationSendingVMTest {

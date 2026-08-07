@@ -86,7 +86,8 @@ class MigrationTransferInvalidVMTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.RequiresAttention(AttentionReason.InvalidTransfer(11L))
-                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.RequiresAttention(AttentionReason.InvalidTransfer(11L))
+                    coEvery { getMigrationStateUnreconciled() } returns
+                        MigrationState.RequiresAttention(AttentionReason.InvalidTransfer(11L))
                 }
             val vm =
                 vm(

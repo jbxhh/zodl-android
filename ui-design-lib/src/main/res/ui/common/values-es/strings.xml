@@ -214,7 +214,8 @@
     <string name="serverSetup_default">Predeterminado</string>
     <string name="choose_server_multi_server_info">Podemos usar varios servidores para optimizar el rendimiento. Para reducir la exposición de metadatos, selecciona el modo de conexión Manual para elegir un único servidor de tu preferencia y asegúrate de que Tor esté habilitado en Configuración Avanzada.</string>
 
-    <!-- ===== connect_keystone ===== --><string name="keystone_addHWWallet_scan">Escanea el código QR de tu dispositivo para conectarte.</string>
+    <!-- ===== connect_keystone ===== -->
+    <string name="keystone_addHWWallet_scan">Escanea el código QR de tu dispositivo para conectarte.</string>
     <string name="keystone_addHWWallet_tutorial">Ver tutorial de Keystone</string>
     <string name="keystone_addHWWallet_step1">Desbloquea tu Keystone</string>
     <string name="keystone_addHWWallet_step2">Toca el ícono del menú</string>
@@ -480,7 +481,8 @@
     <string name="payment_request_dialog_error_grpc_text">Zodl encontró algunos problemas de conexión al enviar la transacción a la red. Volverá a intentarlo durante los próximos minutos.</string>
     <string name="payment_request_send_failed_report_unable_open_email">No se pudo iniciar la aplicación de correo.</string>
 
-    <!-- ===== qr_code ===== --><string name="qr_code_unified_content_description">Código QR de Dirección Unificada</string>
+    <!-- ===== qr_code ===== -->
+    <string name="qr_code_unified_content_description">Código QR de Dirección Unificada</string>
     <string name="qr_code_sapling_content_description">Código QR de Dirección Sapling</string>
     <string name="qr_code_transparent_content_description">Código QR de Dirección Transparente</string>
     <string name="accounts_zashi_shieldedAddress">Dirección Protegida de Zcash</string>
@@ -520,7 +522,8 @@
     <string name="receive_help_transparent_desc3">Para proteger tu privacidad, Zodl te guiará para proteger cualquier %s transparente que recibas con un solo clic.</string>
     <string name="receive_info_transparent_bullet_4">No podrás gastar tus %s transparentes hasta que los protejas.</string>
 
-    <!-- ===== request ===== --><string name="zecKeyboard_invalid">Este monto de transacción no es válido</string>
+    <!-- ===== request ===== -->
+    <string name="zecKeyboard_invalid">Este monto de transacción no es válido</string>
     <string name="general_next">Siguiente</string>
     <string name="requestZec_summary_shareQR">Compartir Código QR</string>
     <string name="request_amount_empty">0</string>
@@ -545,7 +548,8 @@
     <string name="request_qr_code_share_chooser_text">Hola, ¡escanea este código QR para enviarme un pago en %s! Enlace de descarga:
         https://play.google.com/store/apps/details?id=co.electriccoin.zcash</string>
 
-    <!-- ===== restore ===== --><string name="restore_subtitle">Frase de Recuperación</string>
+    <!-- ===== restore ===== -->
+    <string name="restore_subtitle">Frase de Recuperación</string>
     <string name="restoreWallet_info">Por favor, ingresa tu frase secreta de recuperación de 24 palabras en el orden correcto.</string>
     <string name="restore_dialog_message_1_bold_part">La Frase Secreta de Recuperación</string>
     <string name="restore_dialog_message_1">es un conjunto único de 24 palabras que aparecen en un orden preciso. Puede usarse para obtener control total de tus fondos desde cualquier dispositivo a través de cualquier app de billetera Zcash. Piénsala como la llave maestra de tu billetera. Está guardada en la Configuración Avanzada de Zodl.</string>
@@ -627,7 +631,8 @@
     <string name="keystone_addHWWallet_title">Confirmar Cuenta a Acceder</string>
     <string name="keystone_addHWWallet_desc">Selecciona la billetera que deseas conectar para continuar. Una vez conectado, podrás firmar transacciones de forma inalámbrica con tu hardware wallet.</string>
 
-    <!-- ===== send ===== --><string name="send_scan_content_description">Escanear</string>
+    <!-- ===== send ===== -->
+    <string name="send_scan_content_description">Escanear</string>
     <string name="send_to">Enviar a</string>
     <string name="send_addressPlaceholder">Dirección de Zcash</string>
     <string name="send_amount">Monto</string>
@@ -938,7 +943,8 @@
     <string name="transaction_history_swapping">Haciendo swap…</string>
     <string name="swapStatus_paymentExpired">Pago expirado</string>
 
-    <!-- ===== transaction_note ===== --><string name="annotation_edit">Editar una nota</string>
+    <!-- ===== transaction_note ===== -->
+    <string name="annotation_edit">Editar una nota</string>
     <string name="annotation_delete">Eliminar nota</string>
     <string name="transaction_note_max_length"><xliff:g example="34" id="chars">%s</xliff:g>/90 caracteres</string>
     <string name="annotation_add">Agregar nota</string>

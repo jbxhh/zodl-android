@@ -5,7 +5,6 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import cash.z.ecc.android.sdk.MigrationNextAction
 import cash.z.ecc.android.sdk.MigrationState
-import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
@@ -139,7 +138,9 @@ class CheckMigrationRecoveryUseCase(
                             // Nothing to do — RUNNING is already executing; SCHEDULED will either fire
                             // on its own or be superseded by the live driver's own re-arm (reArm's
                             // MigrationScheduler.schedule call), whichever comes first.
-                            migrationLog("MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) for $accountKeyId — nothing to do.")
+                            migrationLog(
+                                "MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) for $accountKeyId — nothing to do."
+                            )
                         }
 
                         MigrationWorkerRunState.ABSENT -> {

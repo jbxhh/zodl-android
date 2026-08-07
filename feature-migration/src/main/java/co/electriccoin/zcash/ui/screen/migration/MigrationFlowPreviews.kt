@@ -31,8 +31,6 @@ import co.electriccoin.zcash.ui.screen.migration.battery.MigrationBatteryState
 import co.electriccoin.zcash.ui.screen.migration.battery.MigrationBatteryView
 import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteState
 import co.electriccoin.zcash.ui.screen.migration.complete.MigrationCompleteView
-import co.electriccoin.zcash.ui.screen.migration.component.MigrationFailureBottomSheet
-import co.electriccoin.zcash.ui.screen.migration.component.MigrationPreparationDetailsBottomSheet
 import co.electriccoin.zcash.ui.screen.migration.customservertor.MigrationCustomServerTorState
 import co.electriccoin.zcash.ui.screen.migration.customservertor.MigrationCustomServerTorView
 import co.electriccoin.zcash.ui.screen.migration.howitworks.MigrationHowItWorksState

@@ -10,6 +10,8 @@ import androidx.core.app.NotificationManagerCompat
 import co.electriccoin.zcash.ui.MainActivity
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.model.accountIdOffset
+import co.electriccoin.zcash.ui.common.provider.MigrationNotifier.Companion.CHANNEL_ID
+import co.electriccoin.zcash.ui.common.provider.MigrationNotifier.Companion.LEGACY_DEFAULT_IMPORTANCE_CHANNEL_ID
 
 /**
  * Emits the system notifications that drive the background (app-closed) portion of an Orchard→

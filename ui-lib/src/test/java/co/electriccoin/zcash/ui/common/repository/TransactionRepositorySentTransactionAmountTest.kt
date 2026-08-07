@@ -46,13 +46,21 @@ class TransactionRepositorySentTransactionAmountTest {
 
     @Test
     fun ordinary_sent_transaction_uses_net_value() {
-        val overview = overview(sentNoteCount = 1, receivedNoteCount = 0, totalReceived = 0, netValue = 5_000, zip318Kind = Zip318Kind.NOT_CLASSIFIED)
+        val overview =
+            overview(sentNoteCount = 1, receivedNoteCount = 0, totalReceived = 0, netValue = 5_000, zip318Kind = Zip318Kind.NOT_CLASSIFIED)
         assertEquals(5_000L, sentTransactionAmount(overview).value)
     }
 
     @Test
     fun mined_self_transfer_zero_zero_uses_total_received() {
-        val overview = overview(sentNoteCount = 0, receivedNoteCount = 0, totalReceived = 500_000, netValue = 1_000, zip318Kind = Zip318Kind.NOT_CLASSIFIED)
+        val overview =
+            overview(
+                sentNoteCount = 0,
+                receivedNoteCount = 0,
+                totalReceived = 500_000,
+                netValue = 1_000,
+                zip318Kind = Zip318Kind.NOT_CLASSIFIED
+            )
         assertEquals(500_000L, sentTransactionAmount(overview).value)
     }
 

@@ -171,8 +171,12 @@ class MigrationLiveDriverTest {
                     coEvery { run(any(), any(), any(), any()) } coAnswers {
                         runCallCount++
                         when (runCallCount) {
-                            1 -> DriveOnceResult.LockBusy(5.seconds) // must NOT publish
-                            2 -> DriveOnceResult.ReArmed(1.seconds) // must publish
+                            1 -> DriveOnceResult.LockBusy(5.seconds)
+
+                            // must NOT publish
+                            2 -> DriveOnceResult.ReArmed(1.seconds)
+
+                            // must publish
                             else -> DriveOnceResult.Terminal // must also publish
                         }
                     }

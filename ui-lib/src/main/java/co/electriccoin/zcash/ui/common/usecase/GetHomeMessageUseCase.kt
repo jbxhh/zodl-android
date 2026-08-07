@@ -138,7 +138,8 @@ class GetHomeMessageUseCase(
                     val account = inputs.account
                     val walletSnapshot = inputs.walletSnapshot
 
-                    if (walletSnapshot.status in listOf(
+                    if (walletSnapshot.status in
+                        listOf(
                             Synchronizer.Status.STOPPED,
                             Synchronizer.Status.INITIALIZING
                         )
@@ -250,9 +251,9 @@ class GetHomeMessageUseCase(
     private fun createSynchronizerErrorMessage(walletSnapshot: WalletSnapshot): HomeMessageData.Error? {
         if (walletSnapshot.synchronizerError == null ||
             (
-                    walletSnapshot.synchronizerError is SynchronizerError.Processor &&
-                            walletSnapshot.synchronizerError.cause is CancellationException
-                    )
+                walletSnapshot.synchronizerError is SynchronizerError.Processor &&
+                    walletSnapshot.synchronizerError.cause is CancellationException
+            )
         ) {
             return null
         }

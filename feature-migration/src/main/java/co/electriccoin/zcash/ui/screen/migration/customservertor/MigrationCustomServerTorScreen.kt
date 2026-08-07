@@ -31,10 +31,10 @@ import co.electriccoin.zcash.ui.design.theme.dimensions.ZashiDimensions
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
-import co.electriccoin.zcash.ui.design.R as DesignR
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
 data class MigrationCustomServerTorArgs(
@@ -94,7 +94,11 @@ fun MigrationCustomServerTorView(
             )
             Spacer(8.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes(DesignR.string.migrationCustomServerTor_switchServer), onClick = innerState.onSwitchServer),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migrationCustomServerTor_switchServer),
+                        onClick = innerState.onSwitchServer
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

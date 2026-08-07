@@ -225,7 +225,11 @@ class MigrationKeystoneSignVM(
                 },
                 qrData = parts?.getOrNull(frameIndex),
                 secondaryButton = null,
-                positiveButton = ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_getSignature), onClick = ::onGetSignature),
+                positiveButton =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migrationKeystoneSign_getSignature),
+                        onClick = ::onGetSignature
+                    ),
                 negativeButton = ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_reject), onClick = ::onReject),
                 onBack = ::onReject,
             )

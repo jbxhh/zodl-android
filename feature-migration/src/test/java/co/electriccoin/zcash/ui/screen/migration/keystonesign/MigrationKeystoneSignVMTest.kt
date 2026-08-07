@@ -18,7 +18,6 @@ import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.screen.migration.keystonescan.MigrationKeystoneScanArgs
-import co.electriccoin.zcash.ui.design.R as DesignR
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -42,6 +41,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 /**
  * Unit tests for [MigrationKeystoneSignVM].

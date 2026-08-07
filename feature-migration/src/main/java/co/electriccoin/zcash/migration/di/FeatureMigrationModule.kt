@@ -22,14 +22,14 @@ import co.electriccoin.zcash.ui.common.provider.IsMigrationTorEnabledStorageProv
 import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProviderImpl
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepositoryImpl
 import co.electriccoin.zcash.ui.common.repository.PendingKeystoneMigrationPcztsRepository
 import co.electriccoin.zcash.ui.common.repository.PendingKeystoneMigrationPcztsRepositoryImpl
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleRepository
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleRepositoryImpl
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationTorFailureDecisionRepository
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationTorFailureDecisionRepositoryImpl
-import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
-import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepositoryImpl
 import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepository
 import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepositoryImpl
 import co.electriccoin.zcash.ui.common.usecase.CheckMigrationRecoveryUseCase

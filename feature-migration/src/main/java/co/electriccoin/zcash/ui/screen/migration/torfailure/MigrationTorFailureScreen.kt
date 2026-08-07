@@ -30,9 +30,9 @@ import co.electriccoin.zcash.ui.design.theme.dimensions.ZashiDimensions
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
-import co.electriccoin.zcash.ui.design.R as DesignR
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
 data object MigrationTorFailureArgs

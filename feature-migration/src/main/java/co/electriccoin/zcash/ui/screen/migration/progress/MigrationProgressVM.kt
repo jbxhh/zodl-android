@@ -37,9 +37,9 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import java.math.BigDecimal
 import java.math.MathContext
-import co.electriccoin.zcash.ui.design.R as DesignR
 import kotlin.time.Clock
 import kotlin.time.Instant
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationProgressVM(
     private val getSelectedWalletAccount: GetSelectedWalletAccountUseCase,

@@ -24,7 +24,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import java.util.UUID
 import kotlin.test.Test
@@ -42,6 +41,7 @@ class CheckMigrationRecoveryUseCaseTest {
         mockk(relaxed = true) {
             every { sdkAccount } returns testSdkAccount
         }
+
     @kotlin.test.BeforeTest
     fun resetThrottle() {
         CheckMigrationRecoveryUseCase.resetRunThrottleForTests()

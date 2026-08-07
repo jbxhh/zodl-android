@@ -554,8 +554,10 @@ private data class TxDetails(
  */
 internal fun sentTransactionAmount(transaction: TransactionOverview): Zatoshi =
     if ((transaction.sentNoteCount == 0 && transaction.receivedNoteCount == 0) ||
-        (transaction.raw == null && transaction.minedHeight == null &&
-            (transaction.zip318Kind == Zip318Kind.PREPARATION || transaction.zip318Kind == Zip318Kind.TRANSFER))
+        (
+            transaction.raw == null && transaction.minedHeight == null &&
+                (transaction.zip318Kind == Zip318Kind.PREPARATION || transaction.zip318Kind == Zip318Kind.TRANSFER)
+        )
     ) {
         transaction.totalReceived
     } else {
