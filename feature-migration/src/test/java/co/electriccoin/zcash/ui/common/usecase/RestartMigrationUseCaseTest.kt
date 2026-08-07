@@ -7,8 +7,10 @@ import co.electriccoin.zcash.ui.common.model.migration.sim.FakeOrchardMigrationS
 import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
+import co.electriccoin.zcash.ui.common.repository.MigrationTransferStateRepository
 import co.electriccoin.zcash.ui.common.repository.PendingKeystoneMigrationPcztsRepository
 import co.electriccoin.zcash.ui.common.repository.RestartMigrationScheduleRepository
+import co.electriccoin.zcash.work.MigrationLiveDriver
 import co.electriccoin.zcash.work.MigrationScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -57,6 +59,8 @@ class RestartMigrationUseCaseTest {
             val restartSchedule = mockk<RestartMigrationScheduleRepository>(relaxed = true)
             val keystonePczt = mockk<PendingKeystoneMigrationPcztsRepository>(relaxed = true)
             val notifier = mockk<MigrationNotifier>(relaxed = true)
+            val liveDriver = mockk<MigrationLiveDriver>(relaxed = true)
+            val transferStateRepository = mockk<MigrationTransferStateRepository>(relaxed = true)
 
             val useCase =
                 RestartMigrationUseCase(
@@ -70,6 +74,8 @@ class RestartMigrationUseCaseTest {
                     restartMigrationScheduleRepository = restartSchedule,
                     pendingKeystoneMigrationPcztsRepository = keystonePczt,
                     migrationNotifier = notifier,
+                    migrationLiveDriver = liveDriver,
+                    migrationTransferStateRepository = transferStateRepository,
                 )
 
             useCase()
@@ -80,5 +86,51 @@ class RestartMigrationUseCaseTest {
             verify { restartSchedule.consume(accountKeyId) }
             verify { keystonePczt.clear() }
             verify { notifier.cancel(accountKeyId) }
+            verify { liveDriver.stop(accountKeyId) }
+            verify { transferStateRepository.clear(accountKeyId) }
+        }
+
+    @Test
+    fun `invoke stops the live driver before clearing the cache`() =
+        runTest {
+            // Pins the intended call order at the use-case level — NOT a proof that the
+            // publish/clear race is closed (mocks model no coroutine suspension timing, so they
+            // can't). stop() is cooperative cancellation: a loop already inside
+            // publishFreshReadout's synchronous tail (past its last SDK read, before the
+            // repository.publish() call) can still land that publish after both stop() and clear()
+            // return regardless of this order. This ordering only reliably helps the common case —
+            // the loop asleep in delay() — see MigrationLiveDriver.stop()'s own kdoc.
+            val selected = account(UUID.fromString("00000000-0000-0000-0000-0000000000a2"))
+            val accountKeyId = selected.sdkAccount.accountUuid.toStorageKeyId()
+            val fakeSdk = FakeOrchardMigrationSdk()
+            val accountDataSource =
+                mockk<AccountDataSource> {
+                    coEvery { getSelectedAccount() } returns selected
+                }
+            val liveDriver = mockk<MigrationLiveDriver>(relaxed = true)
+            val transferStateRepository = mockk<MigrationTransferStateRepository>(relaxed = true)
+            val callOrder = mutableListOf<String>()
+            every { liveDriver.stop(accountKeyId) } answers { callOrder.add("stop") }
+            every { transferStateRepository.clear(accountKeyId) } answers { callOrder.add("clear") }
+
+            val useCase =
+                RestartMigrationUseCase(
+                    accountDataSource = accountDataSource,
+                    getOrchardMigrationSdk =
+                        mockk<GetOrchardMigrationSdkUseCase> {
+                            coEvery { this@mockk() } returns fakeSdk
+                        },
+                    migrationScheduler = mockk(relaxed = true),
+                    pendingMigrationTorFailureStorageProvider = mockk(relaxed = true),
+                    restartMigrationScheduleRepository = mockk(relaxed = true),
+                    pendingKeystoneMigrationPcztsRepository = mockk(relaxed = true),
+                    migrationNotifier = mockk(relaxed = true),
+                    migrationLiveDriver = liveDriver,
+                    migrationTransferStateRepository = transferStateRepository,
+                )
+
+            useCase()
+
+            kotlin.test.assertEquals(listOf("stop", "clear"), callOrder)
         }
 }

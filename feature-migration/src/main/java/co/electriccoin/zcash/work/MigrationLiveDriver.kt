@@ -27,6 +27,25 @@ import kotlin.time.Duration.Companion.seconds
  */
 interface MigrationLiveDriver {
     fun startIfNotRunning(accountKeyId: String)
+
+    /**
+     * Cancels this account's loop if one is running — for a flow that resets the engine's own
+     * state OUTSIDE the driver's normal step progression (currently only "Restart Migration"),
+     * so a loop already sleeping mid-re-arm from before the reset doesn't wake up, act on a plan
+     * that no longer exists, and republish a readout describing it. Coroutine cancellation is
+     * cooperative (checked at suspension points), so this cannot interrupt work already committed
+     * — it only stops the loop from proceeding to its NEXT step. A no-op if no loop is running for
+     * this account.
+     *
+     * NOT a guarantee against a concurrent [MigrationTransferStateRepository.publish]: if the
+     * loop's suspension point at the moment of cancellation is already past `publishFreshReadout`'s
+     * last SDK read (that function's own final step — the actual `repository.publish()` call — is
+     * synchronous, no suspension point between the two), this call returns before that publish
+     * lands, and it happens anyway. Reliable only when the loop is asleep in `delay()`/
+     * `delayWithPeriodicRefresh()` — which is where a restarted account's driver sits most of the
+     * time — not a hard guarantee for every call site.
+     */
+    fun stop(accountKeyId: String)
 }
 
 class MigrationLiveDriverImpl(
@@ -74,6 +93,10 @@ class MigrationLiveDriverImpl(
                 migrationLog("MigrationLiveDriver: already driving $accountKeyId — no-op.")
             }
         }
+    }
+
+    override fun stop(accountKeyId: String) {
+        runningJobs[accountKeyId]?.cancel()
     }
 
     private suspend fun loop(accountKeyId: String) {

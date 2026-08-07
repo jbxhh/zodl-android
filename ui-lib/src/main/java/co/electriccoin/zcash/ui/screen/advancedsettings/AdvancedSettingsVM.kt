@@ -136,7 +136,7 @@ class AdvancedSettingsVM(
                     ).takeIf { hasKeystoneAccount },
                     ListItemState(
                         title = stringRes(co.electriccoin.zcash.ui.design.R.string.restartMigration_settingsItem),
-                        bigIcon = imageRes(R.drawable.ic_migration_coins_swap),
+                        bigIcon = imageRes(R.drawable.ic_advanced_settings_restart_migration),
                         onClick = ::onRestartMigrationClick,
                     ).takeIf { isRestartAvailable },
                     ListItemState(

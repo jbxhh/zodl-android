@@ -78,6 +78,17 @@ interface MigrationTransferStateRepository {
     fun observe(accountKeyId: String): StateFlow<MigrationLiveReadout?>
 
     fun publish(accountKeyId: String, readout: MigrationLiveReadout)
+
+    /**
+     * Resets this account's cached readout to `null` — for a flow that resets the engine's own
+     * state OUTSIDE the driver's normal step progression (currently only "Restart Migration"),
+     * where the last-published readout would otherwise keep describing a plan that no longer
+     * exists. Any active observer's `combine` re-emits immediately on this write (a `StateFlow`
+     * always notifies collectors on a `.value =` change), so `published ?: fetchFreshReadout()`
+     * falls through to a genuine SDK read right away — no need to wait for that read's own 15s
+     * recheck cadence, and no need to pre-populate a fresh value here ourselves.
+     */
+    fun clear(accountKeyId: String)
 }
 
 class MigrationTransferStateRepositoryImpl : MigrationTransferStateRepository {
@@ -91,5 +102,9 @@ class MigrationTransferStateRepositoryImpl : MigrationTransferStateRepository {
 
     override fun publish(accountKeyId: String, readout: MigrationLiveReadout) {
         flowFor(accountKeyId).value = readout
+    }
+
+    override fun clear(accountKeyId: String) {
+        flowFor(accountKeyId).value = null
     }
 }
