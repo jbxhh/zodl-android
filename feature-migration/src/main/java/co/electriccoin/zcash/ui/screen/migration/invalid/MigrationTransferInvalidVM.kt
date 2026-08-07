@@ -54,7 +54,11 @@ class MigrationTransferInvalidVM(
     init {
         loadLce.execute {
             val sdk = getOrchardMigrationSdk()
-            val reason = (sdk.getMigrationState() as? MigrationState.RequiresAttention)?.reason
+            // getMigrationStateUnreconciled(), not getMigrationState(): this screen only reads,
+            // never mutates (2026-08-07 read/write-separation design), and RequiresAttention's
+            // reason doesn't depend on the mark-mined promotion pass — this screen is only
+            // reachable after the state was already observed as RequiresAttention elsewhere.
+            val reason = (sdk.getMigrationStateUnreconciled() as? MigrationState.RequiresAttention)?.reason
             recoveryInfo.value = RecoveryInfo(reason, getMigrationSnapshot())
         }
     }

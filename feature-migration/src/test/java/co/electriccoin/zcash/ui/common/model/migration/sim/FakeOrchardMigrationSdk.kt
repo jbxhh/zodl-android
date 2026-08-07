@@ -260,6 +260,8 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
 
     override suspend fun getMigrationState(): MigrationState = buildState()
 
+    override suspend fun getMigrationStateUnreconciled(): MigrationState = buildState()
+
     override suspend fun getMigrationProgress(): MigrationProgress? =
         (buildState() as? MigrationState.InProgress)?.progress
 

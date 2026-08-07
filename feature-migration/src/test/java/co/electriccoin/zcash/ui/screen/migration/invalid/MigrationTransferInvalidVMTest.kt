@@ -86,6 +86,7 @@ class MigrationTransferInvalidVMTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.RequiresAttention(AttentionReason.InvalidTransfer(11L))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.RequiresAttention(AttentionReason.InvalidTransfer(11L))
                 }
             val vm =
                 vm(
@@ -119,6 +120,7 @@ class MigrationTransferInvalidVMTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
                 }
             val vm =
                 vm(
@@ -156,6 +158,7 @@ class MigrationTransferInvalidVMTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
                     coEvery { restartCurrentMigrationStep() } returns restartedSchedule
                 }
             val restartRepo = mockk<RestartMigrationScheduleRepository>(relaxed = true)

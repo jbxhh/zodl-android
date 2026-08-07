@@ -87,6 +87,7 @@ class CheckMigrationRecoveryUseCaseTest {
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                 }
             val router = mockk<NavigationRouter>(relaxed = true)
 
@@ -105,6 +106,7 @@ class CheckMigrationRecoveryUseCaseTest {
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { getMigrationTransferStates() } returns
                         MigrationTransferStates(
                             transfers = listOf(transferState(MigrationNextAction.BROADCAST)),
@@ -125,6 +127,7 @@ class CheckMigrationRecoveryUseCaseTest {
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { getMigrationTransferStates() } returns
                         MigrationTransferStates(
                             transfers = listOf(transferState(MigrationNextAction.BROADCAST)),
@@ -156,6 +159,7 @@ class CheckMigrationRecoveryUseCaseTest {
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { getMigrationTransferStates() } returns
                         MigrationTransferStates(
                             transfers = listOf(transferState(MigrationNextAction.PROVE)),
@@ -185,6 +189,7 @@ class CheckMigrationRecoveryUseCaseTest {
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { hasOverdueTransfers() } returns true
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { getMigrationTransferStates() } returns
                         MigrationTransferStates(transfers = emptyList(), tipHeight = 100L)
                 }
@@ -207,6 +212,7 @@ class CheckMigrationRecoveryUseCaseTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
                 }
             val router = mockk<NavigationRouter>(relaxed = true)
 
@@ -225,6 +231,7 @@ class CheckMigrationRecoveryUseCaseTest {
                     coEvery { hasInvalidTransfers() } returns false
                     coEvery { hasOverdueTransfers() } returns false
                     coEvery { getMigrationState() } returns MigrationState.Complete
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.Complete
                 }
             val router = mockk<NavigationRouter>(relaxed = true)
 
@@ -250,6 +257,7 @@ class CheckMigrationRecoveryUseCaseTest {
                     coEvery { hasInvalidTransfers() } returns false
                     coEvery { hasOverdueTransfers() } returns false
                     coEvery { getMigrationState() } returns MigrationState.NotStarted
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.NotStarted
                 }
             val router = mockk<NavigationRouter>(relaxed = true)
 
@@ -278,6 +286,7 @@ class CheckMigrationRecoveryUseCaseTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { hasOverdueTransfers() } returns false
                 }
 
@@ -306,6 +315,7 @@ class CheckMigrationRecoveryUseCaseTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { hasOverdueTransfers() } returns false
                 }
 
@@ -326,6 +336,7 @@ class CheckMigrationRecoveryUseCaseTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { hasOverdueTransfers() } returns false
                 }
             val liveDriver =
@@ -350,6 +361,7 @@ class CheckMigrationRecoveryUseCaseTest {
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { getMigrationState() } returns MigrationState.InProgress(mockk(relaxed = true))
+                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.InProgress(mockk(relaxed = true))
                     coEvery { hasOverdueTransfers() } returns false
                 }
 

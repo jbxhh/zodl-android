@@ -105,7 +105,11 @@ class CheckMigrationRecoveryUseCase(
             // (observed live: repository empty while the engine held a run with 8/9 broadcast and the
             // last transfer proved) and the engine is the single source of truth — a live in-progress
             // migration must always have its worker chain running.
-            val engineInProgress = sdk.getMigrationState() is MigrationState.InProgress
+            //
+            // getMigrationStateUnreconciled(), not getMigrationState(): this router never mutates
+            // (2026-08-07 read/write-separation design) — it starts the live driver below regardless,
+            // which reconciles on its own first cycle, so any staleness here self-corrects immediately.
+            val engineInProgress = sdk.getMigrationStateUnreconciled() is MigrationState.InProgress
             if (engineInProgress) {
                 val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
                 // The live driver is the fast path while the app is alive — starting it here covers

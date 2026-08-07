@@ -1,6 +1,8 @@
 package co.electriccoin.zcash.ui.screen.migration.progress
 
 import androidx.lifecycle.ViewModel
+import cash.z.ecc.android.sdk.MigrationNextAction
+import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -31,12 +33,15 @@ import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
+import co.electriccoin.zcash.work.MigrationLiveDriver
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.MathContext
@@ -51,6 +56,7 @@ class MigrationProgressVM(
     private val navigationRouter: NavigationRouter,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val errorStateMapper: ErrorMapperUseCase,
+    private val migrationLiveDriver: MigrationLiveDriver,
 ) : ViewModel() {
     private val sendLce = mutableLce<Unit>()
 
@@ -98,6 +104,13 @@ class MigrationProgressVM(
     // account yet this session (before its first loop iteration, or no migration in_progress so it
     // never runs) — fall back to one direct read in that narrow window, same as before this
     // repository existed.
+    // Reads via getMigrationStateUnreconciled()/getMigrationTransferStates() (both on the SDK's
+    // mutex-free loggedRead lane), never getMigrationState()/hasOverdueTransfers() — a UI-triggered
+    // display-only read must never take MIGRATION_DB_ACCESS_MUTEX, not even as a fallback (2026-08-07
+    // read/write-separation design). hasOverdueTransfers is derived from the same pure transfer-states
+    // read (ready-to-broadcast is exactly what the mutating hasOverdueTransfers() call itself checks).
+    // flowOn(Dispatchers.Default) below keeps the shared single-threaded DB-IO hop off whichever
+    // dispatcher collects this flow, even though the read itself is mutex-free.
     private fun liveReadoutFlow(): Flow<MigrationLiveReadout?> =
         flow {
             val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
@@ -105,17 +118,25 @@ class MigrationProgressVM(
                 migrationTransferStateRepository.observe(accountKeyId).map { published ->
                     published ?: runCatching {
                         val sdk = getOrchardMigrationSdk()
+                        val states = sdk.getMigrationTransferStates()
+                        val migrationState = sdk.getMigrationStateUnreconciled()
+                        // Repository empty for this account — nudge the driver toward an
+                        // authoritative, reconciled publish instead of polling forever. Idempotent.
+                        if (migrationState is MigrationState.InProgress) {
+                            migrationLiveDriver.startIfNotRunning(accountKeyId)
+                        }
                         MigrationLiveReadout(
-                            states = sdk.getMigrationTransferStates(),
+                            states = states,
                             estimatedTip = sdk.estimatedChainTip(),
                             estimatedSecondsPerBlock = sdk.estimatedSecondsPerBlock(),
-                            migrationState = sdk.getMigrationState(),
-                            hasOverdueTransfers = sdk.hasOverdueTransfers(),
+                            migrationState = migrationState,
+                            hasOverdueTransfers =
+                                states?.transfers?.any { it.ready && it.action == MigrationNextAction.BROADCAST } == true,
                         )
                     }.getOrNull()
                 }
             )
-        }
+        }.flowOn(Dispatchers.Default)
 
     private fun recheckTicker(): Flow<Unit> =
         flow {

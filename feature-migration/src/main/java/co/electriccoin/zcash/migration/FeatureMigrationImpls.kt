@@ -72,21 +72,26 @@ class MigrationGateImpl(
     // Engine state IS the gate now — no app-side plan marker exists. Selected-account scoped
     // (matches the sync it gates); see post-adoption TODO C2 for the any-account variant.
     //
-    // Both methods guard their getMigrationState() read (2026-08-07 Fable review): this had been
-    // unguarded, and isRestartAvailable() is called from AdvancedSettingsVM's bare
-    // `viewModelScope.launch` (no LCE, no try/catch of its own) — a "database is locked" throw
-    // there would crash the app straight from the Settings screen. isMigrationActive() is called
-    // from SyncWorker.doWork() every scheduled background-sync run; a throw there would just fail
-    // that one worker run (WorkManager retries), but is guarded the same way for consistency and
-    // to avoid a spurious retry loop on a transient DB-lock read.
+    // Both methods guard their state read (2026-08-07 Fable review): this had been unguarded, and
+    // isRestartAvailable() is called from AdvancedSettingsVM's bare `viewModelScope.launch` (no
+    // LCE, no try/catch of its own) — a "database is locked" throw there would crash the app
+    // straight from the Settings screen. isMigrationActive() is called from SyncWorker.doWork()
+    // every scheduled background-sync run; a throw there would just fail that one worker run
+    // (WorkManager retries), but is guarded the same way for consistency and to avoid a spurious
+    // retry loop on a transient DB-lock read.
+    //
+    // getMigrationStateUnreconciled(), not getMigrationState(): a gate never mutates (2026-08-07
+    // read/write-separation design) — a just-mined final transfer this account hasn't reconciled
+    // yet keeps the gate conservative for at most one drive-loop publish cycle, which fails safe
+    // (sync stays gated slightly longer, never the reverse).
     override suspend fun isMigrationActive(): Boolean =
         runCatching {
-            getOrchardMigrationSdk().getMigrationState() is cash.z.ecc.android.sdk.MigrationState.InProgress
+            getOrchardMigrationSdk().getMigrationStateUnreconciled() is cash.z.ecc.android.sdk.MigrationState.InProgress
         }.getOrDefault(false)
 
     override suspend fun isRestartAvailable(): Boolean =
         runCatching {
-            when (getOrchardMigrationSdk().getMigrationState()) {
+            when (getOrchardMigrationSdk().getMigrationStateUnreconciled()) {
                 is cash.z.ecc.android.sdk.MigrationState.InProgress,
                 is cash.z.ecc.android.sdk.MigrationState.RequiresAttention -> true
 
@@ -102,7 +107,10 @@ class MigrationSyncedHookImpl(
 ) : MigrationSyncedHook {
     override suspend fun onSynced() {
         // Engine state is the only "migration active" signal — no plan cache exists anymore.
-        if (getOrchardMigrationSdk().getMigrationState() !is cash.z.ecc.android.sdk.MigrationState.InProgress) return
+        // getMigrationStateUnreconciled(): this gate never mutates (2026-08-07 read/write-
+        // separation design) — onMigrationSyncCompleted below still runs the real reconcile pass
+        // via the drive loop's own cadence regardless of this gate's staleness.
+        if (getOrchardMigrationSdk().getMigrationStateUnreconciled() !is cash.z.ecc.android.sdk.MigrationState.InProgress) return
         val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
         onMigrationSyncCompleted(accountKeyId)
     }

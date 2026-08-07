@@ -40,7 +40,11 @@ class OnMigrationSyncCompletedUseCase(
         // don't survive a reinstall/update, so a package update mid-plan otherwise silently kills
         // all future runs (observed live: the 9th transfer proved and due, with no job left
         // anywhere to send it).
-        if (sdk.getMigrationState() is cash.z.ecc.android.sdk.MigrationState.InProgress) {
+        // getMigrationStateUnreconciled(), not getMigrationState(): reconcileInvalidations() just
+        // above already ran the real reconcile pass for this SYNCED transition (2026-08-07 read/
+        // write-separation design — only rows 10-11's mutations, not this gate, need to reconcile),
+        // so re-deriving state here needs no second mark-mined write-back of its own.
+        if (sdk.getMigrationStateUnreconciled() is cash.z.ecc.android.sdk.MigrationState.InProgress) {
             if (!isMigrationWorkerActiveInWorkManager(context, accountKeyId)) {
                 migrationLog("ForegroundHook: migration worker absent with a live plan — re-arming.")
                 migrationScheduler.schedule(accountKeyId, 60.seconds)
