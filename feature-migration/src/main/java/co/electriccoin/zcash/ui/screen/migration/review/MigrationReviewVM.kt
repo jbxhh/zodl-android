@@ -1,5 +1,6 @@
 package co.electriccoin.zcash.ui.screen.migration.review
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import cash.z.ecc.android.sdk.MigrationSchedule
 import cash.z.ecc.android.sdk.TransferProposal
@@ -107,39 +108,81 @@ class MigrationReviewVM(
 
     init {
         proposeLce.execute {
+            // Timed, bracketed logging (2026-08-07 Review-screen slow-load investigation): pairs
+            // with the MIGRATION_DB_ACCESS_MUTEX queued/acquired/released lines OrchardMigrationSdkImpl.logged()
+            // now emits, so a slow Review load is attributable to a SPECIFIC call, and — via the
+            // matching SDK-side lines — to either real mutex contention (queued behind a named
+            // operation) or the Rust computation itself simply taking that long.
+            val initStartMs = SystemClock.elapsedRealtime()
+            migrationLog("MIGRATION_DIAG ReviewVM: propose start (mode=${args.mode})")
             val sdk = getOrchardMigrationSdk()
-            when (args.mode) {
-                MigrationMode.IMMEDIATE -> {
-                    val amount = getOrchardBalance()
-                    ReviewProposal.Immediate(sdk.proposeImmediateMigration(), amount)
-                }
+            val result =
+                when (args.mode) {
+                    MigrationMode.IMMEDIATE -> {
+                        val amount = getOrchardBalance()
+                        val t0 = SystemClock.elapsedRealtime()
+                        migrationLog("MIGRATION_DIAG ReviewVM: proposeImmediateMigration start")
+                        val proposal = sdk.proposeImmediateMigration()
+                        migrationLog(
+                            "MIGRATION_DIAG ReviewVM: proposeImmediateMigration done in " +
+                                "${SystemClock.elapsedRealtime() - t0}ms"
+                        )
+                        ReviewProposal.Immediate(proposal, amount)
+                    }
 
-                MigrationMode.AUTOMATIC -> {
-                    // If MigrationTransferInvalidVM.onContinue() already obtained a fresh schedule
-                    // via restartCurrentMigrationStep() — whose own doc requires that returned
-                    // schedule to go through this normal confirmation flow rather than being
-                    // silently re-proposed — reuse that exact schedule instead of calling
-                    // proposeMigrationTransfers() again (see RestartMigrationScheduleRepository's
-                    // doc: the two calls compute independent guesses over the same balance that
-                    // aren't guaranteed to agree). Falls back to a fresh proposal for every
-                    // ordinary, non-recovery entry into this screen.
-                    val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
-                    val schedule = restartMigrationScheduleRepository.consume(accountKeyId) ?: sdk.proposeMigrationTransfers()
-                    // IMMEDIATE has no Keystone branch at all (a documented pre-existing gap —
-                    // see MigrationReviewVM.confirmAutomatic()'s Keystone check below), so round
-                    // display is AUTOMATIC-only. Stateless preview, called fresh on every Review
-                    // entry — never cached.
-                    val keystoneRunCount =
-                        if (getSelectedWalletAccount() is KeystoneAccount) {
-                            sdk.estimateMigrationRunCount()
-                        } else {
-                            null
-                        }
-                    secondsPerBlock = sdk.estimatedSecondsPerBlock()
-                    logProposedPlan(schedule)
-                    ReviewProposal.Automatic(schedule, keystoneRunCount)
+                    MigrationMode.AUTOMATIC -> {
+                        // If MigrationTransferInvalidVM.onContinue() already obtained a fresh schedule
+                        // via restartCurrentMigrationStep() — whose own doc requires that returned
+                        // schedule to go through this normal confirmation flow rather than being
+                        // silently re-proposed — reuse that exact schedule instead of calling
+                        // proposeMigrationTransfers() again (see RestartMigrationScheduleRepository's
+                        // doc: the two calls compute independent guesses over the same balance that
+                        // aren't guaranteed to agree). Falls back to a fresh proposal for every
+                        // ordinary, non-recovery entry into this screen.
+                        val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
+                        val reused = restartMigrationScheduleRepository.consume(accountKeyId)
+                        val schedule =
+                            reused ?: run {
+                                val t0 = SystemClock.elapsedRealtime()
+                                migrationLog("MIGRATION_DIAG ReviewVM: proposeMigrationTransfers start")
+                                val s = sdk.proposeMigrationTransfers()
+                                migrationLog(
+                                    "MIGRATION_DIAG ReviewVM: proposeMigrationTransfers done in " +
+                                        "${SystemClock.elapsedRealtime() - t0}ms"
+                                )
+                                s
+                            }
+                        // IMMEDIATE has no Keystone branch at all (a documented pre-existing gap —
+                        // see MigrationReviewVM.confirmAutomatic()'s Keystone check below), so round
+                        // display is AUTOMATIC-only. Stateless preview, called fresh on every Review
+                        // entry — never cached.
+                        val keystoneRunCount =
+                            if (getSelectedWalletAccount() is KeystoneAccount) {
+                                val t0 = SystemClock.elapsedRealtime()
+                                migrationLog("MIGRATION_DIAG ReviewVM: estimateMigrationRunCount start")
+                                val count = sdk.estimateMigrationRunCount()
+                                migrationLog(
+                                    "MIGRATION_DIAG ReviewVM: estimateMigrationRunCount done in " +
+                                        "${SystemClock.elapsedRealtime() - t0}ms"
+                                )
+                                count
+                            } else {
+                                null
+                            }
+                        val t0 = SystemClock.elapsedRealtime()
+                        secondsPerBlock = sdk.estimatedSecondsPerBlock()
+                        migrationLog(
+                            "MIGRATION_DIAG ReviewVM: estimatedSecondsPerBlock done in " +
+                                "${SystemClock.elapsedRealtime() - t0}ms"
+                        )
+                        logProposedPlan(schedule)
+                        ReviewProposal.Automatic(schedule, keystoneRunCount)
+                    }
                 }
-            }
+            migrationLog(
+                "MIGRATION_DIAG ReviewVM: propose done in ${SystemClock.elapsedRealtime() - initStartMs}ms total"
+            )
+            result
         }
     }
 
