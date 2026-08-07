@@ -1014,11 +1014,11 @@
     <string name="migrationKeystoneScan_firmwareUnsupported">El firmware de tu Keystone todavía no admite la migración. Actualiza tu dispositivo Keystone y vuelve a intentarlo.</string>
 
     <string name="migrationSuccess_title">¡Enviado!</string>
-    <string name="migrationSuccess_subtitle">Tus ZEC se enviaron\ncorrectamente a Ironwood.</string>
+    <string name="migrationSuccess_subtitle">Tus ZEC se migraron\ncorrectamente a Ironwood.</string>
     <string name="migrationSuccess_viewTransaction">Ver transacción</string>
 
     <string name="migrationSending_title">Enviando...</string>
-    <string name="migrationSending_subtitle">Tus ZEC se están enviando a\nIronwood...</string>
+    <string name="migrationSending_subtitle">Tus ZEC se están migrando a\nIronwood...</string>
 
     <string name="migrationProgress_subtitleComplete">Las %1$d transferencias están completas.</string>
     <string name="migrationProgress_subtitlePreStart">Tu saldo se divide en %1$d transferencias a lo largo de %2$s. Quedan %3$d transferencias.</string>
@@ -1150,7 +1150,7 @@
     <string name="migrationBattery_scheduledWindowsTitle">Las transferencias se envían en sus ventanas programadas</string>
     <string name="migrationBattery_scheduledWindowsBody">Zodl se activa y envía cada transferencia en el horario programado, sin que tengas que hacer nada.</string>
     <string name="migrationBattery_noNeedToOpenTitle">No hace falta abrir la app para cada envío</string>
-    <string name="migrationBattery_noNeedToOpenBody">Una vez confirmado el calendario, todas las transferencias se envían en segundo plano.</string>
+    <string name="migrationBattery_noNeedToOpenBody">Una vez que confirmes el nuevo calendario, enviaremos las transferencias en segundo plano.</string>
     <string name="migrationBattery_fixedScheduleTitle">Se envían en un horario fijo, no según tu actividad</string>
     <string name="migrationBattery_fixedScheduleBody">Las transferencias se envían en horarios fijos de la red, por lo que no están vinculadas a cuándo abres Zodl.</string>
     <string name="migrationBattery_withoutPermissionHint">Sin este permiso, tendrás que abrir Zodl manualmente en cada horario programado para enviar.</string>
@@ -1171,7 +1171,7 @@
     <string name="migrationHome_completeTitle">Migración completa</string>
     <string name="migrationHome_requiredTitle">Migración necesaria</string>
     <string name="migrationHome_readyToSendTitle">Transferencia lista</string>
-    <string name="migrationHome_attentionTitle">La migración necesita atención</string>
+    <string name="migrationHome_attentionTitle">El plan de migración necesita actualización</string>
     <string name="migrationHome_defaultSubtitle">Mueve tus fondos a Ironwood.</string>
 
 </resources>

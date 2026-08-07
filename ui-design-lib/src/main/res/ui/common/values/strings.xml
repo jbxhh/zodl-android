@@ -1325,11 +1325,11 @@ Your vote can no longer be submitted.</string>
     <string name="migrationKeystoneScan_firmwareUnsupported">Your Keystone firmware doesn\'t support migration yet. Update your Keystone device, then come back to retry.</string>
 
     <string name="migrationSuccess_title">Sent!</string>
-    <string name="migrationSuccess_subtitle">Your ZEC were successfully\nsent to Ironwood.</string>
+    <string name="migrationSuccess_subtitle">Your ZEC was successfully\nmigrated to Ironwood.</string>
     <string name="migrationSuccess_viewTransaction">View Transaction</string>
 
     <string name="migrationSending_title">Sending...</string>
-    <string name="migrationSending_subtitle">Your ZEC are being sent to\nIronwood...</string>
+    <string name="migrationSending_subtitle">Your ZEC is being migrated to\nIronwood...</string>
 
     <string name="migrationProgress_subtitleComplete">All %1$d transfers are complete.</string>
     <string name="migrationProgress_subtitlePreStart">Your balance splits into %1$d transfers over %2$s. There are %3$d remaining transfers.</string>
@@ -1366,11 +1366,11 @@ Your vote can no longer be submitted.</string>
     <string name="migrationNotifPermission_actionNeededBody">If we miss a window, we will prompt you to open the app and send a transfer manually.</string>
     <string name="migrationNotifPermission_planChangesTitle">Transfer Plan Changes</string>
     <string name="migrationNotifPermission_planChangesBody">If allocated funds are spent or a scheduled transfer can no longer be sent, we\'ll let you know.</string>
-    <string name="migrationNotifPermission_warningHint">Without notifications, you\'ll need to open Zodl to check migration progress and approve any manual transfers yourself.</string>
+    <string name="migrationNotifPermission_warningHint">Without notifications, the migration can\'t continue on its own. You\'ll be responsible for opening Zodl at every step to send each transfer.</string>
 
-    <string name="migrationCustomServerTor_title">Your Server Doesn\'t Support Tor</string>
+    <string name="migrationCustomServerTor_title">Your Server Doesn’t Support Tor</string>
     <string name="migrationCustomServerTor_bodyImmediate">The migration transaction can\'t be broadcast over Tor when you\'re using a custom server. If you continue, this transaction will be sent without Tor\'s IP protection.</string>
-    <string name="migrationCustomServerTor_bodyAutomatic">Migration transactions can\'t be broadcast over Tor when you\'re using a custom server. If you continue, these transactions will be sent without Tor\'s IP protection.</string>
+    <string name="migrationCustomServerTor_bodyAutomatic">Migration transactions can’t be broadcast over Tor when you’re using a custom server. If you continue, these transactions will be sent without Tor’s IP protection.</string>
     <string name="migrationCustomServerTor_riskBodyImmediate">Without Tor, your IP address is exposed to the custom server and could be linked to your full balance.</string>
     <string name="migrationCustomServerTor_riskBodyAutomatic">Without Tor, your IP address is exposed to the custom server and could be linked to the migration amounts.</string>
     <string name="migrationCustomServerTor_switchServer">Switch Server</string>
@@ -1426,11 +1426,11 @@ Your vote can no longer be submitted.</string>
     <string name="migrationHowItWorks_title">How This Works</string>
     <string name="migrationHowItWorks_subtitle">Moving funds between Zcash pools reveals the amount of each transfer. Here\'s how we protect your privacy during migration.</string>
     <string name="migrationHowItWorks_splitScheduleTitle">Split and schedule</string>
-    <string name="migrationHowItWorks_splitScheduleDescription">Your balance is divided into smaller amounts and spaced out over time, so they\'re harder to link together.</string>
+    <string name="migrationHowItWorks_splitScheduleDescription">Your balance is divided into smaller amounts and spaced out over time, so they’re harder to link together.</string>
     <string name="migrationHowItWorks_approveOnceTitle">Approve once</string>
     <string name="migrationHowItWorks_approveOnceDescription">Zodl handles the rest, sending each transfer automatically in its scheduled window while the app runs in the background.</string>
     <string name="migrationHowItWorks_ifSomethingFailsTitle">If something fails</string>
-    <string name="migrationHowItWorks_ifSomethingFailsDescription">We\'ll notify you so you can complete it manually.</string>
+    <string name="migrationHowItWorks_ifSomethingFailsDescription">We’ll notify you so you can complete it manually.</string>
     <string name="migrationHowItWorks_largeBalanceTitle">Large balance</string>
     <string name="migrationHowItWorks_largeBalanceDescription">If your wallet holds large balance or many small notes, migration may run across multiple scheduled rounds.</string>
     <string name="migrationHowItWorks_disclaimer">Choosing this option may require a small amount (less than 0.01 ZEC) to be left in the Orchard pool, and which won\'t be transferred.</string>
@@ -1461,7 +1461,7 @@ Your vote can no longer be submitted.</string>
     <string name="migrationBattery_scheduledWindowsTitle">Transfers send at their scheduled windows</string>
     <string name="migrationBattery_scheduledWindowsBody">Zodl wakes up and sends each transfer at its scheduled time — no action needed.</string>
     <string name="migrationBattery_noNeedToOpenTitle">No need to open the app for each send</string>
-    <string name="migrationBattery_noNeedToOpenBody">Once the schedule is committed, all transfers are sent in the background.</string>
+    <string name="migrationBattery_noNeedToOpenBody">Once you confirm the new schedule, we will send the transfers in the background.</string>
     <string name="migrationBattery_fixedScheduleTitle">Sends on a fixed schedule, not your activity</string>
     <string name="migrationBattery_fixedScheduleBody">Transfers go out at set network-wide times, so they\'re not linked to when you open Zodl.</string>
     <string name="migrationBattery_withoutPermissionHint">Without this permission, you\'ll need to open Zodl manually at each scheduled time to send.</string>
@@ -1482,7 +1482,7 @@ Your vote can no longer be submitted.</string>
     <string name="migrationHome_completeTitle">Migration complete</string>
     <string name="migrationHome_requiredTitle">Migration Required</string>
     <string name="migrationHome_readyToSendTitle">Transfer Ready</string>
-    <string name="migrationHome_attentionTitle">Migration needs attention</string>
+    <string name="migrationHome_attentionTitle">Migration plan needs update</string>
     <string name="migrationHome_defaultSubtitle">Move your funds to Ironwood.</string>
 
 </resources>
