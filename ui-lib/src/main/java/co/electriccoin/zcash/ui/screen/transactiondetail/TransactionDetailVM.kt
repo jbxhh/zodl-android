@@ -485,12 +485,6 @@ class TransactionDetailVM(
 
                     is SendTransaction -> {
                         if (data.metadata.swapMetadata == null) {
-                            // ZIP 318 migration copy: mirrors ActivityMapper.getTransactionTitle —
-                            // only PREPARATION (note-split) and TRANSFER (the actual pool
-                            // crossing) get their own title, everything else keeps the ordinary
-                            // Sent/Sending copy. See Zip318Kind.TRANSFER doc: librustzcash cannot
-                            // honestly distinguish our own migration transfers from an ordinary
-                            // third-party payment sharing the same shape.
                             when (transaction.overview.zip318Kind) {
                                 Zip318Kind.PREPARATION -> {
                                     when (transaction) {
@@ -600,7 +594,15 @@ class TransactionDetailVM(
                     is SendTransparentState -> {
                         listOf(
                             imageRes(co.electriccoin.zcash.ui.design.R.drawable.ic_token_zec),
-                            imageRes(R.drawable.ic_transaction_sent)
+                            imageRes(
+                                when (data.transaction.overview.zip318Kind) {
+                                    Zip318Kind.PREPARATION,
+                                    Zip318Kind.TRANSFER -> R.drawable.ic_transaction_migration
+
+                                    Zip318Kind.NOT_CLASSIFIED,
+                                    Zip318Kind.NONCONFORMING -> R.drawable.ic_transaction_sent
+                                }
+                            )
                         )
                     }
 

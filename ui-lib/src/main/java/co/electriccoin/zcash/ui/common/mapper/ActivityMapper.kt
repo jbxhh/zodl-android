@@ -145,10 +145,22 @@ class ActivityMapper {
 
             is SendTransaction -> {
                 if (data.metadata.swapMetadata == null) {
-                    when (transaction) {
-                        is SendTransaction.Success -> R.drawable.ic_transaction_sent
-                        is SendTransaction.Pending -> R.drawable.ic_transaction_send_pending
-                        is SendTransaction.Failed -> R.drawable.ic_transaction_send_failed
+                    when (transaction.overview.zip318Kind) {
+                        Zip318Kind.PREPARATION, Zip318Kind.TRANSFER -> {
+                            when (transaction) {
+                                is SendTransaction.Success -> R.drawable.ic_transaction_migration
+                                is SendTransaction.Pending -> R.drawable.ic_transaction_migration_pending
+                                is SendTransaction.Failed -> R.drawable.ic_transaction_migration_failed
+                            }
+                        }
+
+                        Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING -> {
+                            when (transaction) {
+                                is SendTransaction.Success -> R.drawable.ic_transaction_sent
+                                is SendTransaction.Pending -> R.drawable.ic_transaction_send_pending
+                                is SendTransaction.Failed -> R.drawable.ic_transaction_send_failed
+                            }
+                        }
                     }
                 } else {
                     if (transaction is SendTransaction.Failed) {
@@ -208,19 +220,12 @@ class ActivityMapper {
 
             is SendTransaction -> {
                 if (data.metadata.swapMetadata == null) {
-                    // ZIP 318 migration copy (2026-08-04): only PREPARATION (note-split) and
-                    // TRANSFER (the actual pool crossing) get their own title — everything else
-                    // (NOT_CLASSIFIED, NONCONFORMING) keeps the ordinary Sent/Sending copy below.
-                    // NOTE: librustzcash cannot honestly distinguish our own migration transfers
-                    // from an ordinary third-party payment sharing the same shape (see
-                    // Zip318Kind.TRANSFER doc) — such a payment gets this "Migrated" copy too,
-                    // not a false positive we can currently avoid.
                     when (transaction.overview.zip318Kind) {
                         Zip318Kind.PREPARATION -> {
                             when (transaction) {
                                 is SendTransaction.Success -> stringRes(R.string.transaction_noteSplit)
                                 is SendTransaction.Pending -> stringRes(R.string.transaction_history_noteSplitting)
-                                is SendTransaction.Failed -> stringRes(R.string.transaction_noteSplitFailed)
+                                is SendTransaction.Failed -> stringRes(R.string.transaction_history_noteSplitFailed)
                             }
                         }
 
@@ -322,12 +327,6 @@ class ActivityMapper {
                 is SendTransaction.Success,
                 is SendTransaction.Failed,
                 is SendTransaction.Pending -> {
-                    // A migration note-split/crossing is a same-account, same-device self-send —
-                    // funds move pools, they aren't leaving the wallet. Prepending "-" here reads
-                    // as a loss (Harry, live testing: a migration crossing showed "-0.9998 ZEC",
-                    // which looks like the wallet lost ~1 ZEC when only the fee was actually
-                    // spent). Every other send keeps the "-" since real value does leave the
-                    // wallet there.
                     if (data.transaction.overview.zip318Kind == Zip318Kind.TRANSFER ||
                         data.transaction.overview.zip318Kind == Zip318Kind.PREPARATION
                     ) {

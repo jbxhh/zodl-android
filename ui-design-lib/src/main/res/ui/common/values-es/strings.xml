@@ -848,6 +848,12 @@
     <string name="transactionHistory_sendAgain">Enviar de nuevo</string>
     <string name="transaction_sent">Enviado</string>
     <string name="transaction_sending">Enviando</string>
+    <string name="transaction_noteSplit">Saldo dividido</string>
+    <string name="transaction_noteSplitting">Dividiendo saldo</string>
+    <string name="transaction_noteSplitFailed">Error al dividir el saldo</string>
+    <string name="transaction_migrated">Migrado</string>
+    <string name="transaction_migrating">Migrando</string>
+    <string name="transaction_migrationFailed">Error al migrar</string>
     <string name="transaction_received">Recibido</string>
     <string name="transaction_receiving">Recibiendo</string>
     <string name="transaction_failedReceive">Error al recibir</string>
@@ -919,6 +925,9 @@
     <string name="filter_search">Buscar</string>
     <string name="transaction_history_sending">Enviando…</string>
     <string name="transaction_history_sending_failed">Error al enviar</string>
+    <string name="transaction_history_noteSplitting">Dividiendo saldo…</string>
+    <string name="transaction_history_noteSplitFailed">Error al dividir</string>
+    <string name="transaction_history_migrating">Migrando…</string>
     <string name="transaction_history_receiving">Recibiendo…</string>
     <string name="transaction_history_receiving_failed">Error al recibir</string>
     <string name="transaction_history_shielding">Protegiendo…</string>
