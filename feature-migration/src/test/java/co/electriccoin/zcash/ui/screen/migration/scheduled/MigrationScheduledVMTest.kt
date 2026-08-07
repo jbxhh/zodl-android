@@ -45,6 +45,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MigrationScheduledVMTest {
@@ -191,6 +192,55 @@ class MigrationScheduledVMTest {
             advanceUntilIdle()
 
             assertNotNull(vm.failureSheet.value)
+            coVerify(exactly = 0) { finalize(any(), any()) }
+            // Still pending — a retry should be able to pick this back up.
+            assertNotNull(pendingSchedule.get(testAccountKeyId))
+            assertNotNull(pendingPczts.get(testAccountKeyId))
+        }
+
+    @Test
+    fun unexpectedThrowDuringFinalizeShowsRetryableFailureSheetAndStaysFinalizing() =
+        runTest {
+            // Any unguarded throw in finalizeIfPendingKeystoneBatch (e.g. transient "database is
+            // locked" from the migration engine mutex) must not crash the app right after the user
+            // completes a physical Keystone signing ceremony — see the try/catch added around its
+            // body. isFinalizing deliberately stays true so the screen keeps its loading state
+            // under the failure sheet, rather than racing the snapshot flow against a schedule
+            // that was never actually finalized.
+            val pendingSchedule =
+                PendingMigrationScheduleRepositoryImpl()
+                    .apply { set(testAccountKeyId, schedule()) }
+            val pendingPczts =
+                PendingKeystoneMigrationPcztsRepositoryImpl()
+                    .apply {
+                        set(
+                            testAccountKeyId,
+                            PendingKeystoneMigrationPczts(
+                                requestId = byteArrayOf(1, 2, 3),
+                                splitUnsignedPczt = null,
+                                transferUnsignedPczts = listOf(11L to byteArrayOf(9, 9)),
+                                roundIndex = 1,
+                                accumulatedTransferSigned = listOf(11L to byteArrayOf(1)),
+                            )
+                        )
+                    }
+            val sdk =
+                mockk<OrchardMigrationSdk>(relaxed = true) {
+                    coEvery { storeSignedSchedulePczts(any()) } throws RuntimeException("database is locked")
+                }
+            val finalize = mockk<FinalizeMigrationScheduleUseCase>(relaxed = true)
+            val vm =
+                vm(
+                    pendingSchedule = pendingSchedule,
+                    pendingKeystonePczts = pendingPczts,
+                    getOrchardMigrationSdk = mockk { coEvery { this@mockk() } returns sdk },
+                    finalizeMigrationSchedule = finalize,
+                )
+
+            advanceUntilIdle()
+
+            assertNotNull(vm.failureSheet.value)
+            assertTrue(vm.isFinalizing.value)
             coVerify(exactly = 0) { finalize(any(), any()) }
             // Still pending — a retry should be able to pick this back up.
             assertNotNull(pendingSchedule.get(testAccountKeyId))

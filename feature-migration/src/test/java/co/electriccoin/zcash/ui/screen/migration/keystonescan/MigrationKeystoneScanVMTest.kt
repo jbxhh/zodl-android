@@ -183,6 +183,40 @@ class MigrationKeystoneScanVMTest {
             assertEquals(listOf<Any>(MigrationScheduledArgs), router.forwardedRoutes)
         }
 
+    @Test
+    fun unexpectedThrowShowsRetryableFailureSheetAndAllowsRescan() =
+        runTest {
+            // Any unguarded throw here (e.g. a transient "database is locked" from the migration
+            // engine mutex) must not crash the app mid-ceremony — see the try/catch added around
+            // onScanned's body. isProcessing must also reset so the still-visible QR can be
+            // rescanned instead of getting permanently stuck behind the `if (isProcessing) return`
+            // guard at the top of onScanned.
+            val sdk = fakeSdk(firmwareVersion = byteArrayOf(3, 0, 2))
+            coEvery { sdk.applyKeystoneBatchSignatures(any(), any(), any()) } throws
+                RuntimeException("database is locked")
+            val pendingSchedule =
+                PendingMigrationScheduleRepositoryImpl()
+                    .apply { set(testAccountKeyId, schedule()) }
+            val pendingPczts =
+                PendingKeystoneMigrationPcztsRepositoryImpl()
+                    .apply { set(testAccountKeyId, pending(roundIndex = 0)) }
+            val router = FakeNavigationRouter()
+            val vm = vm(sdk, pendingSchedule, pendingPczts, router)
+
+            vm.onScanned("frame")
+            advanceUntilIdle()
+
+            assertNotNull(vm.failureSheet.value)
+            assertTrue(router.forwardedRoutes.isEmpty())
+
+            // isProcessing reset to false in the catch — a second scan must not be silently
+            // ignored by the re-entrancy guard.
+            vm.onScanned("frame")
+            advanceUntilIdle()
+
+            coVerify(exactly = 2) { sdk.decodeKeystoneSignBatchPart(any(), any()) }
+        }
+
     private fun vm(
         sdk: OrchardMigrationSdk,
         pendingSchedule: PendingMigrationScheduleRepositoryImpl,
