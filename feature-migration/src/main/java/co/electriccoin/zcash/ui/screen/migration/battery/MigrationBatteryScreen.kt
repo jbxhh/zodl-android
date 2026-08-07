@@ -177,8 +177,7 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
                 state = ButtonState(text = stringRes(DesignR.string.migration_common_skip), onClick = state.onSkip),
                 modifier = Modifier.fillMaxWidth(),
                 defaultPrimaryColors =
-                    ZashiButtonDefaults.destructive1Colors(
-                        containerColor = ZashiColors.Utility.WarningYellow.utilityOrange50,
+                    ZashiButtonDefaults.secondaryColors(
                         contentColor = ZashiColors.Utility.WarningYellow.utilityOrange700,
                         borderColor = ZashiColors.Utility.WarningYellow.utilityOrange300,
                     ),

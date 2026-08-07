@@ -145,17 +145,19 @@ private fun HowItWorksStep(icon: Int, title: String, description: String) {
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(12.dp))
-        Text(
-            text =
-                buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
-                        append(title)
-                    }
-                    append(" — $description")
-                },
-            style = ZashiTypography.textSm,
-            color = ZashiColors.Text.textPrimary,
-        )
+        Column {
+            Text(
+                text = title,
+                style = ZashiTypography.textSm,
+                fontWeight = FontWeight.SemiBold,
+                color = ZashiColors.Text.textPrimary,
+            )
+            Text(
+                text = description,
+                style = ZashiTypography.textXs,
+                color = ZashiColors.Text.textTertiary,
+            )
+        }
     }
 }
 

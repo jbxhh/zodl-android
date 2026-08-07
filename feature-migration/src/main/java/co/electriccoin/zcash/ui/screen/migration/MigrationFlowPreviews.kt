@@ -219,16 +219,16 @@ private fun SpecialStatesPreview() =
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             FlowStep("Scheduled: committing (loading)") { MigrationSchedulingView() }
-            FlowStep("Sending: failure sheet") { MigrationSendingView(previewSendingStateWithFailure()) }
             FlowStep("Progress: complete") { MigrationProgressView(previewProgressStateComplete()) }
-            FlowStep("Progress: preparation details sheet") {
-                MigrationPreparationDetailsBottomSheet(previewPreparationDetails())
-            }
             FlowStep("Complete: residue locked") { MigrationCompleteView(previewCompleteStateDustLocked()) }
             FlowStep("Transfer Invalid: plan update (invalid transfer)") {
                 MigrationTransferInvalidView(previewTransferInvalidState(kind = MigrationAttentionKind.PLAN_UPDATE))
             }
-            FlowStep("Failure bottom sheet (standalone)") { MigrationFailureBottomSheet(previewTransferFailureState()) }
+//            FlowStep("Sending: failure sheet") { MigrationSendingView(previewSendingStateWithFailure()) }
+//            FlowStep("Failure bottom sheet (standalone)") { MigrationFailureBottomSheet(previewTransferFailureState()) }
+//            FlowStep("Progress: preparation details sheet") {
+//                MigrationPreparationDetailsBottomSheet(previewPreparationDetails())
+//            }
         }
     }
 
