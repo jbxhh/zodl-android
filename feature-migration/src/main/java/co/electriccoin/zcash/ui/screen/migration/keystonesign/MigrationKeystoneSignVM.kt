@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.util.UUID
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationKeystoneSignVM(
     private val args: MigrationKeystoneSignArgs,
@@ -171,7 +172,7 @@ class MigrationKeystoneSignVM(
             }.onFailure {
                 failureSheet.update {
                     MigrationTransferFailureState(
-                        message = "Couldn't prepare the migration for signing. Try again.",
+                        message = stringRes(DesignR.string.migrationKeystoneSign_prepareErrorMessage),
                         onRetry = {
                             failureSheet.value = null
                             buildBatch()
@@ -201,29 +202,31 @@ class MigrationKeystoneSignVM(
             }
             // Only surfaced for a migration too large for one Keystone QR round trip — invisible
             // (empty suffix) in the common single-round case.
-            val roundSuffix = round?.let { (index, total) -> if (total > 1) " (${index + 1} of $total)" else "" }.orEmpty()
+            val roundSuffix =
+                round
+                    ?.let { (index, total) ->
+                        if (total > 1) stringRes(DesignR.string.migrationKeystoneSign_roundSuffix, index + 1, total) else stringRes("")
+                    }
+                    ?: stringRes("")
             SignKeystoneTransactionState(
-                barTitle = stringRes("Sign Transaction"),
-                title = stringRes("Scan with your Keystone wallet$roundSuffix"),
-                subtitle =
-                    stringRes(
-                        "After you have signed with Keystone, tap on the Get Signature button below."
-                    ),
+                barTitle = stringRes(DesignR.string.migrationKeystoneSign_barTitle),
+                title = stringRes(DesignR.string.migrationKeystoneSign_scanWithKeystone, roundSuffix),
+                subtitle = stringRes(DesignR.string.migrationKeystoneSign_subtitle),
                 accountInfo =
                     ZashiAccountInfoListItemState(
                         icon = account.icon,
                         title = account.name,
                         subtitle = stringRes("${account.unified.address.address.take(ADDRESS_MAX_LENGTH)}..."),
                     ),
-                badgeText = stringRes("Hardware"),
+                badgeText = stringRes(DesignR.string.migrationKeystoneSign_badgeHardware),
                 generateNextQrCode = {
                     val size = parts?.size ?: 1
                     qrFrameIndex.value = (frameIndex + 1) % size
                 },
                 qrData = parts?.getOrNull(frameIndex),
                 secondaryButton = null,
-                positiveButton = ButtonState(text = stringRes("Get Signature"), onClick = ::onGetSignature),
-                negativeButton = ButtonState(text = stringRes("Reject"), onClick = ::onReject),
+                positiveButton = ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_getSignature), onClick = ::onGetSignature),
+                negativeButton = ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_reject), onClick = ::onReject),
                 onBack = ::onReject,
             )
         }

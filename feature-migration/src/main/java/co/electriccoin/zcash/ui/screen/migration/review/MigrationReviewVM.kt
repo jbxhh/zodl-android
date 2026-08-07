@@ -61,6 +61,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.MathContext
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationReviewVM(
     private val args: MigrationReviewArgs,
@@ -296,7 +297,7 @@ class MigrationReviewVM(
                         totalCount = 1,
                         amount = stringRes(proposal.amountZatoshi),
                         fiatAmount = fiatAmount(proposal.amountZatoshi, exchangeRateState),
-                        scheduledLabel = stringRes("Send immediately"),
+                        scheduledLabel = stringRes(DesignR.string.migrationReview_sendImmediately),
                     )
                 ),
             fee = stringRes(fee),

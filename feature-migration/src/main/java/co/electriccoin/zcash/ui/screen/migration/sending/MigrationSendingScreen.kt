@@ -26,7 +26,9 @@ import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
+import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.orDark
+import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import co.electriccoin.zcash.ui.screen.migration.component.MigrationFailureBottomSheet
 import com.airbnb.lottie.compose.LottieAnimation
@@ -35,6 +37,7 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Composable
 fun MigrationSendingScreen() {
@@ -70,7 +73,7 @@ fun MigrationSendingView(state: MigrationSendingState) {
             SendingAnimation()
             Spacer(Modifier.height(24.dp))
             Text(
-                text = "Sending...",
+                text = stringRes(DesignR.string.migrationSending_title).getValue(),
                 style = ZashiTypography.header5,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
@@ -78,7 +81,7 @@ fun MigrationSendingView(state: MigrationSendingState) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Your ZEC are being sent to\nIronwood...",
+                text = stringRes(DesignR.string.migrationSending_subtitle).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
                 textAlign = TextAlign.Center,

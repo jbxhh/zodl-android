@@ -16,7 +16,9 @@ import co.electriccoin.zcash.ui.common.repository.PendingKeystoneMigrationPcztsR
 import co.electriccoin.zcash.ui.common.repository.PendingMigrationScheduleRepositoryImpl
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
+import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.screen.migration.keystonescan.MigrationKeystoneScanArgs
+import co.electriccoin.zcash.ui.design.R as DesignR
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -121,16 +123,14 @@ class MigrationKeystoneSignVMTest {
             val state = vm.state.value
             assertNotNull(state)
             // Positive button says "Get Signature".
-            assertTrue(
-                state.positiveButton.text
-                    .toString()
-                    .contains("Get Signature")
+            assertEquals(
+                DesignR.string.migrationKeystoneSign_getSignature,
+                (state.positiveButton.text as? StringResource.ByResource)?.resource,
             )
             // Negative button says "Reject".
-            assertTrue(
-                state.negativeButton.text
-                    .toString()
-                    .contains("Reject")
+            assertEquals(
+                DesignR.string.migrationKeystoneSign_reject,
+                (state.negativeButton.text as? StringResource.ByResource)?.resource,
             )
 
             collectJob.cancel()
@@ -151,11 +151,13 @@ class MigrationKeystoneSignVMTest {
 
             advanceUntilIdle()
 
-            val title =
-                vm.state.value
-                    ?.title
-                    ?.toString() ?: ""
-            assertTrue(!title.contains(" of "), "Single-round title should not contain a round suffix, got: $title")
+            val title = vm.state.value?.title
+            assertEquals(DesignR.string.migrationKeystoneSign_scanWithKeystone, (title as? StringResource.ByResource)?.resource)
+            val roundSuffix = title?.roundSuffixArg()
+            assertTrue(
+                roundSuffix is StringResource.ByString && roundSuffix.value.isEmpty(),
+                "Single-round title should not contain a round suffix, got: $roundSuffix"
+            )
 
             collectJob.cancel()
         }
@@ -188,12 +190,15 @@ class MigrationKeystoneSignVMTest {
 
             advanceUntilIdle()
 
-            // Title should contain "(1 of 2)" since roundIndex=0, totalRounds=2.
-            val title =
-                vm.state.value
-                    ?.title
-                    ?.toString() ?: ""
-            assertTrue(title.contains("(1 of 2)"), "Multi-round title should contain round suffix, got: $title")
+            // Title should carry a "(1 of 2)" round suffix since roundIndex=0, totalRounds=2.
+            val title = vm.state.value?.title
+            val roundSuffix = title?.roundSuffixArg()
+            assertEquals(
+                DesignR.string.migrationKeystoneSign_roundSuffix,
+                (roundSuffix as? StringResource.ByResource)?.resource,
+                "Multi-round title should contain round suffix, got: $roundSuffix"
+            )
+            assertEquals(listOf(1, 2), (roundSuffix as? StringResource.ByResource)?.args)
 
             collectJob.cancel()
         }
@@ -224,11 +229,14 @@ class MigrationKeystoneSignVMTest {
 
             advanceUntilIdle()
 
-            val title =
-                vm.state.value
-                    ?.title
-                    ?.toString() ?: ""
-            assertTrue(title.contains("(2 of 2)"), "Round-1 title should say '(2 of 2)', got: $title")
+            val title = vm.state.value?.title
+            val roundSuffix = title?.roundSuffixArg()
+            assertEquals(
+                DesignR.string.migrationKeystoneSign_roundSuffix,
+                (roundSuffix as? StringResource.ByResource)?.resource,
+                "Round-1 title should carry a round suffix, got: $roundSuffix"
+            )
+            assertEquals(listOf(2, 2), (roundSuffix as? StringResource.ByResource)?.args)
 
             collectJob.cancel()
         }
@@ -260,7 +268,7 @@ class MigrationKeystoneSignVMTest {
 
             val sheet = vm.failureSheet.value
             assertNotNull(sheet, "Failure sheet must appear when buildBatch throws")
-            assertTrue(sheet.message.isNotBlank())
+            assertTrue(!sheet.message.isEmpty())
             // A retry callback must exist (the sheet re-runs buildBatch on retry).
             assertNotNull(sheet.onRetry)
         }
@@ -690,6 +698,12 @@ class MigrationKeystoneSignVMTest {
 
         override fun observePipeline(): Flow<BaseNavigationCommand> = emptyFlow()
     }
+
+    // The title is DesignR.string.migrationKeystoneSign_scanWithKeystone with the round suffix as
+    // its single %1$s arg — this pulls that nested StringResource back out for structural assertions
+    // (a resource-backed StringResource carries no resolvable text without an Android Context).
+    private fun StringResource.roundSuffixArg(): StringResource? =
+        (this as? StringResource.ByResource)?.args?.singleOrNull() as? StringResource
 }
 
 // 96 actions / 3 actions-per-transfer with no split in the round (engine signing_rounds constants).

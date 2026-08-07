@@ -34,10 +34,12 @@ import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
+import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
 data object MigrationHowItWorksArgs
@@ -73,48 +75,40 @@ fun MigrationHowItWorksView(state: MigrationHowItWorksState) {
                     .scaffoldPadding(padding),
         ) {
             Text(
-                text = "How This Works",
+                text = stringRes(DesignR.string.migrationHowItWorks_title).getValue(),
                 style = ZashiTypography.header6,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text =
-                    "Moving funds between Zcash pools reveals the amount of each transfer. Here's how we " +
-                        "protect your privacy during migration.",
+                text = stringRes(DesignR.string.migrationHowItWorks_subtitle).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
             Spacer(Modifier.height(32.dp))
             HowItWorksStep(
                 icon = co.electriccoin.zcash.ui.R.drawable.ic_migration_coins_swap,
-                title = "Split and schedule",
-                description =
-                    "Your balance is divided into smaller amounts and spaced out over time, so " +
-                        "they’re harder to link together.",
+                title = stringRes(DesignR.string.migrationHowItWorks_splitScheduleTitle).getValue(),
+                description = stringRes(DesignR.string.migrationHowItWorks_splitScheduleDescription).getValue(),
             )
             Spacer(Modifier.height(16.dp))
             HowItWorksStep(
                 icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_check_square_broken,
-                title = "Approve once",
-                description =
-                    "Zodl handles the rest, sending each transfer automatically in its scheduled " +
-                        "window while the app runs in the background.",
+                title = stringRes(DesignR.string.migrationHowItWorks_approveOnceTitle).getValue(),
+                description = stringRes(DesignR.string.migrationHowItWorks_approveOnceDescription).getValue(),
             )
             Spacer(Modifier.height(16.dp))
             HowItWorksStep(
                 icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_bell_ringing,
-                title = "If something fails",
-                description = "We’ll notify you so you can complete it manually.",
+                title = stringRes(DesignR.string.migrationHowItWorks_ifSomethingFailsTitle).getValue(),
+                description = stringRes(DesignR.string.migrationHowItWorks_ifSomethingFailsDescription).getValue(),
             )
             Spacer(Modifier.height(16.dp))
             HowItWorksStep(
                 icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_calendar,
-                title = "Large balance",
-                description =
-                    "If your wallet holds large balance or many small notes, migration may run " +
-                        "across multiple scheduled rounds.",
+                title = stringRes(DesignR.string.migrationHowItWorks_largeBalanceTitle).getValue(),
+                description = stringRes(DesignR.string.migrationHowItWorks_largeBalanceDescription).getValue(),
             )
             Spacer(Modifier.weight(1f))
             Spacer(Modifier.height(32.dp))
@@ -127,16 +121,14 @@ fun MigrationHowItWorksView(state: MigrationHowItWorksState) {
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text =
-                        "Choosing this option may require a small amount (less than 0.01 ZEC) to be " +
-                            "left in the Orchard pool, and which won’t be transferred.",
+                    text = stringRes(DesignR.string.migrationHowItWorks_disclaimer).getValue(),
                     style = ZashiTypography.textXs,
                     color = ZashiColors.Text.textTertiary,
                 )
             }
             Spacer(Modifier.height(20.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes("Continue"), onClick = state.onContinue),
+                state = ButtonState(text = stringRes(DesignR.string.migration_common_continue), onClick = state.onContinue),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

@@ -15,9 +15,11 @@ import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetMigrationSnapshotUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.ScheduleNextMigrationWindowUseCase
+import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.screen.migration.success.MigrationSuccessArgs
 import co.electriccoin.zcash.ui.screen.migration.torfailure.MigrationTorFailureArgs
 import co.electriccoin.zcash.work.MigrationDriveOnce
+import co.electriccoin.zcash.ui.design.R as DesignR
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -71,8 +73,8 @@ class MigrationSendingVMTest {
                     ?.failureSheet
             collectJob.cancel()
             assertEquals(
-                "This transfer's note was already spent elsewhere. Reschedule to plan a new one.",
-                sheet?.message,
+                DesignR.string.migrationFailureMessage_invalidNote,
+                (sheet?.message as? StringResource.ByResource)?.resource,
             )
             assertTrue(sheet != null)
         }
@@ -90,10 +92,12 @@ class MigrationSendingVMTest {
 
             coVerify(exactly = 3) { sdk.executeNextPendingTransfer(any(), any()) }
             assertEquals(
-                "This transfer isn't ready to send yet. Please try again in a moment.",
-                vm.state.value.content
-                    ?.failureSheet
-                    ?.message,
+                DesignR.string.migrationSending_notReady,
+                (
+                    vm.state.value.content
+                        ?.failureSheet
+                        ?.message as? StringResource.ByResource
+                )?.resource,
             )
             collectJob.cancel()
         }
@@ -112,10 +116,12 @@ class MigrationSendingVMTest {
 
             coVerify(exactly = 3) { sdk.executeNextPendingTransfer(any(), any()) }
             assertEquals(
-                "This transfer isn't ready to send yet. Please try again in a moment.",
-                vm.state.value.content
-                    ?.failureSheet
-                    ?.message,
+                DesignR.string.migrationSending_notReady,
+                (
+                    vm.state.value.content
+                        ?.failureSheet
+                        ?.message as? StringResource.ByResource
+                )?.resource,
             )
             collectJob.cancel()
         }

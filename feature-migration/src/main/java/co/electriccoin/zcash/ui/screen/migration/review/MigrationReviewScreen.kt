@@ -66,6 +66,7 @@ import co.electriccoin.zcash.ui.screen.migration.component.MigrationFailureBotto
 import co.electriccoin.zcash.ui.screen.migration.component.MigrationPreparationDetailsBottomSheet
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Composable
 fun MigrationReviewScreen(args: MigrationReviewArgs) {
@@ -141,16 +142,14 @@ private fun ImmediateReviewContent(state: MigrationReviewState) {
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Review Transfer",
+                text = stringRes(DesignR.string.migrationReview_title).getValue(),
                 style = ZashiTypography.header6,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text =
-                    "Your full Orchard balance will be transferred to Ironwood in a single on-chain transfer. " +
-                        "Once confirmed, this transfer cannot be cancelled.",
+                text = stringRes(DesignR.string.migrationReview_immediateBody).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
@@ -161,7 +160,10 @@ private fun ImmediateReviewContent(state: MigrationReviewState) {
         ZashiButton(
             state =
                 ButtonState(
-                    text = stringRes(if (state.isConfirming) "Signing..." else "Confirm"),
+                    text =
+                        stringRes(
+                            if (state.isConfirming) DesignR.string.migrationReview_signing else DesignR.string.migrationReview_confirm
+                        ),
                     isEnabled = !state.isConfirming,
                     isLoading = state.isConfirming,
                     onClick = state.onConfirm,
@@ -178,7 +180,7 @@ internal fun ImmediateDetailsCard(
     // Overridable so callers whose [fee] is a placeholder (no real per-transfer fee field exists
     // on TransferProposal — see MigrationTransferReviewVM) can be honest that it's an estimate,
     // without relabeling the real, exact fee IMMEDIATE mode shows (Proposal.totalFeeRequired()).
-    feeLabel: String = "Fee",
+    feeLabel: String = stringRes(DesignR.string.migrationReview_feeLabel).getValue(),
 ) {
     Column(
         modifier =
@@ -186,7 +188,7 @@ internal fun ImmediateDetailsCard(
                 .fillMaxWidth()
                 .background(ZashiColors.Surfaces.bgSecondary, RoundedCornerShape(16.dp)),
     ) {
-        ImmediateDetailsRow(label = "Amount", value = amount.getValue())
+        ImmediateDetailsRow(label = stringRes(DesignR.string.migrationReview_amountLabel).getValue(), value = amount.getValue())
         Box(
             modifier =
                 Modifier
@@ -229,7 +231,7 @@ private fun PrivacyReviewContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "Confirm Transfer Plan",
+            text = stringRes(DesignR.string.migrationReview_confirmTransferPlanTitle).getValue(),
             style = ZashiTypography.header6,
             fontWeight = FontWeight.SemiBold,
             color = ZashiColors.Text.textPrimary,
@@ -237,17 +239,18 @@ private fun PrivacyReviewContent(
         Spacer(Modifier.height(4.dp))
         Text(
             text =
-                "Your balance splits into ${state.transfers.size} transfers over " +
-                    "${state.estimatedDuration.getValue()}. Approve once and " +
-                    "we'll handle the rest — just keep the app running in the background. Amounts are randomized " +
-                    "for privacy. If we miss a window, Zodl will prompt you on next open.",
+                stringRes(
+                    DesignR.string.migrationReview_privacyBody,
+                    state.transfers.size,
+                    state.estimatedDuration.getValue()
+                ).getValue(),
             style = ZashiTypography.textSm,
             color = ZashiColors.Text.textTertiary,
         )
         Spacer(Modifier.height(24.dp))
         state.keystoneRound?.let { round ->
             Text(
-                text = "Round ${round.current} of ${round.total}",
+                text = stringRes(DesignR.string.migrationReview_roundOfTotal, round.current, round.total).getValue(),
                 style = ZashiTypography.textMd,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
@@ -265,7 +268,7 @@ private fun PrivacyReviewContent(
                 // other row does.
                 item {
                     TransferTimelineRow(
-                        title = "Split Balance",
+                        title = stringRes(DesignR.string.migration_common_splitBalanceTitle).getValue(),
                         subtitle = state.preparationsSummarySubtitle ?: stringRes(""),
                         amount = state.totalAmount,
                         fiatAmount = state.totalFiatAmount,
@@ -283,7 +286,7 @@ private fun PrivacyReviewContent(
                 // row as before.
                 items(state.preparations) { prep ->
                     TransferTimelineRow(
-                        title = "Split balance ${prep.number}",
+                        title = stringRes(DesignR.string.migration_common_splitBalanceNumbered, prep.number).getValue(),
                         subtitle = prep.scheduledLabel,
                         amount = null,
                         fiatAmount = null,
@@ -297,7 +300,7 @@ private fun PrivacyReviewContent(
                 // row as a fallback so no regression on zero-preparations plans.
                 item {
                     TransferTimelineRow(
-                        title = "Split Balance",
+                        title = stringRes(DesignR.string.migration_common_splitBalanceTitle).getValue(),
                         subtitle = stringRes("Ready now"),
                         amount = state.totalAmount,
                         fiatAmount = state.totalFiatAmount,
@@ -309,7 +312,7 @@ private fun PrivacyReviewContent(
             }
             items(state.transfers) { transfer ->
                 TransferTimelineRow(
-                    title = "Transfer ${transfer.index}",
+                    title = stringRes(DesignR.string.migration_common_transferTitle, transfer.index).getValue(),
                     subtitle = transfer.scheduledLabel,
                     amount = transfer.amount,
                     fiatAmount = transfer.fiatAmount,
@@ -325,7 +328,14 @@ private fun PrivacyReviewContent(
                 ButtonState(
                     // Figma node 5596:55122: "Start Migration" for the idle state (AUTOMATIC
                     // mode only — ImmediateReviewContent's "Confirm" is a different screen/copy).
-                    text = stringRes(if (state.isConfirming) "Signing..." else "Start Migration"),
+                    text =
+                        stringRes(
+                            if (state.isConfirming) {
+                                DesignR.string.migrationReview_signing
+                            } else {
+                                DesignR.string.migrationReview_startMigration
+                            }
+                        ),
                     isEnabled = !state.isConfirming,
                     isLoading = state.isConfirming,
                     onClick = state.onConfirm,
@@ -453,7 +463,7 @@ private fun TransferTimelineRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Show details",
+                        text = stringRes(DesignR.string.migration_common_showDetails).getValue(),
                         style = ZashiTypography.textXs,
                         fontWeight = FontWeight.SemiBold,
                         color = ZashiColors.Text.textPrimary,

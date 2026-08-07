@@ -22,8 +22,10 @@ import co.electriccoin.zcash.ui.design.component.ZashiCircularProgressIndicatorB
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiLightColors
+import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.home.HomeMessageWrapper
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Composable
 fun MigrationMessage(
@@ -101,16 +103,16 @@ fun MigrationMessage(
         title = {
             Text(
                 state.title ?: when (state.phase) {
-                    MigrationBannerPhase.COMPLETE -> "Migration complete"
-                    MigrationBannerPhase.IN_PROGRESS -> "Migration Progress"
-                    MigrationBannerPhase.REQUIRED -> "Migration Required"
-                    MigrationBannerPhase.READY_TO_SEND -> "Transfer Ready"
-                    MigrationBannerPhase.ATTENTION -> "Migration needs attention"
+                    MigrationBannerPhase.COMPLETE -> stringRes(DesignR.string.migrationHome_completeTitle).getValue()
+                    MigrationBannerPhase.IN_PROGRESS -> stringRes(DesignR.string.migration_common_progressTitle).getValue()
+                    MigrationBannerPhase.REQUIRED -> stringRes(DesignR.string.migrationHome_requiredTitle).getValue()
+                    MigrationBannerPhase.READY_TO_SEND -> stringRes(DesignR.string.migrationHome_readyToSendTitle).getValue()
+                    MigrationBannerPhase.ATTENTION -> stringRes(DesignR.string.migrationHome_attentionTitle).getValue()
                 }
             )
         },
         subtitle = {
-            Text(state.progressLabel ?: "Move your funds to Ironwood.")
+            Text(state.progressLabel ?: stringRes(DesignR.string.migrationHome_defaultSubtitle).getValue())
         },
         end = {
             ZashiButton(

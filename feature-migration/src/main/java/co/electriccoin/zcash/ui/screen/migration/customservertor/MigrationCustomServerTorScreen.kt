@@ -31,6 +31,7 @@ import co.electriccoin.zcash.ui.design.theme.dimensions.ZashiDimensions
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
 import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
+import co.electriccoin.zcash.ui.design.R as DesignR
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -65,7 +66,7 @@ fun MigrationCustomServerTorView(
                     .padding(start = 24.dp, end = 24.dp, bottom = contentPadding.calculateBottomPadding()),
         ) {
             Text(
-                text = "Your Server Doesn't Support Tor",
+                text = stringRes(DesignR.string.migrationCustomServerTor_title).getValue(),
                 style = ZashiTypography.textXl,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
@@ -78,18 +79,22 @@ fun MigrationCustomServerTorView(
             )
             Spacer(24.dp)
             RiskCard(
-                title = "What are the risks?",
+                title = stringRes(DesignR.string.migration_common_whatAreTheRisks).getValue(),
                 body = innerState.riskBody.getValue(),
             )
             Spacer(32.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes("Continue without Tor"), onClick = innerState.onContinueWithoutTor),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_continueWithoutTor),
+                        onClick = innerState.onContinueWithoutTor
+                    ),
                 modifier = Modifier.fillMaxWidth(),
                 defaultPrimaryColors = ZashiButtonDefaults.destructive1Colors(),
             )
             Spacer(8.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes("Switch Server"), onClick = innerState.onSwitchServer),
+                state = ButtonState(text = stringRes(DesignR.string.migrationCustomServerTor_switchServer), onClick = innerState.onSwitchServer),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -127,16 +132,8 @@ private fun Preview() =
         MigrationCustomServerTorView(
             state =
                 MigrationCustomServerTorState(
-                    body =
-                        stringRes(
-                            "Migration transactions can't be broadcast over Tor when you're using a custom " +
-                                "server. If you continue, these transactions will be sent without Tor's IP protection."
-                        ),
-                    riskBody =
-                        stringRes(
-                            "Without Tor, your IP address is exposed to the custom server and could be linked " +
-                                "to the migration amounts."
-                        ),
+                    body = stringRes(DesignR.string.migrationCustomServerTor_bodyAutomatic),
+                    riskBody = stringRes(DesignR.string.migrationCustomServerTor_riskBodyAutomatic),
                     onContinueWithoutTor = {},
                     onSwitchServer = {},
                     onBack = {},

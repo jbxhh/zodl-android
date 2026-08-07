@@ -50,6 +50,7 @@ import co.electriccoin.zcash.ui.screen.common.PrivacyDisclaimerCard
 import co.electriccoin.zcash.ui.screen.migration.component.MigrationFailureBottomSheet
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 data class MigrationCompleteState(
     val totalTransferred: StringResource,
@@ -124,7 +125,7 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Migration Complete",
+                    text = stringRes(DesignR.string.migrationComplete_title).getValue(),
                     style = ZashiTypography.header5,
                     fontWeight = FontWeight.SemiBold,
                     color = ZashiColors.Text.textPrimary,
@@ -132,7 +133,7 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Your ZEC is now in the Ironwood pool.",
+                    text = stringRes(DesignR.string.migrationComplete_subtitle).getValue(),
                     style = ZashiTypography.textSm,
                     color = ZashiColors.Text.textTertiary,
                     textAlign = TextAlign.Center,
@@ -147,18 +148,30 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
                             .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    SummaryRow(label = "Total transferred", value = state.totalTransferred.getValue())
+                    SummaryRow(
+                        label = stringRes(DesignR.string.migrationComplete_totalTransferredLabel).getValue(),
+                        value = state.totalTransferred.getValue(),
+                    )
                     state.remainingDust?.let { dust ->
-                        SummaryRow(label = "Remaining dust", value = dust.getValue())
+                        SummaryRow(
+                            label = stringRes(DesignR.string.migrationComplete_remainingDustLabel).getValue(),
+                            value = dust.getValue(),
+                        )
                     }
-                    SummaryRow(label = "Transfers", value = state.transfersProgress.getValue())
-                    SummaryRow(label = "Duration", value = state.duration.getValue())
+                    SummaryRow(
+                        label = stringRes(DesignR.string.migrationComplete_transfersLabel).getValue(),
+                        value = state.transfersProgress.getValue(),
+                    )
+                    SummaryRow(
+                        label = stringRes(DesignR.string.migrationComplete_durationLabel).getValue(),
+                        value = state.duration.getValue(),
+                    )
                 }
             }
             when {
                 state.remainingDust == null -> {
                     ZashiButton(
-                        state = ButtonState(text = stringRes("Got it"), onClick = state.onDone),
+                        state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = state.onDone),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -168,7 +181,7 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
                     LockedDisclaimer(dustAmount = state.remainingDust.getValue())
                     Spacer(Modifier.height(20.dp))
                     ZashiButton(
-                        state = ButtonState(text = stringRes("Got it"), onClick = state.onDone),
+                        state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = state.onDone),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -176,17 +189,25 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
                 else -> {
                     Spacer(Modifier.height(20.dp))
                     PrivacyDisclaimerCard(
-                        title = "Orchard balance remaining",
+                        title = stringRes(DesignR.string.migrationComplete_orchardBalanceRemainingTitle).getValue(),
                         body =
-                            "${state.remainingDust.getValue()} stayed in Orchard. An amount this " +
-                                "specific can identify you on the network. To protect your privacy, we " +
-                                "recommend locking this balance rather than migrating it.",
+                            stringRes(
+                                DesignR.string.migrationComplete_orchardBalanceRemainingBody,
+                                state.remainingDust.getValue()
+                            ).getValue(),
                     )
                     Spacer(Modifier.height(20.dp))
                     ZashiButton(
                         state =
                             ButtonState(
-                                text = stringRes(if (state.isMigrating) "Migrating…" else "Migrate anyway"),
+                                text =
+                                    stringRes(
+                                        if (state.isMigrating) {
+                                            DesignR.string.migrationComplete_migrating
+                                        } else {
+                                            DesignR.string.migrationComplete_migrateAnyway
+                                        }
+                                    ),
                                 onClick = state.onMigrateAnyway,
                                 isEnabled = !state.isMigrating && !state.isLocking,
                                 isLoading = state.isMigrating,
@@ -202,7 +223,14 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
                     ZashiButton(
                         state =
                             ButtonState(
-                                text = stringRes(if (state.isLocking) "Locking balance…" else "Lock balance"),
+                                text =
+                                    stringRes(
+                                        if (state.isLocking) {
+                                            DesignR.string.migrationComplete_lockingBalance
+                                        } else {
+                                            DesignR.string.migrationComplete_lockBalance
+                                        }
+                                    ),
                                 onClick = state.onLockBalance,
                                 isEnabled = !state.isMigrating && !state.isLocking,
                                 isLoading = state.isLocking,
@@ -249,16 +277,14 @@ private fun LockedDisclaimer(dustAmount: String) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Orchard balance locked",
+                text = stringRes(DesignR.string.migrationComplete_orchardBalanceLockedTitle).getValue(),
                 style = ZashiTypography.textSm,
                 fontWeight = FontWeight.Medium,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text =
-                    "$dustAmount is now locked in Orchard. Locking keeps this amount unspendable to " +
-                        "protect your privacy.",
+                text = stringRes(DesignR.string.migrationComplete_orchardBalanceLockedBody, dustAmount).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )

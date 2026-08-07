@@ -28,7 +28,9 @@ import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.dimensions.ZashiDimensions
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
+import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
+import co.electriccoin.zcash.ui.design.R as DesignR
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 
@@ -60,35 +62,35 @@ fun MigrationTorFailureView(
                     .padding(start = 24.dp, end = 24.dp, bottom = contentPadding.calculateBottomPadding()),
         ) {
             Text(
-                text = "Couldn't Connect to Tor",
+                text = stringRes(DesignR.string.migrationTorFailure_title).getValue(),
                 style = ZashiTypography.textXl,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(4.dp)
             Text(
-                text =
-                    "We couldn't establish a Tor connection. You can proceed without Tor protection, " +
-                        "or cancel and try again.",
+                text = stringRes(DesignR.string.migrationTorFailure_body).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
             Spacer(24.dp)
             RiskCard(
-                title = "What are the risks?",
-                body =
-                    "Without Tor, your IP address is exposed to the server and could be linked to " +
-                        "the migration amounts.",
+                title = stringRes(DesignR.string.migration_common_whatAreTheRisks).getValue(),
+                body = stringRes(DesignR.string.migrationTorFailure_riskBody).getValue(),
             )
             Spacer(32.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes("Continue without Tor"), onClick = innerState.onContinueWithoutTor),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_continueWithoutTor),
+                        onClick = innerState.onContinueWithoutTor
+                    ),
                 modifier = Modifier.fillMaxWidth(),
                 defaultPrimaryColors = ZashiButtonDefaults.destructive1Colors(),
             )
             Spacer(8.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes("Try again"), onClick = innerState.onTryAgain),
+                state = ButtonState(text = stringRes(DesignR.string.migration_common_tryAgain), onClick = innerState.onTryAgain),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

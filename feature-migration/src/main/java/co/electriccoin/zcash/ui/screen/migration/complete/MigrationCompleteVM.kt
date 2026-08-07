@@ -33,6 +33,7 @@ import co.electriccoin.zcash.ui.common.usecase.GetOrchardBalanceUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.usecase.LockOrchardBalanceUseCase
+import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.migration.lockexplainer.MigrationLockExplainerArgs
 import co.electriccoin.zcash.ui.screen.migration.success.MigrationSuccessArgs
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationCompleteVM(
     private val getOrchardBalance: GetOrchardBalanceUseCase,
@@ -152,7 +154,7 @@ class MigrationCompleteVM(
             totalTransferred = stringRes(Zatoshi(summary.totalTransferred)),
             remainingDust = if (summary.dustZatoshi > 0L) stringRes(Zatoshi(summary.dustZatoshi)) else null,
             isDustLocked = isLocked,
-            transfersProgress = stringRes("${summary.totalCount} of ${summary.totalCount} sent"),
+            transfersProgress = stringRes(DesignR.string.migrationComplete_transfersProgress, summary.totalCount, summary.totalCount),
             duration = stringRes(formatMigrationDuration(summary.lastAt - summary.firstAt)),
             isMigrating = isMigrating,
             isLocking = isLocking,
@@ -180,12 +182,12 @@ class MigrationCompleteVM(
                 },
         )
 
-    private fun migrateAnywaySubmitFailureMessage(result: SubmitResult): String =
+    private fun migrateAnywaySubmitFailureMessage(result: SubmitResult): StringResource =
         when (result) {
-            is SubmitResult.GrpcFailure -> "Couldn't reach the network. Check your connection and try again."
-            is SubmitResult.Failure -> "The network rejected this transaction. Please contact support."
-            is SubmitResult.Error -> "Something went wrong while sending. Please contact support."
-            is SubmitResult.Partial -> "Some but not all of this transaction's parts were sent. Please contact support."
+            is SubmitResult.GrpcFailure -> stringRes(DesignR.string.migrationComplete_migrateAnywayFailureNetworkError)
+            is SubmitResult.Failure -> stringRes(DesignR.string.migrationComplete_migrateAnywayFailureRejected)
+            is SubmitResult.Error -> stringRes(DesignR.string.migrationComplete_migrateAnywayFailureError)
+            is SubmitResult.Partial -> stringRes(DesignR.string.migrationComplete_migrateAnywayFailurePartial)
             is SubmitResult.Success -> error("migrateAnywaySubmitFailureMessage called with a Success result")
         }
 

@@ -41,6 +41,7 @@ import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
 data object MigrationTransferInvalidArgs
@@ -82,23 +83,31 @@ fun MigrationTransferInvalidView(state: MigrationTransferInvalidState) {
                 when (state.kind) {
                     MigrationAttentionKind.PLAN_UPDATE -> {
                         Triple(
-                            "Update Migration Plan",
-                            "Some Orchard notes were spent outside the migration flow, which invalidated " +
-                                "the pre-signed transfer plan. The plan needs to be re-created for the " +
-                                "remaining balance. No funds are lost — only the pre-signed transactions " +
-                                "are discarded.",
-                            "The invalidated transfer is discarded",
+                            stringRes(DesignR.string.migrationTransferInvalid_planUpdateTitle).getValue(),
+                            stringRes(DesignR.string.migrationTransferInvalid_planUpdateBody).getValue(),
+                            stringRes(DesignR.string.migrationTransferInvalid_planUpdateFirstStep).getValue(),
                         )
                     }
 
                     MigrationAttentionKind.TRANSFER_EXPIRED -> {
+                        val isPlural = state.remainingCount > 1
                         Triple(
-                            "Transfer No Longer Valid",
-                            "Transfer ${state.invalidRange.getValue()} expired without being sent — the app " +
-                                "wasn't opened in time to broadcast ${if (state.remainingCount > 1) "them" else "it"}. " +
-                                "The migration plan needs to be re-created for the remaining balance. No " +
-                                "funds are lost — only the pre-signed transactions are discarded.",
-                            "Expired transfer${if (state.remainingCount > 1) "s are" else " is"} discarded",
+                            stringRes(DesignR.string.migrationTransferInvalid_transferExpiredTitle).getValue(),
+                            stringRes(
+                                if (isPlural) {
+                                    DesignR.string.migrationTransferInvalid_transferExpiredBodyPlural
+                                } else {
+                                    DesignR.string.migrationTransferInvalid_transferExpiredBodySingular
+                                },
+                                state.invalidRange.getValue()
+                            ).getValue(),
+                            stringRes(
+                                if (isPlural) {
+                                    DesignR.string.migrationTransferInvalid_expiredStepLabelPlural
+                                } else {
+                                    DesignR.string.migrationTransferInvalid_expiredStepLabelSingular
+                                }
+                            ).getValue(),
                         )
                     }
                 }
@@ -116,7 +125,7 @@ fun MigrationTransferInvalidView(state: MigrationTransferInvalidState) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                text = "What Happens Next",
+                text = stringRes(DesignR.string.migrationTransferInvalid_whatHappensNextTitle).getValue(),
                 style = ZashiTypography.textSm,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
@@ -128,15 +137,20 @@ fun MigrationTransferInvalidView(state: MigrationTransferInvalidState) {
             )
             WhatHappensNextItem(
                 number = 2,
-                text = "Remaining balance is re-proposed",
+                text = stringRes(DesignR.string.migrationTransferInvalid_remainingBalanceReproposed).getValue(),
             )
             WhatHappensNextItem(
                 number = 3,
-                text = "${state.completedCount} of ${state.totalCount} transfers done; migration will continue.",
+                text =
+                    stringRes(
+                        DesignR.string.migrationTransferInvalid_transfersDoneProgress,
+                        state.completedCount,
+                        state.totalCount
+                    ).getValue(),
             )
             Spacer(Modifier.weight(1f))
             ZashiButton(
-                state = ButtonState(text = stringRes("Continue"), onClick = state.onContinue),
+                state = ButtonState(text = stringRes(DesignR.string.migration_common_continue), onClick = state.onContinue),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

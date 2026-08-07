@@ -53,6 +53,7 @@ import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import co.electriccoin.zcash.ui.screen.migration.component.MigrationPreparationDetailsBottomSheet
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Composable
 fun MigrationProgressScreen() {
@@ -119,7 +120,7 @@ fun MigrationProgressView(state: MigrationProgressState) {
                     // Figma shows the total amount on this collapsed row too (unlike the
                     // superseded inline-expand design, which omitted it as "internal plumbing").
                     TransferProgressTimelineRow(
-                        title = "Split Balance",
+                        title = stringRes(DesignR.string.migration_common_splitBalanceTitle).getValue(),
                         statusLabel = summary.statusLabel,
                         isReadyNow = summary.isReadyNow,
                         amount = state.totalAmount,
@@ -142,7 +143,7 @@ fun MigrationProgressView(state: MigrationProgressState) {
                                 else -> TransferRowState.IDLE
                             }
                         TransferProgressTimelineRow(
-                            title = "Split balance ${prep.number}",
+                            title = stringRes(DesignR.string.migration_common_splitBalanceNumbered, prep.number).getValue(),
                             statusLabel = prep.statusLabel,
                             isReadyNow = prep.isReadyNow,
                             amount = null,
@@ -163,7 +164,7 @@ fun MigrationProgressView(state: MigrationProgressState) {
                             else -> TransferRowState.IDLE
                         }
                     TransferProgressTimelineRow(
-                        title = "Transfer ${transfer.index}",
+                        title = stringRes(DesignR.string.migration_common_transferTitle, transfer.index).getValue(),
                         statusLabel = transfer.statusLabel,
                         isReadyNow = transfer.isReadyNow,
                         amount = transfer.amount,
@@ -184,7 +185,7 @@ fun MigrationProgressView(state: MigrationProgressState) {
             if (state.isComplete) {
                 state.onDone?.let { done ->
                     ZashiButton(
-                        state = ButtonState(text = stringRes("Got it"), onClick = done),
+                        state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = done),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -215,7 +216,7 @@ private fun MigrationBalanceTrackerCard(tracker: MigrationProgressBalanceTracker
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Orchard",
+                text = stringRes(DesignR.string.migrationProgress_orchardLabel).getValue(),
                 style = ZashiTypography.textXs,
                 fontWeight = FontWeight.Medium,
                 color = ZashiColors.Text.textTertiary,
@@ -248,7 +249,7 @@ private fun MigrationBalanceTrackerCard(tracker: MigrationProgressBalanceTracker
             horizontalAlignment = Alignment.End,
         ) {
             Text(
-                text = "Ironwood",
+                text = stringRes(DesignR.string.migrationProgress_ironwoodLabel).getValue(),
                 style = ZashiTypography.textXs,
                 fontWeight = FontWeight.Medium,
                 color = ZashiColors.Text.textTertiary,
@@ -404,7 +405,7 @@ private fun TransferProgressTimelineRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Show details",
+                        text = stringRes(DesignR.string.migration_common_showDetails).getValue(),
                         style = ZashiTypography.textXs,
                         fontWeight = FontWeight.SemiBold,
                         color = ZashiColors.Text.textPrimary,

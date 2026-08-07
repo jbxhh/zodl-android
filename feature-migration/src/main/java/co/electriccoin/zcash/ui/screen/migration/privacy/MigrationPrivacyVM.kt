@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationPrivacyVM(
     private val args: MigrationPrivacyArgs,
@@ -34,29 +35,14 @@ class MigrationPrivacyVM(
             .map { tor ->
                 MigrationPrivacyState(
                     body =
-                        stringRes(
-                            when (args.mode) {
-                                MigrationMode.IMMEDIATE -> {
-                                    "If Tor is available in your region, we strongly recommend enabling it to " +
-                                        "prevent linking your balance to your IP address. You can also use a " +
-                                        "trusted VPN if Tor is unavailable in your region."
-                                }
-
-                                MigrationMode.AUTOMATIC -> {
-                                    "If Tor is available in your region, we strongly recommend enabling it to " +
-                                        "prevent linking the migration amounts to your IP address. You can also " +
-                                        "use a trusted VPN if Tor is unavailable in your region."
-                                }
-                            }
-                        ),
+                        when (args.mode) {
+                            MigrationMode.IMMEDIATE -> stringRes(DesignR.string.migrationPrivacy_bodyImmediate)
+                            MigrationMode.AUTOMATIC -> stringRes(DesignR.string.migrationPrivacy_bodyAutomatic)
+                        },
                     checkbox =
                         CheckboxState(
-                            title = stringRes("Enable Tor Protection"),
-                            subtitle =
-                                stringRes(
-                                    "Routes your connection through the Tor network for enhanced anonymity and " +
-                                        "privacy protection."
-                                ),
+                            title = stringRes(DesignR.string.migration_common_enableTorProtectionTitle),
+                            subtitle = stringRes(DesignR.string.migration_common_torCheckboxSubtitle),
                             isChecked = tor,
                             onClick = { onTorToggle(!tor) },
                         ),

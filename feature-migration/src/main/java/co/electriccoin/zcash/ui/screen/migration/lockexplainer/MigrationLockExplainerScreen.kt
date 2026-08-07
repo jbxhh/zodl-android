@@ -26,9 +26,11 @@ import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
+import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.stringRes
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
 data object MigrationLockExplainerArgs
@@ -58,40 +60,47 @@ fun MigrationLockExplainerView(
                     .padding(start = 24.dp, end = 24.dp, bottom = contentPadding.calculateBottomPadding()),
         ) {
             Text(
-                text = "What does locking do?",
+                text = stringRes(DesignR.string.migrationLockExplainer_title).getValue(),
                 style = ZashiTypography.textXl,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(4.dp)
+            val bullet1Prefix = stringRes(DesignR.string.migrationLockExplainer_bullet1Prefix).getValue()
+            val bullet1Bold = stringRes(DesignR.string.migrationLockExplainer_bullet1Bold).getValue()
+            val bullet1Suffix = stringRes(DesignR.string.migrationLockExplainer_bullet1Suffix).getValue()
             LockExplainerBullet(
                 buildAnnotatedString {
-                    append("Locking marks this balance as ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("unspendable") }
-                    append(", so it can't compromise your privacy in future transactions.")
+                    append(bullet1Prefix)
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(bullet1Bold) }
+                    append(bullet1Suffix)
                 }
             )
             Spacer(16.dp)
+            val bullet2Bold = stringRes(DesignR.string.migrationLockExplainer_bullet2Bold).getValue()
+            val bullet2Suffix = stringRes(DesignR.string.migrationLockExplainer_bullet2Suffix).getValue()
             LockExplainerBullet(
                 buildAnnotatedString {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append("The lock lives on this Zodl/Keystone instance only.")
+                        append(bullet2Bold)
                     }
-                    append(" Restoring your wallet won't carry it over.")
+                    append(bullet2Suffix)
                 }
             )
             Spacer(16.dp)
+            val bullet3Prefix = stringRes(DesignR.string.migrationLockExplainer_bullet3Prefix).getValue()
+            val bullet3Bold = stringRes(DesignR.string.migrationLockExplainer_bullet3Bold).getValue()
             LockExplainerBullet(
                 buildAnnotatedString {
-                    append("A future release will let you ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("unlock this balance.") }
+                    append(bullet3Prefix)
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(bullet3Bold) }
                 }
             )
             Spacer(32.dp)
             ZashiButton(
                 state =
                     ButtonState(
-                        text = stringRes("Got it"),
+                        text = stringRes(DesignR.string.migration_common_gotIt),
                         onClick = innerState.onGotIt,
                     ),
                 modifier = Modifier.fillMaxWidth(),

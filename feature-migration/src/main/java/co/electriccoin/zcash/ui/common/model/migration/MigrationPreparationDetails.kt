@@ -30,6 +30,14 @@ data class MigrationPreparationStepDetail(
     val isDone: Boolean = false,
 )
 
+// NOTE: these helpers deliberately stay ByString literals (not Android string resources) — they're
+// unit-tested in plain JVM tests (MigrationPreparationDetailsTest, MigrationProgressVMTest,
+// MigrationReviewPlanShapeTest) via a StringResource.ByString-only reflection helper with no
+// Android Context available to resolve a real resource. Converting them would either throw in
+// those tests or require reworking that shared test harness — tracked as a known gap: these
+// specific dynamic status words are not localized. See migrationSetup_title etc. for the
+// resource-backed pattern used everywhere else in this module.
+
 /** "Transaction N of M" — shared so both screens render identical copy. */
 fun preparationStepTitle(number: Int, stepCount: Int): StringResource = stringRes("Transaction $number of $stepCount")
 

@@ -24,6 +24,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import co.electriccoin.zcash.ui.design.R as DesignR
 
 class MigrationKeystoneScanVM(
     private val args: MigrationKeystoneScanArgs,
@@ -39,7 +40,7 @@ class MigrationKeystoneScanVM(
         MutableStateFlow(
             ScanKeystoneState(
                 progress = null,
-                message = stringRes("Scan the QR code shown on your Keystone device after signing."),
+                message = stringRes(DesignR.string.migrationKeystoneScan_instructions),
             )
         )
 
@@ -99,9 +100,7 @@ class MigrationKeystoneScanVM(
                         isProcessing = false
                         failureSheet.update {
                             MigrationTransferFailureState(
-                                message =
-                                    "Your Keystone firmware doesn't support migration yet. " +
-                                        "Update your Keystone device, then come back to retry.",
+                                message = stringRes(DesignR.string.migrationKeystoneScan_firmwareUnsupported),
                                 // Nothing to retry without a physical firmware update — both actions
                                 // just dismiss and back out, unlike the network-failure sheet below.
                                 onRetry = {
@@ -228,7 +227,7 @@ class MigrationKeystoneScanVM(
                 isProcessing = false
                 failureSheet.update {
                     MigrationTransferFailureState(
-                        message = "Something went wrong while processing that scan. Please try again.",
+                        message = stringRes(DesignR.string.migrationKeystoneScan_errorMessage),
                         onRetry = { failureSheet.value = null },
                         onDismiss = {
                             failureSheet.value = null
