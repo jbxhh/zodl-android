@@ -1,8 +1,6 @@
 package co.electriccoin.zcash.ui.screen.migration.notification
 
 import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,15 +17,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
@@ -55,36 +49,23 @@ data object MigrationNotificationArgs
 fun MigrationNotificationScreen() {
     val vm = koinViewModel<MigrationNotificationVM>()
     val state by vm.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     LceRenderer(
         state = state,
         loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
     ) { s ->
         BackHandler { s.onBack() }
-        val isAlreadyGranted =
-            remember {
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
+        val launcher =
+            rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+                s.onAllow()
             }
-        if (isAlreadyGranted) {
-            LaunchedEffect(Unit) { s.onAutoSkip() }
-        } else {
-            val launcher =
-                rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-                    s.onAllow()
-                }
-            MigrationNotificationView(
-                state =
-                    s.copy(
-                        onAllow = {
-                            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                    )
-            )
-        }
+        MigrationNotificationView(
+            state =
+                s.copy(
+                    onAllow = {
+                        launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                )
+        )
     }
 }
 

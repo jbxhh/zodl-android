@@ -20,9 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -67,46 +65,41 @@ fun MigrationBatteryScreen() {
 
         fun isUnrestricted() = isBackgroundExecutionAvailableProvider.isAvailable()
 
-        val isAlreadyUnrestricted = remember { isUnrestricted() }
-        if (isAlreadyUnrestricted) {
-            LaunchedEffect(Unit) { s.onAutoSkip() }
-        } else {
-            val launcher =
-                rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-                    // Only proceed if the user actually granted the exemption in Settings.
-                    // Otherwise stay on this screen so they can retry Allow or tap Skip.
-                    if (isUnrestricted()) s.onAllow()
-                }
-            MigrationBatteryView(
-                state =
-                    s.copy(
-                        onAllow = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                // Three-state battery setting: the one-tap exemption dialog only
-                                // lifts OPTIMIZED. A RESTRICTED app cannot be un-restricted by any
-                                // dialog — send the user to App Info instead, where the Battery
-                                // entry offers the change; the result-launcher re-check below
-                                // handles both paths identically.
-                                val intent =
-                                    if (isBackgroundExecutionAvailableProvider.state() ==
-                                        co.electriccoin.zcash.ui.common.provider.BackgroundExecutionState.RESTRICTED
-                                    ) {
-                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                        }
-                                    } else {
-                                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                        }
+        val launcher =
+            rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                // Only proceed if the user actually granted the exemption in Settings.
+                // Otherwise stay on this screen so they can retry Allow or tap Skip.
+                if (isUnrestricted()) s.onAllow()
+            }
+        MigrationBatteryView(
+            state =
+                s.copy(
+                    onAllow = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            // Three-state battery setting: the one-tap exemption dialog only
+                            // lifts OPTIMIZED. A RESTRICTED app cannot be un-restricted by any
+                            // dialog — send the user to App Info instead, where the Battery
+                            // entry offers the change; the result-launcher re-check below
+                            // handles both paths identically.
+                            val intent =
+                                if (isBackgroundExecutionAvailableProvider.state() ==
+                                    co.electriccoin.zcash.ui.common.provider.BackgroundExecutionState.RESTRICTED
+                                ) {
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
                                     }
-                                launcher.launch(intent)
-                            } else {
-                                s.onAllow()
-                            }
+                                } else {
+                                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
+                                }
+                            launcher.launch(intent)
+                        } else {
+                            s.onAllow()
                         }
-                    )
-            )
-        }
+                    }
+                )
+        )
     }
 }
 
