@@ -85,9 +85,18 @@ class MigrationDurationFormatTest {
     fun formatMigrationDuration_applyPrivacyFloor_false_reveals_the_exact_duration() {
         // 2026-08-06 revised decision — an already-mined transfer's "ago" label opts out: its exact
         // timing is already public on-chain, so there is no remaining privacy benefit to flooring it.
-        assertEquals("~1 min", formatMigrationDuration(totalSeconds = 60L, fineGrained = true, applyPrivacyFloor = false))
-        assertEquals("~2 min", formatMigrationDuration(totalSeconds = 130L, fineGrained = false, applyPrivacyFloor = false))
-        assertEquals("~0 min", formatMigrationDuration(totalSeconds = 0L, fineGrained = true, applyPrivacyFloor = false))
+        assertEquals(
+            "~1 min",
+            formatMigrationDuration(totalSeconds = 60L, fineGrained = true, applyPrivacyFloor = false),
+        )
+        assertEquals(
+            "~2 min",
+            formatMigrationDuration(totalSeconds = 130L, fineGrained = false, applyPrivacyFloor = false),
+        )
+        assertEquals(
+            "~0 min",
+            formatMigrationDuration(totalSeconds = 0L, fineGrained = true, applyPrivacyFloor = false),
+        )
     }
 
     @Test

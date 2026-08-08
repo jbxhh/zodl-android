@@ -89,12 +89,28 @@ class MigrationReviewPlanShapeTest {
             val anchorHeight = 4_000_000L
 
             // Layer 0: two independent root splits (broadcastHeight = anchorHeight).
-            val prep0 = PreparationStep(id = 10L, layer = 0, index = 0, broadcastHeight = anchorHeight, dependsOn = emptyList())
-            val prep1 = PreparationStep(id = 11L, layer = 0, index = 1, broadcastHeight = anchorHeight, dependsOn = emptyList())
+            val prep0 =
+                PreparationStep(id = 10L, layer = 0, index = 0, broadcastHeight = anchorHeight, dependsOn = emptyList())
+            val prep1 =
+                PreparationStep(id = 11L, layer = 0, index = 1, broadcastHeight = anchorHeight, dependsOn = emptyList())
             // Layer 1: one split that depends on both layer-0 outputs.
-            val prep2 = PreparationStep(id = 20L, layer = 1, index = 0, broadcastHeight = anchorHeight + 10L, dependsOn = listOf(10L, 11L))
+            val prep2 =
+                PreparationStep(
+                    id = 20L,
+                    layer = 1,
+                    index = 0,
+                    broadcastHeight = anchorHeight + 10L,
+                    dependsOn = listOf(10L, 11L)
+                )
             // Layer 2: a final split combining everything.
-            val prep3 = PreparationStep(id = 30L, layer = 2, index = 0, broadcastHeight = anchorHeight + 25L, dependsOn = listOf(20L))
+            val prep3 =
+                PreparationStep(
+                    id = 30L,
+                    layer = 2,
+                    index = 0,
+                    broadcastHeight = anchorHeight + 25L,
+                    dependsOn = listOf(20L)
+                )
 
             val transfers =
                 (1..11).map { i ->
@@ -128,13 +144,15 @@ class MigrationReviewPlanShapeTest {
                 "preparations must be empty once there's more than one — the summary row replaces them",
             )
 
-            val subtitle = assertNotNull(state.preparationsSummarySubtitle, "summary subtitle must be present for >1 preparations")
+            val subtitle =
+                assertNotNull(state.preparationsSummarySubtitle, "summary subtitle must be present for >1 preparations")
             assertTrue(
                 subtitle.asString().contains("4 steps"),
                 "summary subtitle must mention the step count, got ${subtitle.asString()}",
             )
 
-            val details = assertNotNull(state.preparationDetails, "preparation details must be present for >1 preparations")
+            val details =
+                assertNotNull(state.preparationDetails, "preparation details must be present for >1 preparations")
             assertEquals(4, details.stepCount, "must report exactly 4 steps")
             assertEquals(4, details.steps.size, "must have exactly 4 step rows in the sheet")
 
@@ -146,8 +164,14 @@ class MigrationReviewPlanShapeTest {
 
             // Every step must carry a non-null, non-empty time label and status label.
             details.steps.forEach { step ->
-                assertTrue(step.timeLabel.asString().isNotEmpty(), "step '${step.title.asString()}' must have a non-empty timeLabel")
-                assertTrue(step.statusLabel.asString().isNotEmpty(), "step '${step.title.asString()}' must have a non-empty statusLabel")
+                assertTrue(
+                    step.timeLabel.asString().isNotEmpty(),
+                    "step '${step.title.asString()}' must have a non-empty timeLabel",
+                )
+                assertTrue(
+                    step.statusLabel.asString().isNotEmpty(),
+                    "step '${step.title.asString()}' must have a non-empty statusLabel",
+                )
             }
 
             // The two layer-0 splits (steps 1 & 2) have no dependency, so they must NOT read "Waits
@@ -188,8 +212,14 @@ class MigrationReviewPlanShapeTest {
                 MigrationReviewPreparationState::class.java.declaredFields
                     .map { it.name }
                     .toSet()
-            assertTrue("number" in prepFields && "scheduledLabel" in prepFields, "preparation state must have number + scheduledLabel")
-            assertTrue("amount" !in prepFields && "fiatAmount" !in prepFields, "preparation state must NOT have amount/fiatAmount")
+            assertTrue(
+                "number" in prepFields && "scheduledLabel" in prepFields,
+                "preparation state must have number + scheduledLabel",
+            )
+            assertTrue(
+                "amount" !in prepFields && "fiatAmount" !in prepFields,
+                "preparation state must NOT have amount/fiatAmount",
+            )
 
             collectJob.cancel()
         }

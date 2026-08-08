@@ -1,9 +1,6 @@
-package co.electriccoin.zcash.ui.screen.migration.battery
+package co.electriccoin.zcash.ui.screen.migration.notification
 
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
+import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,16 +17,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import co.electriccoin.zcash.ui.common.provider.IsBackgroundExecutionAvailableProvider
 import co.electriccoin.zcash.ui.design.component.BlankBgScaffold
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.CircularScreenProgressIndicator
@@ -47,71 +40,37 @@ import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.common.LceRenderer
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 import co.electriccoin.zcash.ui.design.R as DesignR
 
 @Serializable
-data object MigrationBatteryArgs
+data object MigrationNotificationArgs
 
 @Composable
-fun MigrationBatteryScreen() {
-    val vm = koinViewModel<MigrationBatteryVM>()
+fun MigrationNotificationScreen() {
+    val vm = koinViewModel<MigrationNotificationVM>()
     val state by vm.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val isBackgroundExecutionAvailableProvider = koinInject<IsBackgroundExecutionAvailableProvider>()
     LceRenderer(
         state = state,
         loading = { isLoading -> if (isLoading && state.content == null) CircularScreenProgressIndicator() },
     ) { s ->
         BackHandler { s.onBack() }
-
-        fun isUnrestricted() = isBackgroundExecutionAvailableProvider.isAvailable()
-
-        val isAlreadyUnrestricted = remember { isUnrestricted() }
-        if (isAlreadyUnrestricted) {
-            LaunchedEffect(Unit) { s.onAutoSkip() }
-        } else {
-            val launcher =
-                rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-                    // Only proceed if the user actually granted the exemption in Settings.
-                    // Otherwise stay on this screen so they can retry Allow or tap Skip.
-                    if (isUnrestricted()) s.onAllow()
-                }
-            MigrationBatteryView(
-                state =
-                    s.copy(
-                        onAllow = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                // Three-state battery setting: the one-tap exemption dialog only
-                                // lifts OPTIMIZED. A RESTRICTED app cannot be un-restricted by any
-                                // dialog — send the user to App Info instead, where the Battery
-                                // entry offers the change; the result-launcher re-check below
-                                // handles both paths identically.
-                                val intent =
-                                    if (isBackgroundExecutionAvailableProvider.state() ==
-                                        co.electriccoin.zcash.ui.common.provider.BackgroundExecutionState.RESTRICTED
-                                    ) {
-                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                        }
-                                    } else {
-                                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                        }
-                                    }
-                                launcher.launch(intent)
-                            } else {
-                                s.onAllow()
-                            }
-                        }
-                    )
-            )
-        }
+        val launcher =
+            rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+                s.onAllow()
+            }
+        MigrationNotificationView(
+            state =
+                s.copy(
+                    onAllow = {
+                        launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                )
+        )
     }
 }
 
 @Composable
-fun MigrationBatteryView(state: MigrationBatteryState) {
+fun MigrationNotificationView(state: MigrationNotificationState) {
     BlankBgScaffold(
         topBar = {
             ZashiSmallTopAppBar(
@@ -128,34 +87,34 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
                     .scaffoldPadding(padding),
         ) {
             Text(
-                text = stringRes(DesignR.string.migrationBattery_title).getValue(),
+                text = stringRes(DesignR.string.migrationNotifPermission_title).getValue(),
                 style = ZashiTypography.header6,
                 fontWeight = FontWeight.SemiBold,
                 color = ZashiColors.Text.textPrimary,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = stringRes(DesignR.string.migrationBattery_body).getValue(),
+                text = stringRes(DesignR.string.migrationNotifPermission_subtitle).getValue(),
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
             Spacer(Modifier.height(24.dp))
-            BatteryFeatureItem(
-                icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_battery_clock_check,
-                title = stringRes(DesignR.string.migrationBattery_scheduledWindowsTitle).getValue(),
-                body = stringRes(DesignR.string.migrationBattery_scheduledWindowsBody).getValue(),
+            NotificationFeatureItem(
+                icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_annotation_check,
+                title = stringRes(DesignR.string.migrationNotifPermission_statusTitle).getValue(),
+                body = stringRes(DesignR.string.migrationNotifPermission_statusBody).getValue(),
             )
             Spacer(Modifier.height(16.dp))
-            BatteryFeatureItem(
-                icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_battery_face_smile,
-                title = stringRes(DesignR.string.migrationBattery_noNeedToOpenTitle).getValue(),
-                body = stringRes(DesignR.string.migrationBattery_noNeedToOpenBody).getValue(),
+            NotificationFeatureItem(
+                icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_bell_ringing,
+                title = stringRes(DesignR.string.migrationNotifPermission_actionNeededTitle).getValue(),
+                body = stringRes(DesignR.string.migrationNotifPermission_actionNeededBody).getValue(),
             )
             Spacer(Modifier.height(16.dp))
-            BatteryFeatureItem(
-                icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_battery_check_heart,
-                title = stringRes(DesignR.string.migrationBattery_fixedScheduleTitle).getValue(),
-                body = stringRes(DesignR.string.migrationBattery_fixedScheduleBody).getValue(),
+            NotificationFeatureItem(
+                icon = co.electriccoin.zcash.migration.R.drawable.ic_migration_notif_announcement,
+                title = stringRes(DesignR.string.migrationNotifPermission_planChangesTitle).getValue(),
+                body = stringRes(DesignR.string.migrationNotifPermission_planChangesBody).getValue(),
             )
             Spacer(Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -167,7 +126,7 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = stringRes(DesignR.string.migrationBattery_withoutPermissionHint).getValue(),
+                    text = stringRes(DesignR.string.migrationNotifPermission_warningHint).getValue(),
                     style = ZashiTypography.textXs,
                     color = ZashiColors.Utility.WarningYellow.utilityOrange700,
                 )
@@ -192,7 +151,7 @@ fun MigrationBatteryView(state: MigrationBatteryState) {
 }
 
 @Composable
-private fun BatteryFeatureItem(icon: Int, title: String, body: String) {
+private fun NotificationFeatureItem(icon: Int, title: String, body: String) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Icon(
             painter = painterResource(icon),
@@ -221,7 +180,16 @@ private fun BatteryFeatureItem(icon: Int, title: String, body: String) {
 @Composable
 private fun Preview() =
     ZcashTheme {
-        MigrationBatteryView(
-            state = MigrationBatteryState(onAllow = {}, onSkip = {}, onAutoSkip = {}, onBack = {})
+        MigrationNotificationView(
+            state = MigrationNotificationState(onAllow = {}, onSkip = {}, onAutoSkip = {}, onBack = {})
+        )
+    }
+
+@PreviewScreens
+@Composable
+private fun PreviewForceDark() =
+    ZcashTheme(forceDarkMode = true) {
+        MigrationNotificationView(
+            state = MigrationNotificationState(onAllow = {}, onSkip = {}, onAutoSkip = {}, onBack = {})
         )
     }

@@ -207,7 +207,11 @@ class MigrationProgressVM(
         } else {
             val isLastRowOverall = active.id == preparations.last().id && snapshot.transfers.isEmpty()
             val display = preparationRowDisplay(active, now, isLastRowOverall)
-            MigrationProgressPreparationSummary(statusLabel = display.label, isReadyNow = display.isReadyNow, isSent = false)
+            MigrationProgressPreparationSummary(
+                statusLabel = display.label,
+                isReadyNow = display.isReadyNow,
+                isSent = false
+            )
         }
     }
 

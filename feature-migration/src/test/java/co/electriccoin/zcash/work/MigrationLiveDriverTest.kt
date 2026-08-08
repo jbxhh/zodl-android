@@ -40,7 +40,11 @@ class MigrationLiveDriverTest {
             driver.startIfNotRunning("account-1")
             advanceUntilIdle()
 
-            assertEquals(1, runCallCount, "a second start for the SAME account while the first is still active must be a no-op")
+            assertEquals(
+                1,
+                runCallCount,
+                "a second start for the SAME account while the first is still active must be a no-op",
+            )
         }
 
     @Test
@@ -66,7 +70,11 @@ class MigrationLiveDriverTest {
             driver.startIfNotRunning("account-1")
             advanceUntilIdle()
 
-            assertEquals(3, runCallCount, "the loop must call run() again after each returned delay, and stop on Terminal")
+            assertEquals(
+                3,
+                runCallCount,
+                "the loop must call run() again after each returned delay, and stop on Terminal",
+            )
         }
 
     @Test
@@ -79,7 +87,11 @@ class MigrationLiveDriverTest {
                         runCallCount++
                         // 0 seconds is exactly what nextWake's floorless privacy-gap term can
                         // return — the loop must not spin on this.
-                        if (runCallCount < 3) DriveOnceResult.ReArmed(kotlin.time.Duration.ZERO) else DriveOnceResult.Terminal
+                        if (runCallCount < 3) {
+                            DriveOnceResult.ReArmed(kotlin.time.Duration.ZERO)
+                        } else {
+                            DriveOnceResult.Terminal
+                        }
                     }
                 }
             val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
@@ -133,7 +145,11 @@ class MigrationLiveDriverTest {
             advanceTimeBy(5_000)
             advanceUntilIdle()
 
-            assertEquals(3, runCallCount, "respectAntiSpinFloor=false must NOT be floored — the loop must chain back-to-back")
+            assertEquals(
+                3,
+                runCallCount,
+                "respectAntiSpinFloor=false must NOT be floored — the loop must chain back-to-back",
+            )
         }
 
     @Test
@@ -268,7 +284,11 @@ class MigrationLiveDriverTest {
             driver.startIfNotRunning("account-1")
             advanceUntilIdle()
 
-            assertEquals(3, runCallCount, "a failed publish read must not stop the loop — it must keep driving to Terminal")
+            assertEquals(
+                3,
+                runCallCount,
+                "a failed publish read must not stop the loop — it must keep driving to Terminal",
+            )
         }
 
     @Test

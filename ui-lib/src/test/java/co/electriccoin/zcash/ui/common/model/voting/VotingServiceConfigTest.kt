@@ -338,7 +338,7 @@ class RoundAuthenticatorTest {
                         VotingServiceConfig.Signature(
                             keyId = "valar-test",
                             alg = "ed25519",
-                            sig = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=="
+                            sig = ALTERNATE_VALID_SIGNATURE_BASE64
                         ),
                         VotingServiceConfig.Signature(
                             keyId = "valar-test",
@@ -357,6 +357,8 @@ private const val EA_PK_BASE64 = "N72oXeIF96QwWBtChaCwde3tjTt75ZfAs455V4usYwM="
 private const val ADMIN_PUBKEY_BASE64 = "rKDbmhkoW9ja7dMiCV+1uTao7wXWV6xN/57erkrOuiQ="
 private const val ADMIN_SIGNATURE_BASE64 =
     "rnll+KsHIFt73GpyNoWrX57dlcX8hTi8GU5X/xpwg3vcE+jCARUXpD7LsK+OLw6R5q1kU/zccwNgzsmclt4WAg=="
+private const val ALTERNATE_VALID_SIGNATURE_BASE64 =
+    "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=="
 
 private fun makeServiceConfig(
     rounds: Map<String, VotingServiceConfig.RoundEntry>

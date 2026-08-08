@@ -141,7 +141,8 @@ class MigrationKeystoneScanVMTest {
                                 splitUnsignedPczt = null,
                                 transferUnsignedPczts = (0 until 36).map { it.toLong() to byteArrayOf(it.toByte()) },
                                 roundIndex = 1,
-                                accumulatedTransferSigned = (0 until 35).map { it.toLong() to byteArrayOf(it.toByte()) },
+                                accumulatedTransferSigned =
+                                    (0 until 35).map { it.toLong() to byteArrayOf(it.toByte()) },
                             )
                         )
                     }

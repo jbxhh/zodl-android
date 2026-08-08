@@ -125,7 +125,11 @@ fun MigrationHowItWorksView(state: MigrationHowItWorksState) {
             }
             Spacer(Modifier.height(20.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes(DesignR.string.migration_common_continue), onClick = state.onContinue),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_continue),
+                        onClick = state.onContinue
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

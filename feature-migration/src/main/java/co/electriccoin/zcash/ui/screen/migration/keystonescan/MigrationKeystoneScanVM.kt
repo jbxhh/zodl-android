@@ -188,7 +188,8 @@ class MigrationKeystoneScanVM(
                         )
                     )
                     migrationLog(
-                        "KeystoneScan: round ${pending.roundIndex} done — handing off to round ${pending.roundIndex + 1} of $totalRounds"
+                        "KeystoneScan: round ${pending.roundIndex} done — handing off to round " +
+                            "${pending.roundIndex + 1} of $totalRounds"
                     )
                     navigationRouter.replace(MigrationKeystoneSignArgs(args.mode))
                     return@launch

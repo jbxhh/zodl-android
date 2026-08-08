@@ -61,5 +61,8 @@ class PendingMigrationTorFailureStorageProviderImpl(
             .toStorageKeyId()
 
     private fun default(accountUuid: String) =
-        BooleanPreferenceDefault(key = PreferenceKey("pending_migration_tor_failure_$accountUuid"), defaultValue = false)
+        BooleanPreferenceDefault(
+            key = PreferenceKey("pending_migration_tor_failure_$accountUuid"),
+            defaultValue = false
+        )
 }

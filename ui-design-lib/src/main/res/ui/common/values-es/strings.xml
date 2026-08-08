@@ -652,6 +652,10 @@
 
     <!-- ===== send_confirmation ===== -->
     <string name="send_confirmationTitle">Confirmación</string>
+    <string name="send_orchardWarning_title">Este envío requiere gastar fondos de Orchard</string>
+    <string name="send_orchardWarning_message">Recomendamos migrar tus fondos primero para evitar filtrar el monto de la transacción en la cadena.</string>
+    <string name="send_orchardWarning_continue">Continuar de todos modos</string>
+    <string name="send_orchardWarning_cancel">Cancelar</string>
     <string name="send_amountSummary">Monto Total</string>
     <string name="accounts_sendingFrom">Enviar desde</string>
     <string name="send_message">Mensaje</string>
@@ -977,6 +981,26 @@
 
     <!-- ===== whats_new ===== -->
     <string name="whats_new_title">Novedades</string>
+
+    <!-- ===== migration (MigrationNotifier: notification channel + Orchard→Ironwood progress) ===== -->
+    <string name="migration_notification_channelName">Migración a Ironwood</string>
+    <string name="migration_notification_channelDescription">Notificaciones sobre el progreso de la migración de Orchard a Ironwood</string>
+    <string name="migration_notification_title">Migración a Ironwood</string>
+    <string name="migration_notification_noteSplitProgress">División de notas %1$d de %2$d</string>
+    <string name="migration_notification_noteSplitPreparing">Preparando tu saldo para la migración</string>
+    <string name="migration_notification_transferComplete">Transferencia %1$d de %2$d completada</string>
+    <string name="migration_notification_rescheduleWithCounts">La transferencia %1$d de %2$d no se pudo enviar — toca para reprogramar la migración.</string>
+    <string name="migration_notification_rescheduleGeneric">La migración está bloqueada — toca para reprogramar.</string>
+    <string name="migration_notification_actionRequiredTitle">Migración: Acción requerida</string>
+    <string name="migration_notification_manualConfirmationWithCounts">La transferencia %1$d de %2$d está lista. Toca para confirmar.</string>
+    <string name="migration_notification_manualConfirmationGeneric">Una transferencia de migración está lista. Toca para confirmar.</string>
+    <string name="migration_notification_torFailureTitle">Migración: No se pudo conectar a Tor</string>
+    <string name="migration_notification_torFailureText">Una transferencia programada no se pudo enviar por Tor. Abre Zodl para resolverlo.</string>
+    <string name="migration_notification_stepDueText">Tu migración está lista para continuar — toca para ejecutar el siguiente paso.</string>
+    <string name="migration_notification_planInvalidText">El plan de migración necesita actualizarse. Abre Zodl para revisar los detalles.</string>
+    <string name="migration_notification_transferExpiredText">Una transferencia expiró. Abre Zodl para continuar tu migración.</string>
+    <string name="migration_notification_completeTitle">Migración a Ironwood completada</string>
+    <string name="migration_notification_completeText">Todos tus fondos han sido migrados a Ironwood.</string>
 
     <!-- Restart Migration -->
     <string name="restartMigration_settingsItem">Reiniciar migración</string>

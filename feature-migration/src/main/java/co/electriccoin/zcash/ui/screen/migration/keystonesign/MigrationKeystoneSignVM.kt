@@ -188,7 +188,12 @@ class MigrationKeystoneSignVM(
     }
 
     private val combinedState: Flow<SignKeystoneTransactionState?> =
-        combine(getSelectedWalletAccount.observe(), qrParts, qrFrameIndex, roundInfo) { account, parts, frameIndex, round ->
+        combine(
+            getSelectedWalletAccount.observe(),
+            qrParts,
+            qrFrameIndex,
+            roundInfo
+        ) { account, parts, frameIndex, round ->
             val accountKeyId = account?.sdkAccount?.accountUuid?.toStorageKeyId()
             if (account == null || accountKeyId == null || pendingSchedule.peek(accountKeyId) == null) {
                 // Edge case only (e.g. process death mid-flow) — the schedule is proposed
@@ -205,7 +210,11 @@ class MigrationKeystoneSignVM(
             val roundSuffix =
                 round
                     ?.let { (index, total) ->
-                        if (total > 1) stringRes(DesignR.string.migrationKeystoneSign_roundSuffix, index + 1, total) else stringRes("")
+                        if (total > 1) {
+                            stringRes(DesignR.string.migrationKeystoneSign_roundSuffix, index + 1, total)
+                        } else {
+                            stringRes("")
+                        }
                     }
                     ?: stringRes("")
             SignKeystoneTransactionState(
@@ -230,7 +239,8 @@ class MigrationKeystoneSignVM(
                         text = stringRes(DesignR.string.migrationKeystoneSign_getSignature),
                         onClick = ::onGetSignature
                     ),
-                negativeButton = ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_reject), onClick = ::onReject),
+                negativeButton =
+                    ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_reject), onClick = ::onReject),
                 onBack = ::onReject,
             )
         }
@@ -256,10 +266,13 @@ class MigrationKeystoneSignVM(
         // reference point since Keystone devices are the same physical scan target either way).
         private const val MAX_FRAGMENT_LEN = 150
 
+        // A UUID is two 64-bit longs.
+        private const val UUID_BYTE_LENGTH = 16
+
         private fun randomRequestId(): ByteArray {
             val uuid = UUID.randomUUID()
             return ByteBuffer
-                .allocate(16)
+                .allocate(UUID_BYTE_LENGTH)
                 .putLong(uuid.mostSignificantBits)
                 .putLong(uuid.leastSignificantBits)
                 .array()

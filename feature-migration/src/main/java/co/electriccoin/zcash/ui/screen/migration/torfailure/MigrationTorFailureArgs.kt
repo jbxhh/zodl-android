@@ -90,7 +90,11 @@ fun MigrationTorFailureView(
             )
             Spacer(8.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes(DesignR.string.migration_common_tryAgain), onClick = innerState.onTryAgain),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_tryAgain),
+                        onClick = innerState.onTryAgain
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

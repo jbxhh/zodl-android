@@ -102,7 +102,11 @@ fun MigrationPrivacyView(
             TorToggleCard(innerState.checkbox)
             Spacer(32.dp)
             ZashiButton(
-                state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = innerState.onConfirm),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_gotIt),
+                        onClick = innerState.onConfirm
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

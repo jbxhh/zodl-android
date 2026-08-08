@@ -11,6 +11,7 @@ import co.electriccoin.zcash.di.providerModule
 import co.electriccoin.zcash.di.repositoryModule
 import co.electriccoin.zcash.di.useCaseModule
 import co.electriccoin.zcash.di.viewModelModule
+import co.electriccoin.zcash.migration.di.featureMigrationModule
 import co.electriccoin.zcash.test.ZcashUiTestRunner
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -39,7 +40,8 @@ class ZcashUiTestApplication : Application() {
                 metadataModule,
                 useCaseModule,
                 mapperModule,
-                viewModelModule
+                viewModelModule,
+                featureMigrationModule
             )
         }
     }

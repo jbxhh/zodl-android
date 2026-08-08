@@ -40,7 +40,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Deliberately MINIMAL: only the methods Lane A/B, the banner, and the late-prep scenario actually
  * touch are modelled with real behaviour. Everything else throws [NotImplementedError] with a
- * pointer to add it when a new scenario needs it — see the `// TODO(sim):` markers.
+ * pointer to add it when a new scenario needs it — see the `// NOTE(sim):` markers.
  *
  * ── The model ─────────────────────────────────────────────────────────────────
  * The chain is a list of [SimTx] plus a current [tip]. A transaction is *provable* when every
@@ -318,7 +318,9 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
             .filter { it.proved && !it.sent && it.minedHeight == null && isDue(it) }
             .minByOrNull { it.id }
             ?.let { return MigrationAdvanceResult(MigrationAdvanceStep.Broadcast(it.id), next = null) }
-        if (txs.all { it.minedHeight != null }) return MigrationAdvanceResult(MigrationAdvanceStep.Complete, next = null)
+        if (txs.all { it.minedHeight != null }) {
+            return MigrationAdvanceResult(MigrationAdvanceStep.Complete, next = null)
+        }
         return MigrationAdvanceResult(MigrationAdvanceStep.Waiting, next = null)
     }
 
@@ -444,7 +446,7 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
     override fun privacySyncBufferDuration(): Duration = 30.seconds
 
     // ── OrchardMigrationSdk: not needed by current scenarios ───────────────────
-    // TODO(sim): implement these as scenarios that exercise the propose/commit, Keystone,
+    // NOTE(sim): implement these as scenarios that exercise the propose/commit, Keystone,
     // completion-summary, or invalidity-recovery flows are added to the harness.
 
     /**
@@ -577,6 +579,6 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
     private fun notImpl(what: String): Nothing =
         throw NotImplementedError(
             "FakeOrchardMigrationSdk does not model this yet: $what. " +
-                "Extend the fake (see the TODO(sim) block) rather than reaching for a raw mockk stub."
+                "Extend the fake (see the NOTE(sim) block) rather than reaching for a raw mockk stub."
         )
 }

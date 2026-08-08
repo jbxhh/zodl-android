@@ -63,6 +63,10 @@ import java.math.BigDecimal
 import java.math.MathContext
 import co.electriccoin.zcash.ui.design.R as DesignR
 
+// Protocol target block interval in seconds, used as the fallback until a measured rate is
+// captured at propose time.
+private const val DEFAULT_SECONDS_PER_BLOCK = 75L
+
 class MigrationReviewVM(
     private val args: MigrationReviewArgs,
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
@@ -100,7 +104,7 @@ class MigrationReviewVM(
     // Measured block rate captured at propose time; 75s until then. Drives every
     // height-to-time label on this screen (bursty testnet vs the protocol constant).
     @Volatile
-    private var secondsPerBlock: Long = 75L
+    private var secondsPerBlock: Long = DEFAULT_SECONDS_PER_BLOCK
 
     private val proposeLce = mutableLce<ReviewProposal>()
     private val confirmLce = mutableLce<Unit>()
@@ -207,8 +211,13 @@ class MigrationReviewVM(
         failureResult: TransferResult?,
     ): MigrationReviewState =
         when (proposal) {
-            is ReviewProposal.Automatic -> createAutomaticState(proposal, isConfirming, exchangeRateState, isKeystone, failureResult)
-            is ReviewProposal.Immediate -> createImmediateState(proposal, isConfirming, exchangeRateState)
+            is ReviewProposal.Automatic -> {
+                createAutomaticState(proposal, isConfirming, exchangeRateState, isKeystone, failureResult)
+            }
+
+            is ReviewProposal.Immediate -> {
+                createImmediateState(proposal, isConfirming, exchangeRateState)
+            }
         }
 
     private fun createAutomaticState(
@@ -241,7 +250,10 @@ class MigrationReviewVM(
                     emptyList()
                 } else {
                     sched.preparations.mapIndexed { i, p ->
-                        MigrationReviewPreparationState(number = i + 1, scheduledLabel = scheduledLabelForPrep(p, sched))
+                        MigrationReviewPreparationState(
+                            number = i + 1,
+                            scheduledLabel = scheduledLabelForPrep(p, sched)
+                        )
                     }
                 },
             preparationsSummarySubtitle = preparationsSummarySubtitle(sched),
@@ -257,7 +269,8 @@ class MigrationReviewVM(
                     )
                 },
             isKeystone = isKeystone,
-            keystoneRound = proposal.keystoneRunCount?.takeIf { it > 1 }?.let { MigrationKeystoneRound(current = 1, total = it) },
+            keystoneRound =
+                proposal.keystoneRunCount?.takeIf { it > 1 }?.let { MigrationKeystoneRound(current = 1, total = it) },
             isConfirming = isConfirming,
             onConfirm = { proposeLce.guardLoading { onConfirmAutomatic(sched) } },
             onBack = ::onBack,
@@ -496,7 +509,8 @@ class MigrationReviewVM(
                 )
                 var prev = referenceTip
                 sched.transfers.forEachIndexed { i, t ->
-                    val fromNow = estimatedSecondsBetweenHeights(referenceTip, t.nextExecutableAfterHeight, secondsPerBlock)
+                    val fromNow =
+                        estimatedSecondsBetweenHeights(referenceTip, t.nextExecutableAfterHeight, secondsPerBlock)
                     val gap = estimatedSecondsBetweenHeights(prev, t.nextExecutableAfterHeight, secondsPerBlock)
                     prev = t.nextExecutableAfterHeight
                     appendLine(

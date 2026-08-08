@@ -154,7 +154,12 @@ class MigrationCompleteVM(
             totalTransferred = stringRes(Zatoshi(summary.totalTransferred)),
             remainingDust = if (summary.dustZatoshi > 0L) stringRes(Zatoshi(summary.dustZatoshi)) else null,
             isDustLocked = isLocked,
-            transfersProgress = stringRes(DesignR.string.migrationComplete_transfersProgress, summary.totalCount, summary.totalCount),
+            transfersProgress =
+                stringRes(
+                    DesignR.string.migrationComplete_transfersProgress,
+                    summary.totalCount,
+                    summary.totalCount
+                ),
             duration = stringRes(formatMigrationDuration(summary.lastAt - summary.firstAt)),
             isMigrating = isMigrating,
             isLocking = isLocking,

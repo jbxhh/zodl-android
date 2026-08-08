@@ -39,7 +39,10 @@ class MigrationWorker(
         val accountKeyId =
             inputData.getString(MigrationScheduler.KEY_ACCOUNT_KEY_ID)
                 ?: getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId().also {
-                    migrationLog("Worker: no accountKeyId in inputData — falling back to selected account $it (pre-upgrade job)")
+                    migrationLog(
+                        "Worker: no accountKeyId in inputData — falling back to selected account $it " +
+                            "(pre-upgrade job)"
+                    )
                 }
 
         migrationNotifier.cancelStepDue(accountKeyId)

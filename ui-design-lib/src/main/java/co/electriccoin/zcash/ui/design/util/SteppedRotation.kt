@@ -11,6 +11,8 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.delay
 
+private const val FULL_ROTATION_DEGREES = 360f
+
 /**
  * Rotates the element in discrete jumps (e.g. a mechanical/ticking loading-icon look) rather than
  * a smooth continuous spin — the angle snaps by [stepDegrees] every [stepDurationMs].
@@ -21,7 +23,7 @@ fun Modifier.steppedRotation(stepDegrees: Float = 45f, stepDurationMs: Long = 10
         LaunchedEffect(stepDegrees, stepDurationMs) {
             while (true) {
                 delay(stepDurationMs)
-                angle = (angle + stepDegrees) % 360f
+                angle = (angle + stepDegrees) % FULL_ROTATION_DEGREES
             }
         }
         graphicsLayer { rotationZ = angle }

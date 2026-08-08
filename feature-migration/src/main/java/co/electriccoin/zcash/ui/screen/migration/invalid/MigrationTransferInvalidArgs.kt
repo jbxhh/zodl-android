@@ -149,7 +149,11 @@ fun MigrationTransferInvalidView(state: MigrationTransferInvalidState) {
             )
             Spacer(Modifier.weight(1f))
             ZashiButton(
-                state = ButtonState(text = stringRes(DesignR.string.migration_common_continue), onClick = state.onContinue),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_continue),
+                        onClick = state.onContinue
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

@@ -47,7 +47,13 @@ class TransactionRepositorySentTransactionAmountTest {
     @Test
     fun ordinary_sent_transaction_uses_net_value() {
         val overview =
-            overview(sentNoteCount = 1, receivedNoteCount = 0, totalReceived = 0, netValue = 5_000, zip318Kind = Zip318Kind.NOT_CLASSIFIED)
+            overview(
+                sentNoteCount = 1,
+                receivedNoteCount = 0,
+                totalReceived = 0,
+                netValue = 5_000,
+                zip318Kind = Zip318Kind.NOT_CLASSIFIED
+            )
         assertEquals(5_000L, sentTransactionAmount(overview).value)
     }
 
@@ -70,14 +76,26 @@ class TransactionRepositorySentTransactionAmountTest {
         // the (0,0) heuristic, so without the zip318Kind branch this would wrongly return the
         // fee-sized netValue instead of the real crossing amount.
         val overview =
-            overview(sentNoteCount = 0, receivedNoteCount = 1, totalReceived = 499_000, netValue = 1_000, zip318Kind = Zip318Kind.TRANSFER)
+            overview(
+                sentNoteCount = 0,
+                receivedNoteCount = 1,
+                totalReceived = 499_000,
+                netValue = 1_000,
+                zip318Kind = Zip318Kind.TRANSFER
+            )
         assertEquals(499_000L, sentTransactionAmount(overview).value)
     }
 
     @Test
     fun pending_migration_preparation_uses_total_received_not_fee() {
         val overview =
-            overview(sentNoteCount = 0, receivedNoteCount = 3, totalReceived = 299_700, netValue = 300, zip318Kind = Zip318Kind.PREPARATION)
+            overview(
+                sentNoteCount = 0,
+                receivedNoteCount = 3,
+                totalReceived = 299_700,
+                netValue = 300,
+                zip318Kind = Zip318Kind.PREPARATION
+            )
         assertEquals(299_700L, sentTransactionAmount(overview).value)
     }
 
