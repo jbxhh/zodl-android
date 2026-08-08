@@ -121,7 +121,11 @@ fun MigrationPreparationDetailsBottomSheet(details: MigrationPreparationDetails?
             }
             Spacer(Modifier.height(24.dp))
             ZashiButton(
-                state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = details.onDismiss),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_gotIt),
+                        onClick = details.onDismiss
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -152,7 +156,11 @@ private fun PreparationStepRow(
                 // Matches MigrationProgressScreen's TransferProgressTimelineRow: the connector
                 // paints green once this step is done, gray otherwise.
                 val connectorColor =
-                    if (step.isDone) ZashiColors.Utility.SuccessGreen.utilitySuccess500 else ZashiColors.Surfaces.strokePrimary
+                    if (step.isDone) {
+                        ZashiColors.Utility.SuccessGreen.utilitySuccess500
+                    } else {
+                        ZashiColors.Surfaces.strokePrimary
+                    }
                 Box(
                     modifier =
                         Modifier
@@ -167,7 +175,11 @@ private fun PreparationStepRow(
                     Modifier
                         .size(24.dp)
                         .background(
-                            if (step.isDone) ZashiColors.Utility.SuccessGreen.utilitySuccess500 else ZashiColors.Surfaces.bgTertiary,
+                            if (step.isDone) {
+                                ZashiColors.Utility.SuccessGreen.utilitySuccess500
+                            } else {
+                                ZashiColors.Surfaces.bgTertiary
+                            },
                             CircleShape,
                         ),
                 contentAlignment = Alignment.Center,

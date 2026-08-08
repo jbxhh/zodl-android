@@ -218,7 +218,11 @@ class MigrationSendingVM(
     ): TransferAttemptOutcome? {
         var outcome: TransferAttemptOutcome? = null
         var attempt = 0
-        while ((outcome == null || outcome is TransferAttemptOutcome.NothingDue || outcome is TransferAttemptOutcome.AwaitingProof) &&
+        while ((
+                outcome == null ||
+                    outcome is TransferAttemptOutcome.NothingDue ||
+                    outcome is TransferAttemptOutcome.AwaitingProof
+            ) &&
             attempt < SEND_MAX_ATTEMPTS
         ) {
             if (attempt > 0) delay(SEND_RETRY_DELAY_MS)

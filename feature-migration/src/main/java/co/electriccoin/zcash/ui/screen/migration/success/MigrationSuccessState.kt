@@ -99,7 +99,11 @@ fun MigrationSuccessView(state: MigrationSuccessState) {
             }
             state.onViewTransaction?.let { onView ->
                 ZashiButton(
-                    state = ButtonState(text = stringRes(DesignR.string.migrationSuccess_viewTransaction), onClick = onView),
+                    state =
+                        ButtonState(
+                            text = stringRes(DesignR.string.migrationSuccess_viewTransaction),
+                            onClick = onView
+                        ),
                     modifier = Modifier.fillMaxWidth(),
                     defaultPrimaryColors = ZashiButtonDefaults.secondaryColors(),
                 )

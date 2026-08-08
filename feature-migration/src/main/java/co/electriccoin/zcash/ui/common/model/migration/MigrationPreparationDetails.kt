@@ -48,7 +48,8 @@ fun preparationStepTitle(number: Int, stepCount: Int): StringResource = stringRe
  * own `coerceAtLeast` floor already turns a zero/negative [secondsUntil] into its network floor, so
  * no separate clamping is needed here.
  */
-fun preparationStepTimeLabel(secondsUntil: Long): StringResource = stringRes("in ${formatMigrationDuration(secondsUntil)}")
+fun preparationStepTimeLabel(secondsUntil: Long): StringResource =
+    stringRes("in ${formatMigrationDuration(secondsUntil)}")
 
 /**
  * The Figma-matched status word for one preparation step, derived purely from its own

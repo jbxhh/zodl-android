@@ -69,7 +69,8 @@ class MigrationGateImpl(
     private val getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase,
 ) : MigrationGate {
     // Engine state IS the gate now — no app-side plan marker exists. Selected-account scoped
-    // (matches the sync it gates); see post-adoption TODO C2 for the any-account variant.
+    // (matches the sync it gates).
+    // TODO [#0]: see post-adoption task C2 for the any-account variant.
     //
     // Both methods guard their state read (2026-08-07 Fable review): this had been unguarded, and
     // isRestartAvailable() is called from AdvancedSettingsVM's bare `viewModelScope.launch` (no
@@ -109,7 +110,9 @@ class MigrationSyncedHookImpl(
         // getMigrationStateUnreconciled(): this gate never mutates (2026-08-07 read/write-
         // separation design) — onMigrationSyncCompleted below still runs the real reconcile pass
         // via the drive loop's own cadence regardless of this gate's staleness.
-        if (getOrchardMigrationSdk().getMigrationStateUnreconciled() !is cash.z.ecc.android.sdk.MigrationState.InProgress) return
+        val isInProgress =
+            getOrchardMigrationSdk().getMigrationStateUnreconciled() is cash.z.ecc.android.sdk.MigrationState.InProgress
+        if (!isInProgress) return
         val accountKeyId = getSelectedWalletAccount().sdkAccount.accountUuid.toStorageKeyId()
         onMigrationSyncCompleted(accountKeyId)
     }
@@ -193,7 +196,9 @@ class MigrationAppHooksImpl(
                 accountDataSource.selectAccount(target)
             }
         }.onFailure {
-            migrationLog("AppHooks: notification account switch failed (${it.message}) — navigating on the selected account.")
+            migrationLog(
+                "AppHooks: notification account switch failed (${it.message}) — navigating on the selected account."
+            )
         }
     }
 

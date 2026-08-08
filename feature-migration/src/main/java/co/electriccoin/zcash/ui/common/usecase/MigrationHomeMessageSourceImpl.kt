@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlin.time.Clock
 import kotlin.time.Instant
 
+private const val PERCENT_MULTIPLIER = 100
+
 /**
  * The home-banner source, fully LIVE off the engine — no plan cache anywhere (see
  * `spec/2026-07-30-plan-cache-elimination-proposal.md`): counts come from the engine's transfer
@@ -82,7 +84,8 @@ class MigrationHomeMessageSourceImpl(
                 // UNPROVABLE ANCHOR → immediate, deterministic "Update migration plan" attention
                 // banner (decision 2026-07-30: user-driven — the user must SEE the bad state as
                 // soon as it is known). The SDK synthesizes MigrationBlocker.UNPROVABLE_ANCHOR
-                // from the engine's late-dependency guard (TODO(remove: engine UnprovableAnchor)).
+                // from the engine's late-dependency guard.
+                // TODO [#0]: remove this once the engine's UnprovableAnchor synthesis is retired.
                 val hasUnprovable = states?.transfers?.any { it.blocker == MigrationBlocker.UNPROVABLE_ANCHOR } == true
                 if (snapshot != null && hasUnprovable) {
                     return@combine MigrationHomeMessageData(
@@ -122,7 +125,7 @@ class MigrationHomeMessageSourceImpl(
         data as MigrationHomeMessageData
         val percent =
             if (data.totalCount > 0) {
-                (data.completedCount * 100) / data.totalCount
+                (data.completedCount * PERCENT_MULTIPLIER) / data.totalCount
             } else {
                 0
             }

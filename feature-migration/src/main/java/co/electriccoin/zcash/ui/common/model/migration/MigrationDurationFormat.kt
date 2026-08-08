@@ -36,16 +36,18 @@ fun formatMigrationDuration(
 ): String {
     val floorSeconds = if (fineGrained) TESTNET_PRIVACY_FLOOR_SECONDS else MAINNET_PRIVACY_FLOOR_SECONDS
     val seconds = if (applyPrivacyFloor) totalSeconds.coerceAtLeast(floorSeconds) else totalSeconds.coerceAtLeast(0L)
-    val hours = seconds / 3600
-    val minutesPastHour = (seconds % 3600) / 60
+    val hours = seconds / SECONDS_PER_HOUR
+    val minutesPastHour = (seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE
     return when {
-        seconds < 3600 -> "~${seconds / 60} min"
+        seconds < SECONDS_PER_HOUR -> "~${seconds / SECONDS_PER_MINUTE} min"
         !fineGrained -> "~$hours ${if (hours == 1L) "hour" else "hours"}"
         minutesPastHour == 0L -> "~$hours h"
         else -> "~$hours h $minutesPastHour min"
     }
 }
 
+private const val SECONDS_PER_MINUTE = 60L
+private const val SECONDS_PER_HOUR = 3600L
 private const val TESTNET_PRIVACY_FLOOR_SECONDS = 600L // 10 minutes
 private const val MAINNET_PRIVACY_FLOOR_SECONDS = 3600L // 1 hour
 
@@ -68,5 +70,7 @@ fun estimatedSecondsBetweenHeights(
     // 75s protocol target as fallback. Pass OrchardMigrationSdk.estimatedSecondsPerBlock()
     // wherever an SDK is in reach — testnet's minimum-difficulty bursts make the constant a
     // large overestimate (observed live: "~1 h" plans coming due within minutes).
-    secondsPerBlock: Long = ZcashSdk.BLOCK_INTERVAL_MILLIS / 1000,
+    secondsPerBlock: Long = ZcashSdk.BLOCK_INTERVAL_MILLIS / MILLIS_PER_SECOND,
 ): Long = (toHeight - fromHeight) * secondsPerBlock
+
+private const val MILLIS_PER_SECOND = 1000L
