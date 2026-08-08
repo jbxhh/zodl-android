@@ -101,25 +101,25 @@ class MigrationLiveDriverImpl(
 
     private suspend fun loop(accountKeyId: String) {
         migrationLog("MigrationLiveDriver: starting live loop for $accountKeyId")
-        try {
-            // Priming publish (2026-08-0X): populate the cache near-instantly, before the first
-            // driveOnce.run() call below — which can itself take many seconds (confirmed live: up
-            // to ~13s for a real broadcast) and previously left the repository empty/stale for that
-            // whole window. Uses the SDK's mutex-free loggedRead lane (readUnreconciledLiveReadout,
-            // shared with the Home/Progress cold-start fallbacks) specifically so this never queues
-            // behind MIGRATION_DB_ACCESS_MUTEX itself — the entire point of priming is to be fast
-            // precisely when a real step might be holding that mutex (2026-08-07 read/write-
-            // separation design; Fable review caught an earlier draft that reused the *reconciled*
-            // publishFreshReadout() here, which would have taken the mutex and defeated this).
-            // Best-effort and non-fatal: if the SDK can't be resolved yet, this priming step is
-            // silently skipped and the loop below's own first-iteration resolution decides the
-            // loop's fate the same way it always has — this line must never itself decide that.
-            getOrchardMigrationSdk(accountKeyId)?.let { sdk ->
-                runCatching { migrationTransferStateRepository.publish(accountKeyId, sdk.readUnreconciledLiveReadout()) }
-                    .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
-            }
+        // Priming publish (2026-08-0X): populate the cache near-instantly, before the first
+        // driveOnce.run() call below — which can itself take many seconds (confirmed live: up
+        // to ~13s for a real broadcast) and previously left the repository empty/stale for that
+        // whole window. Uses the SDK's mutex-free loggedRead lane (readUnreconciledLiveReadout,
+        // shared with the Home/Progress cold-start fallbacks) specifically so this never queues
+        // behind MIGRATION_DB_ACCESS_MUTEX itself — the entire point of priming is to be fast
+        // precisely when a real step might be holding that mutex (2026-08-07 read/write-
+        // separation design; Fable review caught an earlier draft that reused the *reconciled*
+        // publishFreshReadout() here, which would have taken the mutex and defeated this).
+        // Best-effort and non-fatal: if the SDK can't be resolved yet, this priming step is
+        // silently skipped and the loop below's own first-iteration resolution decides the
+        // loop's fate the same way it always has — this line must never itself decide that.
+        getOrchardMigrationSdk(accountKeyId)?.let { sdk ->
+            runCatching { migrationTransferStateRepository.publish(accountKeyId, sdk.readUnreconciledLiveReadout()) }
+                .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+        }
 
-            while (true) {
+        while (true) {
+            try {
                 val sdk =
                     getOrchardMigrationSdk(accountKeyId) ?: run {
                         migrationLog("MigrationLiveDriver: SDK unavailable for $accountKeyId — stopping.")
@@ -174,11 +174,26 @@ class MigrationLiveDriverImpl(
                         return
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                // MOB-1664 (self-heal, mirrors CheckMigrationRecoveryUseCase's 2026-08-07
+                // hardening for the same underlying risk — a "database is locked" throw past the
+                // Rust layer's 15s busy_timeout, or any other transient failure mid-step). This
+                // used to be one try/catch around the WHOLE while(true) loop, so any failure fell
+                // through and ended the loop's coroutine permanently: nothing on the Progress
+                // screen restarts it (it only observes, never drives), so a foreground user
+                // watching a stuck "Ready now" transfer had no way back in short of backgrounding
+                // and re-foregrounding the app (the only triggers that call startIfNotRunning
+                // again). Catching per-iteration instead means the loop survives: log, back off,
+                // and let the next iteration retry with a fresh SDK/DB read.
+                migrationLog(
+                    "MigrationLiveDriver: step failed for $accountKeyId (transient) — retrying in " +
+                        "${MIN_REARM_SECONDS}s.",
+                    e
+                )
+                delay(MIN_REARM_SECONDS.seconds)
             }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            migrationLog("MigrationLiveDriver: loop for $accountKeyId failed (transient) — will resume on next start.", e)
         }
     }
 
