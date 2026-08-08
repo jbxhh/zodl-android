@@ -7,11 +7,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import co.electriccoin.zcash.ui.common.compose.LocalActivity
+import co.electriccoin.zcash.ui.common.migration.MigrationAppHooks
 import co.electriccoin.zcash.ui.common.provider.ApplicationStateProvider
 import co.electriccoin.zcash.ui.common.viewmodel.SecretState
 import co.electriccoin.zcash.ui.common.viewmodel.WalletViewModel
 import co.electriccoin.zcash.ui.design.LocalKeyboardManager
-import co.electriccoin.zcash.ui.design.LocalSheetStateManager
 import co.electriccoin.zcash.ui.design.animation.ScreenAnimation.enterTransition
 import co.electriccoin.zcash.ui.design.animation.ScreenAnimation.exitTransition
 import co.electriccoin.zcash.ui.design.animation.ScreenAnimation.popEnterTransition
@@ -32,8 +32,8 @@ fun RootNavGraph(
     val keyboardManager = LocalKeyboardManager.current
     val flexaViewModel = koinViewModel<FlexaViewModel>()
     val navigationRouter = koinInject<NavigationRouter>()
-    val sheetStateManager = LocalSheetStateManager.current
     val applicationStateProvider = koinInject<ApplicationStateProvider>()
+    val migrationAppHooks = koinInject<MigrationAppHooks>()
     val navController = LocalNavController.current
     val activity = LocalActivity.current
     val navigator: Navigator =
@@ -42,7 +42,6 @@ fun RootNavGraph(
             navController,
             flexaViewModel,
             keyboardManager,
-            sheetStateManager,
             applicationStateProvider
         ) {
             NavigatorImpl(
@@ -50,7 +49,6 @@ fun RootNavGraph(
                 navController = navController,
                 flexaViewModel = flexaViewModel,
                 keyboardManager = keyboardManager,
-                sheetStateManager = sheetStateManager,
                 applicationStateProvider = applicationStateProvider
             )
         }
@@ -96,6 +94,11 @@ fun RootNavGraph(
                     inclusive = true
                 }
             }
+            // Same pattern as MainActivity.handleMigrationIntent — Home always lands on the
+            // back stack first, then we redirect on top of it if a migration transfer needs
+            // attention. isSyncBlocked() (fed into the synchronizer directly) already stopped
+            // sync regardless of whether this redirect lands — this is routing only.
+            migrationAppHooks.checkRecovery()
         } else if (
             secretState == SecretState.NONE &&
             navController.currentDestination?.parent?.route != OnboardingGraph::class.qualifiedName

@@ -12,8 +12,8 @@ import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.ButtonStyle
 import co.electriccoin.zcash.ui.design.util.stringRes
+import co.electriccoin.zcash.ui.screen.common.WalletHeaderIconsState
 import co.electriccoin.zcash.ui.screen.voting.coinholderpolling.VoteCoinholderPollingArgs
-import co.electriccoin.zcash.ui.screen.voting.component.VoteWalletHeaderIconsState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -40,26 +40,30 @@ class VoteHowToVoteVM(
                 LceState(
                     content =
                         VoteHowToVoteState(
-                            title = stringRes(R.string.vote_how_to_vote_title, walletName),
-                            subtitle = stringRes(R.string.vote_how_to_vote_subtitle),
+                            title = stringRes(R.string.coinVote_howToVote_titleZodl, walletName),
+                            subtitle = stringRes(R.string.coinVote_howToVote_subtitle),
                             steps =
                                 listOf(
                                     VoteStep(
                                         number = "1",
-                                        title = stringRes(R.string.vote_how_to_vote_step1_title),
-                                        description = stringRes(R.string.vote_how_to_vote_step1_description)
+                                        title = stringRes(R.string.coinVote_howToVote_stepVotingTitle),
+                                        description = stringRes(R.string.coinVote_howToVote_stepVotingBody)
                                     ),
                                     VoteStep(
                                         number = "2",
-                                        title = stringRes(R.string.vote_how_to_vote_step2_title),
-                                        description = stringRes(R.string.vote_how_to_vote_step2_description)
+                                        title = stringRes(R.string.coinVote_howToVote_stepAuthorizeTitle),
+                                        description = stringRes(R.string.coinVote_howToVote_stepAuthorizeBody)
                                     ),
                                 ),
-                            infoText = stringRes(R.string.vote_how_to_vote_disclaimer),
-                            walletHeaderIcons = VoteWalletHeaderIconsState(isKeystone = isKeystone),
+                            infoText = stringRes(R.string.coinVote_howToVote_infoCard),
+                            walletHeaderIcons =
+                                WalletHeaderIconsState(
+                                    isKeystone = isKeystone,
+                                    badgeIcon = R.drawable.ic_vote_thumbs_up,
+                                ),
                             continueButton =
                                 ButtonState(
-                                    text = stringRes(R.string.vote_continue),
+                                    text = stringRes(R.string.coinVote_common_continue),
                                     style = ButtonStyle.PRIMARY,
                                     onClick = ::onContinue
                                 ),

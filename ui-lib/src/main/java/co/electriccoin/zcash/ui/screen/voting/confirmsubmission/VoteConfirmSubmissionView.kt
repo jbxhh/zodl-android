@@ -32,9 +32,9 @@ import co.electriccoin.zcash.ui.design.util.getValue
 import co.electriccoin.zcash.ui.design.util.orDark
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
-import co.electriccoin.zcash.ui.screen.voting.component.VoteHeaderIconStyle
-import co.electriccoin.zcash.ui.screen.voting.component.VoteWalletHeaderIcons
-import co.electriccoin.zcash.ui.screen.voting.component.VoteWalletHeaderIconsState
+import co.electriccoin.zcash.ui.screen.common.WalletHeaderBadgeChrome
+import co.electriccoin.zcash.ui.screen.common.WalletHeaderIcons
+import co.electriccoin.zcash.ui.screen.common.WalletHeaderIconsState
 import co.electriccoin.zcash.ui.screen.voting.votingerror.VotingErrorMapper
 
 @Composable
@@ -83,7 +83,7 @@ fun VoteConfirmSubmissionView(state: VoteConfirmSubmissionState) {
                     if (state.status.isInFlight()) {
                         VerticalSpacer(16.dp)
                         Text(
-                            text = stringRes(R.string.vote_confirm_subtitle_in_progress).getValue(),
+                            text = stringRes(R.string.coinVote_confirmSubmission_headerSubtitleSubmitting).getValue(),
                             style = ZashiTypography.textSm,
                             color = ZashiColors.Text.textSecondary,
                         )
@@ -102,7 +102,7 @@ fun VoteConfirmSubmissionLoadingView() {
     BlankBgScaffold(
         topBar = {
             ZashiSmallTopAppBar(
-                title = stringRes(R.string.vote_confirm_nav_submission).getValue(),
+                title = stringRes(R.string.coinVote_common_submission).getValue(),
                 navigationAction = {
                     ZashiTopAppBarBackNavigation(
                         onBack = {},
@@ -127,15 +127,21 @@ fun VoteConfirmSubmissionLoadingView() {
 @Composable
 private fun HeaderSection(state: VoteConfirmSubmissionState) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        VoteWalletHeaderIcons(
+        WalletHeaderIcons(
             state =
-                VoteWalletHeaderIconsState(
+                WalletHeaderIconsState(
                     isKeystone = state.isKeystoneUser,
-                    style =
+                    badgeIcon =
                         if (state.status is VoteSubmissionStatus.Completed) {
-                            VoteHeaderIconStyle.Confirmed
+                            R.drawable.ic_vote_check_verified_solid
                         } else {
-                            VoteHeaderIconStyle.ThumbsUp
+                            R.drawable.ic_vote_thumbs_up
+                        },
+                    badgeChrome =
+                        if (state.status is VoteSubmissionStatus.Completed) {
+                            WalletHeaderBadgeChrome.Success
+                        } else {
+                            WalletHeaderBadgeChrome.Neutral
                         }
                 )
         )
@@ -157,38 +163,38 @@ private fun HeaderSection(state: VoteConfirmSubmissionState) {
 
 private fun navTitle(status: VoteSubmissionStatus): StringResource =
     when (status) {
-        is VoteSubmissionStatus.Idle -> stringRes(R.string.vote_confirm_nav_confirmation)
-        else -> stringRes(R.string.vote_confirm_nav_submission)
+        is VoteSubmissionStatus.Idle -> stringRes(R.string.coinVote_common_confirmation)
+        else -> stringRes(R.string.coinVote_common_submission)
     }
 
 private fun headerTitle(status: VoteSubmissionStatus): StringResource =
     when (status) {
         is VoteSubmissionStatus.Idle -> {
-            stringRes(R.string.vote_confirm_title_idle)
+            stringRes(R.string.coinVote_confirmSubmission_headerTitleIdle)
         }
 
         is VoteSubmissionStatus.LocalAuthorizing -> {
-            stringRes(R.string.vote_confirm_title_authorizing)
+            stringRes(R.string.coinVote_store_submissionAuthorizingVote)
         }
 
         is VoteSubmissionStatus.Authorizing, is VoteSubmissionStatus.Submitting -> {
-            stringRes(R.string.vote_confirm_title_submitting)
+            stringRes(R.string.coinVote_submission_continuedProcessingTitle)
         }
 
         is VoteSubmissionStatus.Completed -> {
-            stringRes(R.string.vote_confirm_title_confirmed)
+            stringRes(R.string.coinVote_confirmSubmission_headerTitleCompleted)
         }
 
         is VoteSubmissionStatus.LocalAuthFailed -> {
-            stringRes(R.string.vote_confirm_title_auth_failed)
+            stringRes(R.string.coinVote_confirmSubmission_authorizationFailedTitle)
         }
 
         is VoteSubmissionStatus.ProtocolAuthFailed -> {
-            stringRes(R.string.vote_error_authorization_failed_title)
+            stringRes(R.string.coinVote_confirmSubmission_authorizationFailedTitle)
         }
 
         is VoteSubmissionStatus.SubmissionFailed -> {
-            stringRes(R.string.vote_confirm_title_failed)
+            stringRes(R.string.coinVote_confirmSubmission_submissionFailedTitle)
         }
     }
 
@@ -196,33 +202,33 @@ private fun headerSubtitle(state: VoteConfirmSubmissionState): StringResource =
     when (val status = state.status) {
         is VoteSubmissionStatus.Idle -> {
             if (state.isKeystoneUser) {
-                stringRes(R.string.vote_confirm_subtitle_idle_keystone)
+                stringRes(R.string.coinVote_confirmSubmission_headerSubtitleIdleKeystone)
             } else {
-                stringRes(R.string.vote_confirm_subtitle_idle)
+                stringRes(R.string.coinVote_confirmSubmission_headerSubtitleIdle)
             }
         }
 
         is VoteSubmissionStatus.LocalAuthorizing,
         is VoteSubmissionStatus.Authorizing,
         is VoteSubmissionStatus.Submitting -> {
-            stringRes(R.string.vote_confirm_subtitle_in_progress)
+            stringRes(R.string.coinVote_confirmSubmission_headerSubtitleSubmitting)
         }
 
         is VoteSubmissionStatus.Completed -> {
-            stringRes(R.string.vote_confirm_subtitle_completed)
+            stringRes(R.string.coinVote_confirmSubmission_headerSubtitleCompleted)
         }
 
         is VoteSubmissionStatus.LocalAuthFailed -> {
-            stringRes(R.string.vote_error_authorization_failed_message)
+            stringRes(R.string.coinVote_confirmSubmission_authorizationFailedMessage)
         }
 
         is VoteSubmissionStatus.ProtocolAuthFailed -> {
-            stringRes(R.string.vote_error_authorization_failed_message)
+            stringRes(R.string.coinVote_confirmSubmission_authorizationFailedMessage)
         }
 
         is VoteSubmissionStatus.SubmissionFailed -> {
             status.error.toMessageOrDefault(
-                status.defaultError ?: stringRes(R.string.vote_confirm_error_submission)
+                status.defaultError ?: stringRes(R.string.coinVote_confirmSubmission_submissionFailedMessage)
             )
         }
     }

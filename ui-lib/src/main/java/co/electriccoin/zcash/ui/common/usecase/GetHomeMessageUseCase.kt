@@ -5,7 +5,9 @@ import co.electriccoin.zcash.spackle.Twig
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
 import co.electriccoin.zcash.ui.common.datasource.MessageAvailabilityDataSource
 import co.electriccoin.zcash.ui.common.datasource.WalletSnapshotDataSource
+import co.electriccoin.zcash.ui.common.migration.MigrationHomeMessageSource
 import co.electriccoin.zcash.ui.common.model.SynchronizerError
+import co.electriccoin.zcash.ui.common.model.WalletAccount
 import co.electriccoin.zcash.ui.common.model.WalletRestoringState
 import co.electriccoin.zcash.ui.common.model.WalletSnapshot
 import co.electriccoin.zcash.ui.common.provider.CrashReportingStorageProvider
@@ -13,12 +15,14 @@ import co.electriccoin.zcash.ui.common.provider.IsTorEnabledStorageProvider
 import co.electriccoin.zcash.ui.common.repository.ExchangeRateRepository
 import co.electriccoin.zcash.ui.common.repository.HomeMessageCacheRepository
 import co.electriccoin.zcash.ui.common.repository.HomeMessageData
+import co.electriccoin.zcash.ui.common.repository.MigrationHomeMessage
 import co.electriccoin.zcash.ui.common.repository.RuntimeMessage
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
@@ -27,10 +31,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 class GetHomeMessageUseCase(
     private val walletBackupMessageUseCase: WalletBackupMessageUseCase,
@@ -41,6 +48,7 @@ class GetHomeMessageUseCase(
     private val messageAvailabilityDataSource: MessageAvailabilityDataSource,
     private val cache: HomeMessageCacheRepository,
     private val isTorEnabledStorageProvider: IsTorEnabledStorageProvider,
+    private val migrationHomeMessageSource: MigrationHomeMessageSource,
 ) {
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     fun observe(): Flow<HomeMessageData?> =
@@ -107,39 +115,61 @@ class GetHomeMessageUseCase(
             }
         }
 
+    private data class RuntimeMessageInputs(
+        val shieldFunds: HomeMessageData.ShieldFunds?,
+        val migration: MigrationHomeMessage?,
+        val account: WalletAccount?,
+        val walletSnapshot: WalletSnapshot
+    )
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeRuntimeMessage(): Flow<RuntimeMessage?> {
         return channelFlow {
             var firstSyncingMessage: HomeMessageData.Syncing? = null
             combine(
                 observeShieldFundsMessage(),
+                migrationHomeMessageSource.observe(),
                 accountDataSource.selectedAccount,
                 walletSnapshotDataSource.observe().filterNotNull()
-            ) { availability, account, walletSnapshot ->
-                Triple(availability, account, walletSnapshot)
-            }.collect { (shieldFundsMessage, account, walletSnapshot) ->
-                if (walletSnapshot.status in listOf(Synchronizer.Status.STOPPED, Synchronizer.Status.INITIALIZING)) {
-                    return@collect
-                }
+            ) { sf, mig, acc, ws -> RuntimeMessageInputs(sf, mig, acc, ws) }
+                .collect { inputs ->
+                    val shieldFundsMessage = inputs.shieldFunds
+                    val migrationMessage = inputs.migration
+                    val account = inputs.account
+                    val walletSnapshot = inputs.walletSnapshot
 
-                val message =
-                    createDisconnectedMessage(walletSnapshot)
-                        ?: createSynchronizerErrorMessage(walletSnapshot)
-                        ?: createSyncingMessage(
-                            walletSnapshot,
-                            syncMessageShownBefore = firstSyncingMessage != null,
-                            someBalance = (account?.spendableShieldedBalance?.value ?: 0) > 0
+                    if (walletSnapshot.status in
+                        listOf(
+                            Synchronizer.Status.STOPPED,
+                            Synchronizer.Status.INITIALIZING
                         )
-                        ?: shieldFundsMessage
+                    ) {
+                        return@collect
+                    }
 
-                if (message is HomeMessageData.Syncing && firstSyncingMessage == null) {
-                    firstSyncingMessage = message
-                } else if (message !is HomeMessageData.Syncing) {
-                    firstSyncingMessage = null
+                    // Priority order: disconnected -> synchronizer error -> syncing -> migration
+                    // -> shield funds. Connectivity/sync issues now lead the chain — a user can't
+                    // act on the migration banner while the wallet is disconnected, erroring, or
+                    // still syncing, so those states take priority over it.
+                    val message =
+                        createDisconnectedMessage(walletSnapshot)
+                            ?: createSynchronizerErrorMessage(walletSnapshot)
+                            ?: createSyncingMessage(
+                                walletSnapshot,
+                                syncMessageShownBefore = firstSyncingMessage != null,
+                                someBalance = (account?.spendableShieldedBalance?.value ?: 0) > 0
+                            )
+                            ?: migrationMessage
+                            ?: shieldFundsMessage
+
+                    if (message is HomeMessageData.Syncing && firstSyncingMessage == null) {
+                        firstSyncingMessage = message
+                    } else if (message !is HomeMessageData.Syncing) {
+                        firstSyncingMessage = null
+                    }
+
+                    send(message)
                 }
-
-                send(message)
-            }
         }
     }
 
@@ -167,10 +197,13 @@ class GetHomeMessageUseCase(
     }
 
     private fun prioritizeMessage(message: HomeMessageData?): HomeMessageData? {
-        val isSameMessageUpdate = message?.priority == cache.lastMessage?.priority // same but updated
-        val someMessageBeenShown = cache.lastShownMessage != null // has any message been shown while app in fg
+        val isSameMessageUpdate =
+            message?.priority == cache.lastMessage?.priority // same but updated
+        val someMessageBeenShown =
+            cache.lastShownMessage != null // has any message been shown while app in fg
         val hasNoMessageBeenShownLately = cache.lastMessage == null // has no message been shown
-        val isHigherPriorityMessage = (message?.priority ?: 0) > (cache.lastShownMessage?.priority ?: 0)
+        val isHigherPriorityMessage =
+            (message?.priority ?: 0) > (cache.lastShownMessage?.priority ?: 0)
         val result =
             when {
                 message == null -> {

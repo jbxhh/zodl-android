@@ -15,7 +15,6 @@ class VotingSessionTest {
         val session = votingSession(ceremonyStart = start, voteEndTime = end)
 
         assertEquals(240L, session.lastMomentBufferSeconds())
-        assertEquals(end.epochSecond - 240L, session.shareSubmissionDeadlineEpochSeconds(singleShare = false))
         assertFalse(session.isLastMoment(now = end.minusSeconds(241)))
         assertTrue(session.isLastMoment(now = end.minusSeconds(240)))
     }
@@ -27,16 +26,6 @@ class VotingSessionTest {
         val session = votingSession(ceremonyStart = start, voteEndTime = end)
 
         assertEquals(21_600L, session.lastMomentBufferSeconds())
-        assertEquals(end.epochSecond - 21_600L, session.shareSubmissionDeadlineEpochSeconds(singleShare = false))
-    }
-
-    @Test
-    fun shareSubmissionDeadlineIsNullInSingleShareMode() {
-        val start = Instant.parse("2026-05-05T12:00:00Z")
-        val end = start.plusSeconds(600)
-        val session = votingSession(ceremonyStart = start, voteEndTime = end)
-
-        assertNull(session.shareSubmissionDeadlineEpochSeconds(singleShare = true))
     }
 
     @Test
@@ -45,7 +34,6 @@ class VotingSessionTest {
         val session = votingSession(ceremonyStart = start, voteEndTime = start)
 
         assertNull(session.lastMomentBufferSeconds())
-        assertNull(session.shareSubmissionDeadlineEpochSeconds(singleShare = false))
         assertFalse(session.isLastMoment(now = start))
     }
 

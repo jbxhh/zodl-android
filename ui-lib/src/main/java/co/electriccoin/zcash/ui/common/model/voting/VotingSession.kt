@@ -58,15 +58,6 @@ internal fun VotingSession.isLastMoment(now: Instant = Instant.now()): Boolean {
     return now.epochSecond >= voteEndTime.epochSecond - bufferSeconds
 }
 
-internal fun VotingSession.shareSubmissionDeadlineEpochSeconds(singleShare: Boolean): Long? {
-    if (singleShare) {
-        return null
-    }
-
-    val bufferSeconds = lastMomentBufferSeconds() ?: return null
-    return voteEndTime.epochSecond - bufferSeconds
-}
-
 private const val LAST_MOMENT_BUFFER_FRACTION_NUMERATOR = 4L
 private const val LAST_MOMENT_BUFFER_FRACTION_DENOMINATOR = 10L
 private const val LAST_MOMENT_BUFFER_MAX_SECONDS = 21_600L

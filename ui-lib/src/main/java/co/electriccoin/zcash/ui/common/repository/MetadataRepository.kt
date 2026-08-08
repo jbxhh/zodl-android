@@ -197,7 +197,7 @@ class MetadataRepositoryImpl(
 
     override fun observeTransactionMetadata(transaction: Transaction): Flow<TransactionMetadata> {
         val txId = transaction.id.txIdString()
-        val depositAddress = transaction.recipient?.address
+        val depositAddress = transaction.recipient
 
         return metadata
             .filterNotNull()

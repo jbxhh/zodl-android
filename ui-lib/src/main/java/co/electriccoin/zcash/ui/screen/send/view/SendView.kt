@@ -8,7 +8,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -76,9 +75,9 @@ import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.dimensions.ZashiDimensions
 import co.electriccoin.zcash.ui.design.theme.typography.RobotoMonoFontFamily
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
+import co.electriccoin.zcash.ui.design.util.StringResource.Companion.NUMBER_FORMAT_LOCALE
 import co.electriccoin.zcash.ui.design.util.getString
 import co.electriccoin.zcash.ui.design.util.getValue
-import co.electriccoin.zcash.ui.design.util.rememberDesiredFormatLocale
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringResByFiatDisplayName
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidget
@@ -315,7 +314,6 @@ fun SendButton(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val locale = rememberDesiredFormatLocale()
 
     // Common conditions continuously checked for validity
     val sendButtonEnabled =
@@ -333,7 +331,7 @@ fun SendButton(
                 // SDK side validations
                 val zecSendValidation =
                     ZecSendExt.new(
-                        locale = locale,
+                        locale = NUMBER_FORMAT_LOCALE,
                         destinationString = recipientAddressState.address,
                         zecString = amountState.value.getString(context),
                         // Take memo for a valid non-transparent receiver only
@@ -387,7 +385,7 @@ fun SendButton(
                 }
             }
         },
-        text = stringResource(id = R.string.send_create),
+        text = stringResource(id = co.electriccoin.zcash.ui.design.R.string.send_review),
         enabled = sendButtonEnabled,
         modifier =
             Modifier
@@ -419,7 +417,7 @@ fun SendFormAddressTextField(
                 .bringIntoViewRequester(bringIntoViewRequester)
     ) {
         Text(
-            text = stringResource(id = R.string.send_address_label),
+            text = stringResource(id = R.string.send_to),
             color = ZashiColors.Inputs.Default.label,
             style = ZashiTypography.textMd
         )
@@ -432,7 +430,7 @@ fun SendFormAddressTextField(
                 recipientAddressValue.isNotEmpty() &&
                 recipientAddressState.type is AddressType.Invalid
             ) {
-                stringResource(id = R.string.send_address_invalid)
+                stringResource(id = R.string.send_error_invalidAddress)
             } else {
                 null
             }
@@ -458,7 +456,7 @@ fun SendFormAddressTextField(
             textStyle = ZashiTypography.textMd.copy(fontFamily = RobotoMonoFontFamily),
             placeholder = {
                 Text(
-                    text = stringResource(id = R.string.send_address_hint),
+                    text = stringResource(id = R.string.send_addressPlaceholder),
                     style = ZashiTypography.textMd,
                     color = ZashiColors.Inputs.Default.text
                 )
@@ -535,21 +533,19 @@ fun SendFormAmountTextField(
 
     val zcashCurrency = ZcashCurrency.getLocalizedName(context)
 
-    val locale = rememberDesiredFormatLocale()
-
     val amountError =
         when (amountState) {
             is AmountState.Invalid -> {
                 if (amountState.value.isEmpty()) {
                     null
                 } else {
-                    stringResource(id = R.string.send_amount_invalid)
+                    stringResource(id = R.string.send_error_invalidAmount)
                 }
             }
 
             is AmountState.Valid -> {
                 if (selectedAccount.spendableShieldedBalance < amountState.zatoshi) {
-                    stringResource(id = R.string.send_amount_insufficient_balance)
+                    stringResource(id = R.string.sheet_insufficientBalance_title)
                 } else {
                     null
                 }
@@ -567,7 +563,7 @@ fun SendFormAmountTextField(
                 .bringIntoViewRequester(bringIntoViewRequester)
     ) {
         Text(
-            text = stringResource(id = R.string.send_amount_label),
+            text = stringResource(id = R.string.send_amount),
             color = ZashiColors.Inputs.Default.label,
             style = ZashiTypography.textMd
         )
@@ -588,7 +584,6 @@ fun SendFormAmountTextField(
                             fiatValue = amountState.fiatValue.getString(context),
                             isTransparentOrTextRecipient = isTransparentOrTextRecipient,
                             exchangeRateState = exchangeRateState,
-                            locale = locale
                         )
                     )
                 },
@@ -653,7 +648,6 @@ fun SendFormAmountTextField(
                                 fiatValue = newValue,
                                 isTransparentOrTextRecipient = isTransparentOrTextRecipient,
                                 exchangeRateState = exchangeRateState,
-                                locale = locale
                             )
                         )
                     },
@@ -719,7 +713,7 @@ fun SendFormMemoTextField(
                 .bringIntoViewRequester(bringIntoViewRequester)
     ) {
         Text(
-            text = stringResource(id = R.string.send_memo_label),
+            text = stringResource(id = R.string.send_message),
             color = ZashiColors.Inputs.Default.label,
             style = ZashiTypography.textMd
         )
@@ -748,13 +742,13 @@ fun SendFormMemoTextField(
             placeholder = {
                 if (isMemoFieldAvailable) {
                     Text(
-                        text = stringResource(id = R.string.send_memo_hint),
+                        text = stringResource(id = R.string.send_memoPlaceholder),
                         style = ZashiTypography.textMd,
                         color = ZashiColors.Inputs.Default.text
                     )
                 } else {
                     Text(
-                        text = stringResource(R.string.send_transparent_memo),
+                        text = stringResource(R.string.send_info_memo),
                         style = ZashiTypography.textSm,
                         color = ZashiColors.Utility.Gray.utilityGray700
                     )
@@ -836,7 +830,7 @@ private fun SendFailure(
     // TODO [#1276]: https://github.com/Electric-Coin-Company/zashi-android/issues/1276
 
     AppAlertDialog(
-        title = stringResource(id = R.string.send_dialog_error_title),
+        title = stringResource(id = R.string.send_alert_failure_title),
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState())
@@ -855,7 +849,7 @@ private fun SendFailure(
                 )
             }
         },
-        confirmButtonText = stringResource(id = R.string.send_dialog_error_btn),
+        confirmButtonText = stringResource(id = co.electriccoin.zcash.ui.design.R.string.general_ok),
         onConfirmButtonClick = onConfirm,
         modifier = modifier
     )

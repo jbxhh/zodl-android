@@ -98,13 +98,12 @@ class VotingProofPrecomputeRepositoryImpl(
             check(dbHandle != 0L) { "Failed to open voting DB at ${request.votingDbPath}" }
 
             try {
-                votingCryptoClient.setWalletId(dbHandle, request.walletId)
+                votingCryptoClient.setWalletId(dbHandle, request.walletId, request.networkId)
                 votingCryptoClient.precomputeDelegationPir(
                     dbHandle = dbHandle,
                     roundId = request.roundId,
                     bundleIndex = request.bundleIndex,
                     pirServerUrl = pirServerUrl,
-                    networkId = request.networkId,
                     notesJson = request.notesJson
                 )
             } finally {

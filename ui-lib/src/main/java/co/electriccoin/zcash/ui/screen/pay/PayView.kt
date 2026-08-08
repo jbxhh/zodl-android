@@ -74,7 +74,6 @@ import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicNumber
 import co.electriccoin.zcash.ui.design.util.stringResByNumber
 import co.electriccoin.zcash.ui.design.util.withStyle
-import co.electriccoin.zcash.ui.fixture.BalanceStateFixture
 import co.electriccoin.zcash.ui.fixture.ZashiMainTopAppBarStateFixture
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidget
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidgetState
@@ -106,7 +105,7 @@ internal fun PayView(
             )
             Spacer(40.dp)
             Text(
-                stringResource(R.string.send_address_label),
+                stringResource(R.string.send_to),
                 style = ZashiTypography.textSm,
                 fontWeight = FontWeight.Medium,
                 color = ZashiColors.Text.textPrimary
@@ -125,7 +124,7 @@ internal fun PayView(
             }
             Spacer(22.dp)
             Text(
-                stringResource(R.string.send_amount_label),
+                stringResource(R.string.send_amount),
                 style = ZashiTypography.textSm,
                 fontWeight = FontWeight.Medium,
                 color = ZashiColors.Text.textPrimary
@@ -408,7 +407,7 @@ private fun Preview() {
     ZcashTheme {
         PayView(
             appBarState = ZashiMainTopAppBarStateFixture.new(),
-            balanceState = BalanceStateFixture.new(),
+            balanceState = BalanceWidgetState.emptyPreview,
             state =
                 PayState(
                     asset =
@@ -465,7 +464,7 @@ private fun ErrorPreview() {
     ZcashTheme {
         PayView(
             appBarState = ZashiMainTopAppBarStateFixture.new(),
-            balanceState = BalanceStateFixture.new(),
+            balanceState = BalanceWidgetState.emptyPreview,
             state =
                 PayState(
                     asset =

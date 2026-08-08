@@ -156,14 +156,27 @@ class KeystoneFirmwareVersionTest {
         )
     }
 
-    private fun pcztBytesWithStamp(
-        major: Int,
-        minor: Int,
-        build: Int
-    ): ByteArray {
-        val key = "keystone:fw_version".toByteArray(Charsets.US_ASCII)
-        return byteArrayOf(0x01, 0x02) + key + byteArrayOf(0x03, major.toByte(), minor.toByte(), build.toByte()) +
-            byteArrayOf(0x09, 0x08)
+    // ── toKeystoneFwVersion (migration batch-envelope's own field, not the legacy PCZT stamp) ──
+
+    @Test
+    fun convertsThreeByteArray() {
+        val bytes = byteArrayOf(3, 0, 2)
+
+        assertEquals(KeystoneFirmwareVersion(displayMajor = 3, minor = 0, build = 2), bytes.toKeystoneFwVersion())
+    }
+
+    @Test
+    fun convertsUnsignedByteValues() {
+        val bytes = byteArrayOf(12, 4, 0xFF.toByte())
+
+        assertEquals(KeystoneFirmwareVersion(displayMajor = 12, minor = 4, build = 255), bytes.toKeystoneFwVersion())
+    }
+
+    @Test
+    fun returnsNullWhenNotThreeBytes() {
+        assertNull(ByteArray(0).toKeystoneFwVersion())
+        assertNull(byteArrayOf(1, 2).toKeystoneFwVersion())
+        assertNull(byteArrayOf(1, 2, 3, 4).toKeystoneFwVersion())
     }
 
     @Test
@@ -222,5 +235,15 @@ class KeystoneFirmwareVersionTest {
                 required = KeystoneFirmwareVersion(displayMajor = 0, minor = 0, build = 0)
             )
         )
+    }
+
+    private fun pcztBytesWithStamp(
+        major: Int,
+        minor: Int,
+        build: Int
+    ): ByteArray {
+        val key = "keystone:fw_version".toByteArray(Charsets.US_ASCII)
+        return byteArrayOf(0x01, 0x02) + key + byteArrayOf(0x03, major.toByte(), minor.toByte(), build.toByte()) +
+            byteArrayOf(0x09, 0x08)
     }
 }

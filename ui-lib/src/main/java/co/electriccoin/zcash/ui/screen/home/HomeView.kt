@@ -37,7 +37,6 @@ import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.dimensions.ZashiDimensions
 import co.electriccoin.zcash.ui.design.util.scaffoldPadding
 import co.electriccoin.zcash.ui.design.util.stringRes
-import co.electriccoin.zcash.ui.fixture.BalanceStateFixture
 import co.electriccoin.zcash.ui.fixture.ZashiMainTopAppBarStateFixture
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidget
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidgetState
@@ -219,7 +218,7 @@ private fun Preview() {
     ZcashTheme {
         HomeView(
             appBarState = ZashiMainTopAppBarStateFixture.new(),
-            balanceWidgetState = BalanceStateFixture.new(),
+            balanceWidgetState = BalanceWidgetState.emptyPreview,
             transactionWidgetState = ActivityWidgetStateFixture.new(),
             state =
                 HomeState(

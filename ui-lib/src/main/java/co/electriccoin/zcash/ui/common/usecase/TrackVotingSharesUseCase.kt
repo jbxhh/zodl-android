@@ -1,5 +1,6 @@
 package co.electriccoin.zcash.ui.common.usecase
 
+import cash.z.ecc.android.sdk.model.ZcashNetwork
 import co.electriccoin.zcash.ui.common.model.voting.ShareConfirmationResult
 import co.electriccoin.zcash.ui.common.model.voting.VotingShareDelegationRecord
 import co.electriccoin.zcash.ui.common.model.voting.toEncryptedSharesJson
@@ -54,6 +55,7 @@ class TrackVotingSharesUseCase(
             }
 
             val walletDbPath = synchronizerProvider.getVotingWalletDbPath()
+            val networkId = synchronizerProvider.getSynchronizer().network.toVotingNetworkId()
             val votingDbPath =
                 File(walletDbPath)
                     .parentFile
@@ -65,7 +67,7 @@ class TrackVotingSharesUseCase(
             check(dbHandle != 0L) { "Failed to open voting DB at $votingDbPath" }
 
             try {
-                votingCryptoClient.setWalletId(dbHandle, selectedAccount.sdkAccount.accountUuid.toString())
+                votingCryptoClient.setWalletId(dbHandle, selectedAccount.sdkAccount.accountUuid.toString(), networkId)
                 val shareDelegations = votingCryptoClient.getShareDelegations(dbHandle, roundId)
                 if (shareDelegations.isEmpty()) {
                     return@withContext VotingShareTrackingResult.Completed
@@ -234,3 +236,5 @@ private fun VotingShareDelegationRecord.resubmitAt(voteEndEpochSeconds: Long?): 
 
 private const val RESUBMIT_MIN_DELAY_SECONDS = 30L
 private const val RESUBMIT_MAX_DELAY_SECONDS = 3_600L
+
+private fun ZcashNetwork.toVotingNetworkId() = if (isMainnet()) 1 else 0

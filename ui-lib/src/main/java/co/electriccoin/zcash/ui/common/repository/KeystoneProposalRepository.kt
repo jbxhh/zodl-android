@@ -2,12 +2,15 @@ package co.electriccoin.zcash.ui.common.repository
 
 import cash.z.ecc.android.sdk.exception.PcztException
 import cash.z.ecc.android.sdk.model.Pczt
+import cash.z.ecc.android.sdk.model.Proposal
+import cash.z.ecc.android.sdk.model.Zatoshi
 import cash.z.ecc.android.sdk.model.ZecSend
 import co.electriccoin.zcash.spackle.Twig
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
 import co.electriccoin.zcash.ui.common.datasource.ExactInputSwapTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.ExactOutputSwapTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.InsufficientFundsException
+import co.electriccoin.zcash.ui.common.datasource.MigrationSweepTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.ProposalDataSource
 import co.electriccoin.zcash.ui.common.datasource.TexUnsupportedOnKSException
 import co.electriccoin.zcash.ui.common.datasource.TransactionProposal
@@ -72,6 +75,13 @@ interface KeystoneProposalRepository {
 
     @Throws(TransactionProposalNotCreatedException::class, InsufficientFundsException::class)
     suspend fun createShieldProposal()
+
+    /**
+     * Adopts an already-built migration send-max [Proposal] (see
+     * [cash.z.ecc.android.sdk.OrchardMigrationSdk.proposeImmediateMigration]) so [createPCZTFromProposal]
+     * can build a Keystone PCZT from it exactly as it would from any other proposal.
+     */
+    fun setMigrationSweepProposal(proposal: Proposal, amount: Zatoshi)
 
     @Throws(PcztException.CreatePcztFromProposalException::class)
     suspend fun createPCZTFromProposal()
@@ -185,6 +195,10 @@ class KeystoneProposalRepositoryImpl(
                 account = accountDataSource.getSelectedAccount(),
             )
         }
+    }
+
+    override fun setMigrationSweepProposal(proposal: Proposal, amount: Zatoshi) {
+        transactionProposal.update { MigrationSweepTransactionProposal(amount, proposal) }
     }
 
     override suspend fun createPCZTFromProposal() {

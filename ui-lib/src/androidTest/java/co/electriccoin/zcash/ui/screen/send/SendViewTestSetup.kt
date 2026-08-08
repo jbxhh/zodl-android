@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import cash.z.ecc.android.sdk.model.ZecSend
 import cash.z.ecc.android.sdk.type.AddressType
@@ -13,8 +12,8 @@ import co.electriccoin.zcash.ui.design.R
 import co.electriccoin.zcash.ui.design.component.IconButtonState
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.util.stringRes
-import co.electriccoin.zcash.ui.fixture.BalanceStateFixture
 import co.electriccoin.zcash.ui.fixture.ZashiMainTopAppBarStateFixture
+import co.electriccoin.zcash.ui.screen.balances.BalanceWidgetState
 import co.electriccoin.zcash.ui.screen.send.ext.Saver
 import co.electriccoin.zcash.ui.screen.send.model.AmountState
 import co.electriccoin.zcash.ui.screen.send.model.MemoState
@@ -98,13 +97,11 @@ class SendViewTestSetup(
 
         lastZecSend = zecSend
 
-        val locale = LocalConfiguration.current.locales[0]
-
         ZcashTheme {
             // TODO [#1260]: Cover Send.Form screen UI with tests
             // TODO [#1260]: https://github.com/Electric-Coin-Company/zashi-android/issues/1260
             Send(
-                balanceWidgetState = BalanceStateFixture.new(),
+                balanceWidgetState = BalanceWidgetState.emptyPreview,
                 sendStage = sendStage,
                 onCreateZecSend = setZecSend,
                 onBack = onBackAction,
@@ -124,7 +121,6 @@ class SendViewTestSetup(
                         fiatValue = "",
                         isTransparentOrTextRecipient = false,
                         exchangeRateState = ExchangeRateState.OptedOut,
-                        locale = locale
                     ),
                 setMemoState = {},
                 memoState = MemoState.new(""),
@@ -142,7 +138,7 @@ class SendViewTestSetup(
                             IconButtonState(
                                 icon = R.drawable.ic_app_bar_settings,
                                 contentDescription =
-                                    stringRes(co.electriccoin.zcash.ui.R.string.settings_menu_content_description),
+                                    stringRes(co.electriccoin.zcash.ui.R.string.scan_openSettings),
                             ) {
                                 onSettingsCount.incrementAndGet()
                             }

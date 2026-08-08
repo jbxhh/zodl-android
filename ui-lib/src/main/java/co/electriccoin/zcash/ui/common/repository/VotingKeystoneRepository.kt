@@ -183,7 +183,11 @@ class VotingKeystoneRepositoryImpl(
 
             val (signingBundle, pendingPrecomputeRequest) =
                 try {
-                    votingCryptoClient.setWalletId(dbHandle, selectedAccount.sdkAccount.accountUuid.toString())
+                    votingCryptoClient.setWalletId(
+                        dbHandle,
+                        selectedAccount.sdkAccount.accountUuid.toString(),
+                        networkId
+                    )
                     // Keystone signing starts by building a governance PCZT. Once Rust
                     // advances past delegation, rebuilding it would regress the round phase.
                     val roundState = votingCryptoClient.getRoundState(dbHandle, roundId)
@@ -200,19 +204,13 @@ class VotingKeystoneRepositoryImpl(
                             notesJson = allNotesJson
                         )
                     val fvkBytes = votingCryptoClient.extractOrchardFvkFromUfvk(ufvk, networkId)
-                    val hotkeyRawAddress =
-                        votingCryptoClient.deriveHotkeyRawAddress(
-                            hotkeySeed = hotkeySeed,
-                            networkId = networkId
-                        )
                     val governancePczt =
                         votingCryptoClient.buildGovernancePczt(
                             dbHandle = dbHandle,
                             roundId = roundId,
                             bundleIndex = bundleIndex,
                             fvkBytes = fvkBytes,
-                            hotkeyRawAddress = hotkeyRawAddress,
-                            networkId = networkId,
+                            hotkeySeed = hotkeySeed,
                             accountIndex = accountIndex,
                             notesJson = allNotesJson,
                             seedFingerprint = seedFingerprint,

@@ -43,6 +43,7 @@ import co.electriccoin.zcash.ui.common.usecase.GetFlexaStatusUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetHomeMessageUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetKeystoneStatusUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetORSwapQuoteUseCase
+import co.electriccoin.zcash.ui.common.usecase.GetOrchardBalanceUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetPersistableWalletUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetProposalUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetResyncDataFromHeightUseCase
@@ -190,6 +191,7 @@ val useCaseModule =
         factoryOf(::Zip321BuildUriUseCase)
         factoryOf(::Zip321ParseUriValidationUseCase)
         factoryOf(::GetPersistableWalletUseCase)
+        factoryOf(::GetOrchardBalanceUseCase)
         factoryOf(::GetSupportUseCase)
         factoryOf(::GetWalletSeedBytesUseCase)
         factoryOf(::ErrorMapperUseCase)

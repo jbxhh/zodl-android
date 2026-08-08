@@ -36,6 +36,7 @@ import co.electriccoin.zcash.ui.common.compose.ZashiTooltipBox
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import co.electriccoin.zcash.ui.design.component.BlankSurface
 import co.electriccoin.zcash.ui.design.component.LottieProgress
+import co.electriccoin.zcash.ui.design.component.ShimmerableText
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.balances.LocalBalancesAvailable
@@ -56,11 +57,11 @@ import kotlin.time.Clock
 @Suppress("LongParameterList", "ComplexCondition")
 @Composable
 fun StyledExchangeBalance(
-    zatoshi: Zatoshi,
+    zatoshi: Zatoshi?,
     state: ExchangeRateState,
     modifier: Modifier = Modifier,
     hiddenBalancePlaceholder: StringResource =
-        stringRes(co.electriccoin.zcash.ui.design.R.string.hide_balance_placeholder),
+        stringRes(co.electriccoin.zcash.ui.design.R.string.general_hideBalancesMost),
     textColor: Color = ZashiColors.Text.textPrimary,
     style: TextStyle = ZashiTypography.textSm.copy(fontWeight = FontWeight.SemiBold)
 ) {
@@ -99,13 +100,13 @@ fun StyledExchangeBalance(
 private fun ExchangeAvailableRateLabelInternal(
     style: TextStyle,
     textColor: Color,
-    zatoshi: Zatoshi,
+    zatoshi: Zatoshi?,
     state: ExchangeRateState.Data,
     hiddenBalancePlaceholder: StringResource,
     isHideBalance: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val isEnabled = !state.isLoading && state.isRefreshEnabled
+    val isEnabled = !state.isLoading && state.isRefreshEnabled && zatoshi != null
 
     ExchangeRateButton(
         modifier = modifier,
@@ -113,16 +114,20 @@ private fun ExchangeAvailableRateLabelInternal(
         isEnabled = isEnabled,
         textColor = textColor,
     ) {
-        Text(
-            text = createExchangeRateText(state, hiddenBalancePlaceholder, zatoshi, isHideBalance),
+        ShimmerableText(
+            text =
+                zatoshi?.let {
+                    createExchangeRateText(state, hiddenBalancePlaceholder, it, isHideBalance)
+                },
+            shimmerText = "0.00",
             style = style,
             maxLines = 1,
-            color = textColor
+            color = textColor,
         )
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        if (state.isLoading) {
+        if (state.isLoading || zatoshi == null) {
             LottieProgress(modifier = Modifier.align(CenterVertically))
         } else {
             Image(
@@ -207,7 +212,7 @@ private fun ExchangeRateUnavailableButton(
             textColor = textColor,
         ) {
             Text(
-                text = stringResource(id = R.string.exchange_rate_unavailable_title),
+                text = stringResource(id = R.string.tooltip_exchangeRate_title),
                 style = style,
                 maxLines = 1,
                 color = textColor

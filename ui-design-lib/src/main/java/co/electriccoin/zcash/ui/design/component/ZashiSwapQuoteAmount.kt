@@ -97,14 +97,14 @@ private fun Layout(
             horizontalAlignment = if (isMirrored) Alignment.End else Alignment.Start
         ) {
             ShimmerableText(
-                text = state?.let { it.amount orHiddenString stringRes(R.string.hide_balance_placeholder) },
+                text = state?.let { it.amount orHiddenString stringRes(R.string.general_hideBalancesMost) },
                 shimmerText = stringResByNumber(BigDecimal(".123456")).getValue(),
                 style = ZashiTypography.textSm,
                 fontWeight = FontWeight.Medium,
                 color = ZashiColors.Text.textPrimary,
             )
             ShimmerableText(
-                text = state?.let { it.fiatAmount orHiddenString stringRes(R.string.hide_balance_placeholder) },
+                text = state?.let { it.fiatAmount orHiddenString stringRes(R.string.general_hideBalancesMost) },
                 shimmerText = stringResByNumber(BigDecimal(".123")).getValue(),
                 style = ZashiTypography.textXxs,
                 fontWeight = FontWeight.Medium,
@@ -135,46 +135,6 @@ private fun RowScope.TopBottom(state: SwapTokenAmountState?, end: Boolean) {
             color = ZashiColors.Text.textTertiary,
             maxLines = 2,
             textAlign = if (end) TextAlign.Start else TextAlign.End
-        )
-    }
-}
-
-@Composable
-private fun ShimmerableText(
-    text: String?,
-    shimmerText: String,
-    style: TextStyle,
-    modifier: Modifier = Modifier,
-    fontWeight: FontWeight? = null,
-    color: Color = Color.Unspecified,
-    maxLines: Int = 1,
-    textAlign: TextAlign = TextAlign.Start,
-) {
-    if (text == null) {
-        with(
-            measureTextStyle(
-                text = shimmerText,
-                style = style.copy(fontWeight = fontWeight ?: style.fontWeight),
-            )
-        ) {
-            ShimmerRectangle(
-                modifier =
-                    Modifier
-                        .width(size.widthDp)
-                        .height(size.heightDp)
-                        .padding(1.dp),
-                color = ZashiColors.Surfaces.bgTertiary,
-            )
-        }
-    } else {
-        ZashiAutoSizeText(
-            modifier = modifier,
-            text = text,
-            style = style,
-            fontWeight = fontWeight,
-            color = color,
-            maxLines = maxLines,
-            textAlign = textAlign
         )
     }
 }

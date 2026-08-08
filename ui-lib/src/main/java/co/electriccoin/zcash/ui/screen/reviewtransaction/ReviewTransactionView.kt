@@ -45,6 +45,7 @@ import co.electriccoin.zcash.ui.design.component.SwapTokenAmountState
 import co.electriccoin.zcash.ui.design.component.TextFieldState
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiChipButton
+import co.electriccoin.zcash.ui.design.component.ZashiConfirmationBottomSheet
 import co.electriccoin.zcash.ui.design.component.ZashiHorizontalDivider
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiSwapQuoteHeader
@@ -67,6 +68,7 @@ import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
 import co.electriccoin.zcash.ui.design.util.styleAsAddress
 import co.electriccoin.zcash.ui.design.util.withStyle
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidgetHeader
+import co.electriccoin.zcash.ui.screen.common.PrivacyDisclaimerCard
 import co.electriccoin.zcash.ui.screen.exchangerate.widget.StyledExchangeLabel
 import kotlin.time.Clock
 
@@ -139,6 +141,11 @@ fun ReviewTransactionView(state: ReviewTransactionState) {
                             MessagePlaceholderWidget(item)
                         }
 
+                        is OrchardPrivacyWarningState -> {
+                            Spacer(16.dp)
+                            PrivacyDisclaimerCard(title = item.title, body = item.body)
+                        }
+
                         is SimpleListItemState -> {
                             Spacer(12.dp)
                             ListItemWidget(item)
@@ -157,6 +164,8 @@ fun ReviewTransactionView(state: ReviewTransactionState) {
             }
             BottomBar(state)
         }
+
+        ZashiConfirmationBottomSheet(state.orchardWarningSheet)
     }
 }
 
@@ -551,7 +560,7 @@ private fun TransparentPreview() =
                             ),
                             MessagePlaceholderState(
                                 title = stringRes("Message"),
-                                message = stringRes(co.electriccoin.zcash.ui.R.string.send_transparent_memo),
+                                message = stringRes(co.electriccoin.zcash.ui.R.string.send_info_memo),
                                 icon = co.electriccoin.zcash.ui.R.drawable.ic_confirmation_message_info,
                             )
                         ),
@@ -571,7 +580,7 @@ private fun Zip321Preview() =
         ReviewTransactionView(
             state =
                 ReviewTransactionState(
-                    title = stringRes(co.electriccoin.zcash.ui.R.string.payment_request_title),
+                    title = stringRes(co.electriccoin.zcash.ui.R.string.send_requestPayment_title),
                     items =
                         listOf(
                             AmountState(
@@ -591,19 +600,19 @@ private fun Zip321Preview() =
                                     ),
                             ),
                             SenderState(
-                                title = stringRes(co.electriccoin.zcash.ui.R.string.send_confirmation_address_from),
+                                title = stringRes(co.electriccoin.zcash.ui.R.string.accounts_sendingFrom),
                                 icon = R.drawable.ic_item_keystone,
                                 name = stringRes("Keystone wallet"),
                             ),
                             ReceiverExpandedState(
-                                title = stringRes(co.electriccoin.zcash.ui.R.string.payment_request_requested_by),
+                                title = stringRes(co.electriccoin.zcash.ui.R.string.send_requestPayment_requestedBy),
                                 name = stringRes("Name"),
                                 address = stringRes("Address").styleAsAddress(),
                                 ChipButtonState(
                                     startIcon = R.drawable.ic_chevron_down,
                                     text =
                                         stringRes(
-                                            co.electriccoin.zcash.ui.R.string.payment_request_btn_show_address,
+                                            co.electriccoin.zcash.ui.design.R.string.general_show,
                                         ),
                                     onClick = {}
                                 ),
@@ -611,23 +620,23 @@ private fun Zip321Preview() =
                                     startIcon = co.electriccoin.zcash.ui.R.drawable.ic_user_plus,
                                     text =
                                         stringRes(
-                                            co.electriccoin.zcash.ui.R.string.payment_request_btn_save_contact,
+                                            co.electriccoin.zcash.ui.R.string.general_save,
                                         ),
                                     onClick = {}
                                 )
                             ),
                             MessageState(
-                                title = stringRes(co.electriccoin.zcash.ui.R.string.payment_request_memo),
+                                title = stringRes(co.electriccoin.zcash.ui.R.string.send_requestPayment_for),
                                 message = stringRes("Message"),
                             ),
                             FinancialInfoState(
-                                title = stringRes(co.electriccoin.zcash.ui.R.string.payment_request_fee),
+                                title = stringRes(co.electriccoin.zcash.ui.R.string.send_feeSummary),
                                 amount = ZatoshiFixture.new()
                             )
                         ),
                     primaryButton =
                         ButtonState(
-                            stringRes(co.electriccoin.zcash.ui.R.string.review_keystone_transaction_positive)
+                            stringRes(co.electriccoin.zcash.ui.R.string.keystone_confirm)
                         ),
                     onBack = {},
                 )

@@ -7,6 +7,8 @@ import co.electriccoin.zcash.ui.BuildConfig
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.NavigationTargets
 import co.electriccoin.zcash.ui.R
+import co.electriccoin.zcash.ui.common.migration.MigrationGate
+import co.electriccoin.zcash.ui.common.migration.MigrationNavigator
 import co.electriccoin.zcash.ui.common.model.DistributionDimension
 import co.electriccoin.zcash.ui.common.model.WalletAccount
 import co.electriccoin.zcash.ui.common.model.WalletRestoringState
@@ -25,6 +27,7 @@ import co.electriccoin.zcash.ui.screen.advancedsettings.debug.DebugArgs
 import co.electriccoin.zcash.ui.screen.chooseserver.ChooseServerArgs
 import co.electriccoin.zcash.ui.screen.disconnect.DisconnectArgs
 import co.electriccoin.zcash.ui.screen.tor.settings.TorSettingsArgs
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.WhileSubscribed
@@ -42,28 +45,39 @@ class AdvancedSettingsVM(
     private val getVersionInfo: GetVersionInfoProvider,
     private val navigateToResetWallet: NavigateToResetWalletUseCase,
     private val navigateToExportPrivateData: NavigateToExportPrivateDataUseCase,
+    private val migrationGate: MigrationGate,
+    private val migrationNavigator: MigrationNavigator,
 ) : ViewModel() {
     private val versionInfo by lazy { getVersionInfo() }
+
+    private val restartAvailable = MutableStateFlow(false)
+
+    init {
+        viewModelScope.launch { restartAvailable.value = migrationGate.isRestartAvailable() }
+    }
 
     val state: StateFlow<AdvancedSettingsState> =
         combine(
             getWalletRestoringState.observe(),
-            getWalletAccounts.observe()
-        ) { walletState, accounts ->
-            createState(walletState, accounts)
+            getWalletAccounts.observe(),
+            restartAvailable,
+        ) { walletState, accounts, isRestartAvailable ->
+            createState(walletState, accounts, isRestartAvailable)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(ANDROID_STATE_FLOW_TIMEOUT),
             initialValue =
                 createState(
                     getWalletRestoringState.observe().value,
-                    getWalletAccounts.observe().value
+                    getWalletAccounts.observe().value,
+                    restartAvailable.value,
                 )
         )
 
     private fun createState(
         walletRestoringState: WalletRestoringState,
-        accounts: List<WalletAccount>?
+        accounts: List<WalletAccount>?,
+        isRestartAvailable: Boolean,
     ): AdvancedSettingsState {
         val hasKeystoneAccount = accounts?.any { it is co.electriccoin.zcash.ui.common.model.KeystoneAccount } == true
         val restoring = walletRestoringState == WalletRestoringState.RESTORING
@@ -72,17 +86,17 @@ class AdvancedSettingsVM(
             items =
                 listOfNotNull(
                     ListItemState(
-                        title = stringRes(R.string.advanced_settings_recovery),
+                        title = stringRes(R.string.settings_recoveryPhrase),
                         bigIcon = imageRes(R.drawable.ic_advanced_settings_recovery),
                         onClick = ::onSeedRecoveryClick
                     ),
                     ListItemState(
-                        title = stringRes(R.string.advanced_settings_export),
+                        title = stringRes(R.string.settings_exportPrivateData),
                         bigIcon = imageRes(R.drawable.ic_advanced_settings_export),
                         onClick = ::onExportPrivateDataClick
                     ),
                     ListItemState(
-                        title = stringRes(R.string.advanced_settings_tax),
+                        title = stringRes(R.string.taxExport_taxFile),
                         bigIcon =
                             imageRes(
                                 if (walletRestoringState == WalletRestoringState.RESTORING) {
@@ -95,18 +109,18 @@ class AdvancedSettingsVM(
                         onClick = ::onTaxExportClick
                     ),
                     ListItemState(
-                        title = stringRes(R.string.advanced_settings_choose_server),
+                        title = stringRes(R.string.settings_chooseServer),
                         bigIcon = imageRes(R.drawable.ic_advanced_settings_choose_server),
                         onClick = ::onChooseServerClick
                     ),
                     // ListItemState(
-                    //     title = stringRes(R.string.advanced_settings_resync_wallet),
+                    //     title = stringRes(R.string.resyncWallet_title),
                     //     bigIcon = imageRes(R.drawable.ic_advanced_settings_resync),
                     //     isEnabled = !restoring,
                     //     onClick = ::onResyncWalletClick,
                     // ),
                     ListItemState(
-                        title = stringRes(R.string.advanced_settings_privacy),
+                        title = stringRes(R.string.settings_private),
                         bigIcon = imageRes(R.drawable.ic_advanced_settings_privacy),
                         onClick = ::onPrivacyClick
                     ),
@@ -116,10 +130,15 @@ class AdvancedSettingsVM(
                         onClick = ::onCrashReportingClick
                     ).takeIf { versionInfo.distribution == DistributionDimension.STORE },
                     ListItemState(
-                        title = stringRes(R.string.advanced_settings_disconnect_hw_wallet),
+                        title = stringRes(R.string.disconnectHWWallet_cta),
                         bigIcon = imageRes(R.drawable.ic_advanced_settings_disconnect_hw),
                         onClick = ::onDisconnectHwWalletClick
                     ).takeIf { hasKeystoneAccount },
+                    ListItemState(
+                        title = stringRes(co.electriccoin.zcash.ui.design.R.string.restartMigration_settingsItem),
+                        bigIcon = imageRes(R.drawable.ic_advanced_settings_restart_migration),
+                        onClick = ::onRestartMigrationClick,
+                    ).takeIf { isRestartAvailable },
                     ListItemState(
                         title = stringRes("Debug menu"),
                         onClick = ::onDebugMenuClick
@@ -127,7 +146,7 @@ class AdvancedSettingsVM(
                 ),
             deleteButton =
                 ButtonState(
-                    text = stringRes(R.string.advanced_settings_delete_button),
+                    text = stringRes(R.string.settings_deleteZashi),
                     onClick = ::onResetWalletClick,
                 ),
         )
@@ -157,6 +176,8 @@ class AdvancedSettingsVM(
     private fun onDisconnectHwWalletClick() {
         navigationRouter.forward(DisconnectArgs)
     }
+
+    private fun onRestartMigrationClick() = migrationNavigator.forwardToRestartMigration()
 
     // private fun onResyncWalletClick() = navigationRouter.forward(ResyncConfirmArgs)
 }

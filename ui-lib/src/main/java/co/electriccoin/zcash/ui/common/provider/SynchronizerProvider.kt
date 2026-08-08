@@ -3,6 +3,7 @@ package co.electriccoin.zcash.ui.common.provider
 import cash.z.ecc.android.sdk.Synchronizer
 import cash.z.ecc.android.sdk.WalletCoordinator
 import co.electriccoin.zcash.spackle.Twig
+import co.electriccoin.zcash.ui.common.migration.MigrationSyncedHook
 import co.electriccoin.zcash.ui.common.model.SynchronizerError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,9 +15,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -42,9 +46,15 @@ interface SynchronizerProvider {
     fun resetSynchronizer()
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SynchronizerProviderImpl(
     private val walletCoordinator: WalletCoordinator,
     private val persistableWalletProvider: PersistableWalletProvider,
+    // Lazy on purpose: the hook's implementation resolves (via AccountDataSource) back to
+    // SynchronizerProvider — eager constructor injection forms a Koin resolution cycle that
+    // crashes startup with a StackOverflowError (caught on-emulator 2026-07-28). Resolved at
+    // first hook fire instead, when the graph is fully built.
+    private val migrationSyncedHook: Lazy<MigrationSyncedHook>,
 ) : SynchronizerProvider {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -79,6 +89,20 @@ class SynchronizerProviderImpl(
                 started = SharingStarted.Lazily,
                 initialValue = walletCoordinator.synchronizer.value
             )
+
+    init {
+        scope.launch {
+            synchronizer
+                .flatMapLatest { s -> s?.status ?: emptyFlow() }
+                .distinctUntilChanged()
+                .collect { status ->
+                    if (status == Synchronizer.Status.SYNCED) {
+                        runCatching { migrationSyncedHook.value.onSynced() }
+                            .onFailure { Twig.warn { "MIGRATION_DIAG foreground SYNCED hook: ${it.message}" } }
+                    }
+                }
+        }
+    }
 
     override suspend fun getSynchronizer(): Synchronizer =
         withContext(Dispatchers.IO) {

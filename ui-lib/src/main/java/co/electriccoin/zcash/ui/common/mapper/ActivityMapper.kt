@@ -1,6 +1,7 @@
 package co.electriccoin.zcash.ui.common.mapper
 
 import cash.z.ecc.android.sdk.model.TransactionPool
+import cash.z.ecc.android.sdk.model.Zip318Kind
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.model.SwapMode.EXACT_INPUT
 import co.electriccoin.zcash.ui.common.model.SwapMode.EXACT_OUTPUT
@@ -87,10 +88,10 @@ class ActivityMapper {
         stringRes(
             when (data.swap.status) {
                 INCOMPLETE_DEPOSIT, PROCESSING, PENDING -> R.string.transaction_history_swapping
-                SUCCESS -> R.string.transaction_history_swapped
-                REFUNDED -> R.string.transaction_history_swap_refunded
-                FAILED -> R.string.transaction_history_swap_failed
-                EXPIRED -> R.string.transaction_history_swap_expired
+                SUCCESS -> R.string.swapStatus_swapped
+                REFUNDED -> R.string.swapStatus_swapRefunded
+                FAILED -> R.string.swapStatus_swapFailed
+                EXPIRED -> R.string.swapAndPay_expiredTitle
             }
         )
 
@@ -144,10 +145,22 @@ class ActivityMapper {
 
             is SendTransaction -> {
                 if (data.metadata.swapMetadata == null) {
-                    when (transaction) {
-                        is SendTransaction.Success -> R.drawable.ic_transaction_sent
-                        is SendTransaction.Pending -> R.drawable.ic_transaction_send_pending
-                        is SendTransaction.Failed -> R.drawable.ic_transaction_send_failed
+                    when (transaction.overview.zip318Kind) {
+                        Zip318Kind.PREPARATION, Zip318Kind.TRANSFER -> {
+                            when (transaction) {
+                                is SendTransaction.Success -> R.drawable.ic_transaction_migration
+                                is SendTransaction.Pending -> R.drawable.ic_transaction_migration_pending
+                                is SendTransaction.Failed -> R.drawable.ic_transaction_migration_failed
+                            }
+                        }
+
+                        Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING -> {
+                            when (transaction) {
+                                is SendTransaction.Success -> R.drawable.ic_transaction_sent
+                                is SendTransaction.Pending -> R.drawable.ic_transaction_send_pending
+                                is SendTransaction.Failed -> R.drawable.ic_transaction_send_failed
+                            }
+                        }
                     }
                 } else {
                     if (transaction is SendTransaction.Failed) {
@@ -182,7 +195,7 @@ class ActivityMapper {
     private fun getTransactionTitle(data: ActivityData.ByTransaction) =
         when (val transaction = data.transaction) {
             is ReceiveTransaction.Success -> {
-                stringRes(R.string.transaction_history_received)
+                stringRes(R.string.transaction_received)
             }
 
             is ReceiveTransaction.Pending -> {
@@ -194,7 +207,7 @@ class ActivityMapper {
             }
 
             is ShieldTransaction.Success -> {
-                stringRes(R.string.transaction_history_shielded)
+                stringRes(R.string.transaction_shieldedFunds)
             }
 
             is ShieldTransaction.Pending -> {
@@ -202,21 +215,41 @@ class ActivityMapper {
             }
 
             is ShieldTransaction.Failed -> {
-                stringRes(R.string.transaction_history_shielding_failed)
+                stringRes(R.string.transaction_failedShieldedFunds)
             }
 
             is SendTransaction -> {
                 if (data.metadata.swapMetadata == null) {
-                    when (transaction) {
-                        is SendTransaction.Success -> stringRes(R.string.transaction_history_sent)
-                        is SendTransaction.Pending -> stringRes(R.string.transaction_history_sending)
-                        is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
+                    when (transaction.overview.zip318Kind) {
+                        Zip318Kind.PREPARATION -> {
+                            when (transaction) {
+                                is SendTransaction.Success -> stringRes(R.string.transaction_noteSplit)
+                                is SendTransaction.Pending -> stringRes(R.string.transaction_history_noteSplitting)
+                                is SendTransaction.Failed -> stringRes(R.string.transaction_history_noteSplitFailed)
+                            }
+                        }
+
+                        Zip318Kind.TRANSFER -> {
+                            when (transaction) {
+                                is SendTransaction.Success -> stringRes(R.string.transaction_migrated)
+                                is SendTransaction.Pending -> stringRes(R.string.transaction_history_migrating)
+                                is SendTransaction.Failed -> stringRes(R.string.transaction_migrationFailed)
+                            }
+                        }
+
+                        Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING -> {
+                            when (transaction) {
+                                is SendTransaction.Success -> stringRes(R.string.transaction_sent)
+                                is SendTransaction.Pending -> stringRes(R.string.transaction_history_sending)
+                                is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
+                            }
+                        }
                     }
                 } else {
                     if (transaction is SendTransaction.Failed) {
                         when (data.metadata.swapMetadata.mode) {
-                            EXACT_INPUT, FLEX_INPUT -> stringRes(R.string.transaction_history_swap_failed)
-                            EXACT_OUTPUT -> stringRes(R.string.transaction_history_payment_failed)
+                            EXACT_INPUT, FLEX_INPUT -> stringRes(R.string.swapStatus_swapFailed)
+                            EXACT_OUTPUT -> stringRes(R.string.swapStatus_paymentFailed)
                         }
                     } else {
                         when (data.metadata.swapMetadata.mode) {
@@ -226,13 +259,13 @@ class ActivityMapper {
                                     PROCESSING,
                                     PENDING -> stringRes(R.string.transaction_history_swapping)
 
-                                    SUCCESS -> stringRes(R.string.transaction_history_swapped)
+                                    SUCCESS -> stringRes(R.string.swapStatus_swapped)
 
-                                    REFUNDED -> stringRes(R.string.transaction_history_swap_refunded)
+                                    REFUNDED -> stringRes(R.string.swapStatus_swapRefunded)
 
-                                    FAILED -> stringRes(R.string.transaction_history_swap_failed)
+                                    FAILED -> stringRes(R.string.swapStatus_swapFailed)
 
-                                    EXPIRED -> stringRes(R.string.transaction_history_swap_expired)
+                                    EXPIRED -> stringRes(R.string.swapAndPay_expiredTitle)
                                 }
                             }
 
@@ -242,13 +275,13 @@ class ActivityMapper {
                                     PROCESSING,
                                     PENDING -> stringRes(R.string.transaction_history_paying)
 
-                                    SUCCESS -> stringRes(R.string.transaction_history_paid)
+                                    SUCCESS -> stringRes(R.string.swapStatus_paid)
 
-                                    REFUNDED -> stringRes(R.string.transaction_history_payment_refunded)
+                                    REFUNDED -> stringRes(R.string.swapStatus_paymentRefunded)
 
-                                    FAILED -> stringRes(R.string.transaction_history_payment_failed)
+                                    FAILED -> stringRes(R.string.swapStatus_paymentFailed)
 
-                                    EXPIRED -> stringRes(R.string.transaction_history_payment_expired)
+                                    EXPIRED -> stringRes(R.string.swapStatus_paymentExpired)
                                 }
                             }
                         }
@@ -263,15 +296,15 @@ class ActivityMapper {
         val daysBetween = ChronoUnit.DAYS.between(transactionDate.toLocalDate(), LocalDate.now())
         return when {
             LocalDate.now() == transactionDate.toLocalDate() -> {
-                stringRes(R.string.transaction_history_today)
+                stringRes(R.string.filter_today)
             }
 
             LocalDate.now().minusDays(1) == transactionDate.toLocalDate() -> {
-                stringRes(R.string.transaction_history_yesterday)
+                stringRes(R.string.filter_yesterday)
             }
 
             daysBetween < MONTH_THRESHOLD -> {
-                stringRes(R.string.transaction_history_days_ago, daysBetween.toString())
+                stringRes(R.string.filter_daysAgo, daysBetween.toString())
             }
 
             else -> {
@@ -294,7 +327,13 @@ class ActivityMapper {
                 is SendTransaction.Success,
                 is SendTransaction.Failed,
                 is SendTransaction.Pending -> {
-                    stringRes("- ") + stringRes(data.transaction.amount)
+                    if (data.transaction.overview.zip318Kind == Zip318Kind.TRANSFER ||
+                        data.transaction.overview.zip318Kind == Zip318Kind.PREPARATION
+                    ) {
+                        stringRes(data.transaction.amount)
+                    } else {
+                        stringRes("- ") + stringRes(data.transaction.amount)
+                    }
                 }
 
                 is ShieldTransaction.Success,

@@ -8,6 +8,7 @@ import cash.z.ecc.android.sdk.model.Account
 import cash.z.ecc.android.sdk.model.BlockHeight
 import cash.z.ecc.android.sdk.model.WalletAddress
 import cash.z.ecc.android.sdk.model.Zatoshi
+import cash.z.ecc.android.sdk.model.ZcashNetwork
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
 import co.electriccoin.zcash.ui.common.model.KeystoneAccount
 import co.electriccoin.zcash.ui.common.model.SynchronizerError
@@ -71,7 +72,8 @@ class SkipRemainingKeystoneBundlesUseCaseTest {
                     CryptoCall.OpenVotingDb("/tmp/wallet/voting.sqlite3"),
                     CryptoCall.SetWalletId(
                         dbHandle = DB_HANDLE,
-                        walletId = selectedAccount.sdkAccount.accountUuid.toString()
+                        walletId = selectedAccount.sdkAccount.accountUuid.toString(),
+                        networkId = 0
                     ),
                     CryptoCall.DeleteSkippedBundles(
                         dbHandle = DB_HANDLE,
@@ -115,7 +117,8 @@ class SkipRemainingKeystoneBundlesUseCaseTest {
                     CryptoCall.OpenVotingDb("/tmp/wallet/voting.sqlite3"),
                     CryptoCall.SetWalletId(
                         dbHandle = DB_HANDLE,
-                        walletId = selectedAccount.sdkAccount.accountUuid.toString()
+                        walletId = selectedAccount.sdkAccount.accountUuid.toString(),
+                        networkId = 0
                     ),
                     CryptoCall.DeleteSkippedBundles(
                         dbHandle = DB_HANDLE,
@@ -147,6 +150,7 @@ class SkipRemainingKeystoneBundlesUseCaseTest {
                     address = WalletAddressFixture.unified(),
                     balance = WalletBalanceFixture.newLong()
                 ),
+            ironwoodBalance = WalletBalanceFixture.newLong(0, 0, 0),
             transparent =
                 TransparentInfo(
                     address = WalletAddressFixture.transparent(),
@@ -246,7 +250,8 @@ private class FakeVotingCryptoClient(
                     calls +=
                         CryptoCall.SetWalletId(
                             dbHandle = args.valueAt(0),
-                            walletId = args.valueAt(1)
+                            walletId = args.valueAt(1),
+                            networkId = args.valueAt(2)
                         )
                     Unit
                 }
@@ -340,7 +345,8 @@ private sealed interface CryptoCall {
 
     data class SetWalletId(
         val dbHandle: Long,
-        val walletId: String
+        val walletId: String,
+        val networkId: Int
     ) : CryptoCall
 
     data class DeleteSkippedBundles(
@@ -361,6 +367,7 @@ private fun synchronizer(walletDbPath: String): Synchronizer =
     ) { proxy, method, args ->
         when (method.name) {
             "getWalletDbPath" -> walletDbPath
+            "getNetwork" -> ZcashNetwork.Testnet
             else -> method.handleObjectMethod(proxy, args)
         }
     } as Synchronizer

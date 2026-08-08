@@ -14,9 +14,11 @@ import co.electriccoin.zcash.di.providerModule
 import co.electriccoin.zcash.di.repositoryModule
 import co.electriccoin.zcash.di.useCaseModule
 import co.electriccoin.zcash.di.viewModelModule
+import co.electriccoin.zcash.migration.di.featureMigrationModule
 import co.electriccoin.zcash.spackle.StrictModeCompat
 import co.electriccoin.zcash.spackle.Twig
 import co.electriccoin.zcash.ui.common.provider.CrashReportingStorageProvider
+import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
 import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.ApplicationStateRepository
 import co.electriccoin.zcash.ui.common.repository.AutomaticServerRepository
@@ -26,6 +28,7 @@ import co.electriccoin.zcash.ui.common.repository.WalletRepository
 import co.electriccoin.zcash.ui.common.repository.WalletSnapshotRepository
 import co.electriccoin.zcash.ui.screen.error.ErrorArgs
 import co.electriccoin.zcash.ui.screen.error.NavigateToErrorUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -47,11 +50,14 @@ class ZcashApplication : CoroutineApplication() {
     private val automaticServerRepository: AutomaticServerRepository by inject()
     private val synchronizerProvider: SynchronizerProvider by inject()
     private val navigateToError: NavigateToErrorUseCase by inject()
+    private val migrationNotifier: MigrationNotifier by inject()
 
     override fun onCreate() {
         super.onCreate()
 
         configureLogging()
+
+        preloadSdkNativeLibrary()
 
         configureStrictMode()
 
@@ -68,7 +74,8 @@ class ZcashApplication : CoroutineApplication() {
                 metadataModule,
                 useCaseModule,
                 mapperModule,
-                viewModelModule
+                viewModelModule,
+                featureMigrationModule
             )
         }
 
@@ -76,6 +83,7 @@ class ZcashApplication : CoroutineApplication() {
         // mode is configured to ensure none of that IO happens on the main thread
         configureAnalytics()
 
+        migrationNotifier.createChannel()
         flexaRepository.init()
         homeMessageCacheRepository.init()
         walletSnapshotRepository.init()
@@ -83,6 +91,19 @@ class ZcashApplication : CoroutineApplication() {
         automaticServerRepository.init()
         walletRepository.init()
         observeSynchronizerError()
+    }
+
+    /**
+     * Kicks off the SDK's native-library load off the main thread during app startup, so the
+     * one-time [System.loadLibrary] cost is already paid (overlapping the splash/authentication
+     * screens) before the Synchronizer is constructed, shortening its cold-start critical path.
+     * Best-effort: if it fails, [Synchronizer.new] will simply load the library lazily as before.
+     */
+    private fun preloadSdkNativeLibrary() {
+        applicationScope.launch(Dispatchers.Default) {
+            runCatching { Synchronizer.preloadNativeLibrary() }
+                .onFailure { Twig.info { "SDK native library preload failed; will load lazily: $it" } }
+        }
     }
 
     private fun observeSynchronizerError() {

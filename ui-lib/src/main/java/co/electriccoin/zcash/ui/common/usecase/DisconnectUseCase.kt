@@ -2,7 +2,9 @@ package co.electriccoin.zcash.ui.common.usecase
 
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
+import co.electriccoin.zcash.ui.common.migration.MigrationAppHooks
 import co.electriccoin.zcash.ui.common.model.KeystoneAccount
+import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.repository.BiometricRepository
 import co.electriccoin.zcash.ui.common.repository.BiometricRequest
 import co.electriccoin.zcash.ui.design.util.stringRes
@@ -12,7 +14,8 @@ import kotlinx.coroutines.withContext
 
 class DisconnectUseCase(
     private val accountDataSource: AccountDataSource,
-    private val biometricRepository: BiometricRepository
+    private val biometricRepository: BiometricRepository,
+    private val migrationAppHooks: MigrationAppHooks,
 ) {
     private val logger = loggableNot("DisconnectUseCase")
 
@@ -22,6 +25,10 @@ class DisconnectUseCase(
             biometricRepository.requestBiometrics(
                 BiometricRequest(message = stringRes(R.string.disconnect_hardware_wallet_biometric_message))
             )
+
+            // A disconnected Keystone account must take its scheduled migration work with it —
+            // otherwise the lanes zombie-retry for an account that no longer exists.
+            migrationAppHooks.cancelMigrationWork(keystoneAccount.sdkAccount.accountUuid.toStorageKeyId())
 
             logger("deleteAccount $keystoneAccount")
             // Delete the hardware wallet account

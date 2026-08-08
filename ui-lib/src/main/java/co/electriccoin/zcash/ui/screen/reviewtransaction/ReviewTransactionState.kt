@@ -6,6 +6,7 @@ import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.ChipButtonState
 import co.electriccoin.zcash.ui.design.component.SwapQuoteHeaderState
+import co.electriccoin.zcash.ui.design.component.ZashiConfirmationState
 import co.electriccoin.zcash.ui.design.util.StringResource
 import co.electriccoin.zcash.ui.design.util.StyledStringResource
 
@@ -14,6 +15,9 @@ data class ReviewTransactionState(
     val items: List<ReviewTransactionItemState>,
     val primaryButton: ButtonState,
     val onBack: () -> Unit,
+    // Non-null while the Orchard-spend warning sheet is shown on entry (spec §8 bottom sheet):
+    // the send would spend Orchard notes before migration, leaking the amount at the turnstile.
+    val orchardWarningSheet: ZashiConfirmationState? = null,
 )
 
 sealed interface ReviewTransactionItemState
@@ -68,6 +72,15 @@ data class MessagePlaceholderState(
     @field:DrawableRes val icon: Int,
     val title: StringResource,
     val message: StringResource,
+) : ReviewTransactionItemState
+
+// Spec §8 "Orchard Privacy Warning on Regular Send": shown when Proposal.usesOrchardInputs() is
+// true — see ReviewTransactionVM.createState(). Distinct from the migration flow's own
+// PrivacyDisclaimerCard usages (MigrationSetupScreen/MigrationCompleteScreen) despite sharing that
+// same Composable — this one is scoped entirely to the ordinary, non-migration send flow.
+data class OrchardPrivacyWarningState(
+    val title: String,
+    val body: String,
 ) : ReviewTransactionItemState
 
 data object DividerState : ReviewTransactionItemState
