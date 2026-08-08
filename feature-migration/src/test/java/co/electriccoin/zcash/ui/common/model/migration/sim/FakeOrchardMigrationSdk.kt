@@ -18,7 +18,9 @@ import cash.z.ecc.android.sdk.NoteSplitProposal
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.TransferAttemptOutcome
 import cash.z.ecc.android.sdk.TransferResult
+import cash.z.ecc.android.sdk.model.Pczt
 import cash.z.ecc.android.sdk.model.Proposal
+import cash.z.ecc.android.sdk.model.TransactionId
 import cash.z.ecc.android.sdk.model.UnifiedSpendingKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -338,7 +340,7 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
             .sortedBy { it.height }
     }
 
-    override suspend fun applySignature(transferId: Long, signedPczt: ByteArray): Boolean =
+    override suspend fun applySignature(transferId: Long, signedPczt: Pczt): Boolean =
         notImpl("applySignature — add when a Keystone per-transfer signature scenario needs it")
 
     /** The engine's real constants (signing_rounds.rs): 96 actions/round, prep=16, transfer=3. */
@@ -419,7 +421,7 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
             if (minedAt > tip) tip = minedAt
         }
         return TransferAttemptOutcome.Executed(
-            TransferResult.Success(txId = "sim-tx-${candidate.id}")
+            TransferResult.Success(txId = TransactionId.new("sim-tx-${candidate.id}".toByteArray()))
         )
     }
 
@@ -475,29 +477,29 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
         usk: UnifiedSpendingKey,
     ): TransferResult = notImpl("submitNoteSplit — add when a note-split commit scenario needs it")
 
-    override suspend fun createUnsignedNoteSplitPczt(proposal: NoteSplitProposal): ByteArray =
+    override suspend fun createUnsignedNoteSplitPczt(proposal: NoteSplitProposal): Pczt =
         notImpl("createUnsignedNoteSplitPczt — Keystone path, add when a Keystone scenario needs it")
 
     override suspend fun storeSignedNoteSplitPczt(
-        signedPczt: ByteArray,
+        signedPczt: Pczt,
         options: NetworkPrivacyOptions,
     ): TransferResult = notImpl("storeSignedNoteSplitPczt — Keystone path")
 
     override suspend fun createUnsignedTransferPczts(
         schedule: MigrationSchedule,
-    ): List<Pair<Long, ByteArray>> = notImpl("createUnsignedTransferPczts — Keystone path")
+    ): List<Pair<Long, Pczt>> = notImpl("createUnsignedTransferPczts — Keystone path")
 
     override suspend fun createUnsignedPreparationPczts(
         schedule: MigrationSchedule,
     ): List<cash.z.ecc.android.sdk.UnsignedPreparationPczt> = notImpl("createUnsignedPreparationPczts — Keystone path")
 
-    override suspend fun storeSignedSchedulePczts(signed: List<Pair<Long, ByteArray>>): Unit =
+    override suspend fun storeSignedSchedulePczts(signed: List<Pair<Long, Pczt>>): Unit =
         notImpl("storeSignedSchedulePczts — Keystone path")
 
     override suspend fun buildKeystoneSignBatchQrParts(
         requestId: ByteArray,
-        splitUnsignedPczt: ByteArray?,
-        transferUnsignedPczts: List<ByteArray>,
+        splitUnsignedPczt: Pczt?,
+        transferUnsignedPczts: List<Pczt>,
         maxFragmentLen: Int,
     ): List<String> = notImpl("buildKeystoneSignBatchQrParts — Keystone batch-signing path")
 
@@ -510,8 +512,8 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
     ): KeystoneBatchDecodeResult = notImpl("decodeKeystoneSignBatchPart — Keystone batch-signing path")
 
     override suspend fun applyKeystoneBatchSignatures(
-        splitUnsignedPczt: ByteArray?,
-        transferUnsignedPczts: List<ByteArray>,
+        splitUnsignedPczt: Pczt?,
+        transferUnsignedPczts: List<Pczt>,
         batchSignResponse: ByteArray,
     ): KeystoneBatchSignedPczts = notImpl("applyKeystoneBatchSignatures — Keystone batch-signing path")
 

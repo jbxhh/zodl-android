@@ -172,7 +172,7 @@ class MigrationSendingVM(
                             // (CheckMigrationRecoveryUseCase, on next app open), rather than two.
                             navigationRouter.forward(MigrationCompleteArgs)
                         } else {
-                            navigationRouter.forward(MigrationSuccessArgs(r.txId))
+                            navigationRouter.forward(MigrationSuccessArgs(r.txId.txIdString()))
                         }
                     }
 

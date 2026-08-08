@@ -8,6 +8,7 @@ import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.TransferProposal
 import cash.z.ecc.android.sdk.TransferResult
 import cash.z.ecc.android.sdk.model.Proposal
+import cash.z.ecc.android.sdk.model.TransactionId
 import cash.z.ecc.android.sdk.model.UnifiedSpendingKey
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.ui.BaseNavigationCommand
@@ -265,7 +266,8 @@ class MigrationReviewVMTest {
                     coEvery { isNoteSplitNeeded() } returns true
                     coEvery { prepareNoteSplit() } returns splitProposal
                     coEvery { proposeMigrationTransfersFromSplit(splitProposal) } returns scheduleFromSplit
-                    coEvery { submitNoteSplit(splitProposal, usk) } returns TransferResult.Success("splittx")
+                    coEvery { submitNoteSplit(splitProposal, usk) } returns
+                        TransferResult.Success(TransactionId.new("splittx".toByteArray()))
                 }
             val finalizeMigrationSchedule = mockk<FinalizeMigrationScheduleUseCase>(relaxed = true)
             val vm =

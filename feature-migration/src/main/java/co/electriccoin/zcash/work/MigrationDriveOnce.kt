@@ -12,7 +12,6 @@ import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.Synchronizer
 import cash.z.ecc.android.sdk.TransferAttemptOutcome
 import cash.z.ecc.android.sdk.TransferResult
-import cash.z.ecc.android.sdk.model.TransactionId
 import co.electriccoin.zcash.migration.BuildConfig
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
@@ -468,14 +467,14 @@ class MigrationDriveOnce(
     ): DriveOnceResult =
         when (result) {
             is TransferResult.Success -> {
-                migrationLog("MigrationDriveOnce: sent — txId=${result.txId}")
+                migrationLog("MigrationDriveOnce: sent — txId=${result.txId.txIdString()}")
                 // Classify zip318_kind immediately rather than waiting on the mempool watcher or a
                 // later rescan — our own broadcast path already stores `raw` locally, which makes
                 // the normal enhancement queue skip this txid forever (`raw IS NOT NULL` guard), so
                 // without this call the tx would sit permanently NOT_CLASSIFIED ("Sent" instead of
                 // "Migrating…"/"Migrated"). One call is enough for both labels: mined-height driven
                 // Pending→Success derivation is independent of zip318_kind and isn't reset by it.
-                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(result.txId))
+                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(result.txId)
                 // Everything below reads the engine's post-send state live — there is no cache to
                 // write through anymore (the banner reads the same live states).
                 val snapshot = sdk.snapshot()

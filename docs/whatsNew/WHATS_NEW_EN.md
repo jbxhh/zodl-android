@@ -14,6 +14,12 @@ directly impact users rather than highlighting other key architectural updates.*
 
 ## [Unreleased]
 
+## [3.9.1 (2361)] - 2026-08-08
+
+### Fixed:
+
+- We fixed a migration edge case and transaction history display issue.
+
 ## [3.9.0 (2339)] - 2026-08-08
 
 ### Added:

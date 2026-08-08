@@ -5,6 +5,7 @@ import cash.z.ecc.android.sdk.NetworkPrivacyOptions
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.TransferAttemptOutcome
 import cash.z.ecc.android.sdk.TransferResult
+import cash.z.ecc.android.sdk.model.TransactionId
 import co.electriccoin.zcash.ui.BaseNavigationCommand
 import co.electriccoin.zcash.ui.NavigationCommand
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -129,15 +130,16 @@ class MigrationSendingVMTest {
     @Test
     fun successExecutedRoutsToSuccessScreen() =
         runTest {
+            val txId = TransactionId.new("txid123".toByteArray())
             val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
             coEvery { sdk.executeNextPendingTransfer(any(), any()) } returns
-                TransferAttemptOutcome.Executed(TransferResult.Success("txid123"))
+                TransferAttemptOutcome.Executed(TransferResult.Success(txId))
             val router = FakeNavigationRouter()
             vm(sdk = sdk, router = router)
 
             advanceUntilIdle()
 
-            assertEquals<List<Any>>(listOf(MigrationSuccessArgs("txid123")), router.forwardedRoutes)
+            assertEquals<List<Any>>(listOf(MigrationSuccessArgs(txId.txIdString())), router.forwardedRoutes)
         }
 
     @Test
@@ -145,7 +147,7 @@ class MigrationSendingVMTest {
         runTest {
             val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
             coEvery { sdk.executeNextPendingTransfer(any(), any()) } returns
-                TransferAttemptOutcome.Executed(TransferResult.Success("txid456"))
+                TransferAttemptOutcome.Executed(TransferResult.Success(TransactionId.new("txid456".toByteArray())))
             val router = FakeNavigationRouter()
 
             // No call to vm.send() anywhere in this test — construction alone must trigger it.
@@ -176,7 +178,7 @@ class MigrationSendingVMTest {
             // the LCE stays loading and no failure sheet is ever shown, mirroring "actively sending".
             coEvery { sdk.executeNextPendingTransfer(any(), any()) } coAnswers {
                 delay(Long.MAX_VALUE / 2)
-                TransferAttemptOutcome.Executed(TransferResult.Success("txid"))
+                TransferAttemptOutcome.Executed(TransferResult.Success(TransactionId.new("txid".toByteArray())))
             }
             val router = FakeNavigationRouter()
             val vm = vm(sdk = sdk, router = router)
@@ -226,7 +228,7 @@ class MigrationSendingVMTest {
         runTest {
             val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
             coEvery { sdk.executeNextPendingTransfer(any(), any()) } returns
-                TransferAttemptOutcome.Executed(TransferResult.Success("txid"))
+                TransferAttemptOutcome.Executed(TransferResult.Success(TransactionId.new("txid".toByteArray())))
             val router = FakeNavigationRouter()
             val decisionFlow = MutableStateFlow<Boolean?>(false)
             val torDecisionRepository =
@@ -248,7 +250,7 @@ class MigrationSendingVMTest {
         runTest {
             val sdk = mockk<OrchardMigrationSdk>(relaxed = true)
             coEvery { sdk.executeNextPendingTransfer(any(), any()) } returns
-                TransferAttemptOutcome.Executed(TransferResult.Success("txid789"))
+                TransferAttemptOutcome.Executed(TransferResult.Success(TransactionId.new("txid789".toByteArray())))
             val router = FakeNavigationRouter()
             val pendingTorFailure = mockk<PendingMigrationTorFailureStorageProvider>(relaxed = true)
 

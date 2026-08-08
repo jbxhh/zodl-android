@@ -7,7 +7,6 @@ import cash.z.ecc.android.sdk.TransferProposal
 import cash.z.ecc.android.sdk.TransferResult
 import cash.z.ecc.android.sdk.ext.convertZatoshiToZec
 import cash.z.ecc.android.sdk.model.Proposal
-import cash.z.ecc.android.sdk.model.TransactionId
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -407,7 +406,7 @@ class MigrationReviewVM(
                 // already stored locally, so without this the normal enhancement queue would skip
                 // it forever and the Activity row would stay "Sent" instead of "Note split"/
                 // "Migrated". See MigrationDriveOnce.handleExecuted's identical call for transfers.
-                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(splitResult.txId))
+                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(splitResult.txId)
                 scheduleFromSplit
             } else {
                 sched
