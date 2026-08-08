@@ -14,6 +14,12 @@ directly impact users rather than highlighting other key architectural updates.*
 
 ## [Unreleased]
 
+## [3.9.1 (2361)] - 2026-08-08
+
+### Corregido:
+
+- Solucionamos un caso único de migración y un problema de visualización del historial de transacciones.
+
 ## [3.9.0 (2339)] - 2026-08-08
 
 ### Añadido:

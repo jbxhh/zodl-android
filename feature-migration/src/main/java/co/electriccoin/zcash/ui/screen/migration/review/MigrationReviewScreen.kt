@@ -107,8 +107,16 @@ fun MigrationReviewView(state: MigrationReviewState) {
                     .scaffoldPadding(padding),
         ) {
             when (state.mode) {
-                MigrationMode.IMMEDIATE -> ImmediateReviewContent(state)
-                MigrationMode.AUTOMATIC -> PrivacyReviewContent(state, onShowPreparationDetails = { isShowingPreparationDetails = true })
+                MigrationMode.IMMEDIATE -> {
+                    ImmediateReviewContent(state)
+                }
+
+                MigrationMode.AUTOMATIC -> {
+                    PrivacyReviewContent(
+                        state = state,
+                        onShowPreparationDetails = { isShowingPreparationDetails = true },
+                    )
+                }
             }
         }
     }
@@ -162,7 +170,11 @@ private fun ImmediateReviewContent(state: MigrationReviewState) {
                 ButtonState(
                     text =
                         stringRes(
-                            if (state.isConfirming) DesignR.string.migrationReview_signing else DesignR.string.migrationReview_confirm
+                            if (state.isConfirming) {
+                                DesignR.string.migrationReview_signing
+                            } else {
+                                DesignR.string.migrationReview_confirm
+                            }
                         ),
                     isEnabled = !state.isConfirming,
                     isLoading = state.isConfirming,
@@ -188,7 +200,10 @@ internal fun ImmediateDetailsCard(
                 .fillMaxWidth()
                 .background(ZashiColors.Surfaces.bgSecondary, RoundedCornerShape(16.dp)),
     ) {
-        ImmediateDetailsRow(label = stringRes(DesignR.string.migrationReview_amountLabel).getValue(), value = amount.getValue())
+        ImmediateDetailsRow(
+            label = stringRes(DesignR.string.migrationReview_amountLabel).getValue(),
+            value = amount.getValue(),
+        )
         Box(
             modifier =
                 Modifier
@@ -538,11 +553,41 @@ private fun PreviewPrivacy() =
                     estimatedDuration = stringRes("~8 min"),
                     transfers =
                         listOf(
-                            MigrationReviewTransferState(1, 5, stringRes("1.348 ZEC"), stringRes("$521.30"), stringRes("~10 mins")),
-                            MigrationReviewTransferState(2, 5, stringRes("1.052 ZEC"), stringRes("$406.86"), stringRes("~6 hours")),
-                            MigrationReviewTransferState(3, 5, stringRes("2.105 ZEC"), stringRes("$813.74"), stringRes("~12 hours")),
-                            MigrationReviewTransferState(4, 5, stringRes("1.897 ZEC"), stringRes("$733.51"), stringRes("~18 hours")),
-                            MigrationReviewTransferState(5, 5, stringRes("4.456 ZEC"), stringRes("$1,723.53"), stringRes("~24 hours")),
+                            MigrationReviewTransferState(
+                                index = 1,
+                                totalCount = 5,
+                                amount = stringRes("1.348 ZEC"),
+                                fiatAmount = stringRes("$521.30"),
+                                scheduledLabel = stringRes("~10 mins"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 2,
+                                totalCount = 5,
+                                amount = stringRes("1.052 ZEC"),
+                                fiatAmount = stringRes("$406.86"),
+                                scheduledLabel = stringRes("~6 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 3,
+                                totalCount = 5,
+                                amount = stringRes("2.105 ZEC"),
+                                fiatAmount = stringRes("$813.74"),
+                                scheduledLabel = stringRes("~12 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 4,
+                                totalCount = 5,
+                                amount = stringRes("1.897 ZEC"),
+                                fiatAmount = stringRes("$733.51"),
+                                scheduledLabel = stringRes("~18 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 5,
+                                totalCount = 5,
+                                amount = stringRes("4.456 ZEC"),
+                                fiatAmount = stringRes("$1,723.53"),
+                                scheduledLabel = stringRes("~24 hours"),
+                            ),
                         ),
                     onConfirm = {},
                     onBack = {},
@@ -562,11 +607,41 @@ private fun PreviewPrivacyWithKeystoneRound() =
                     estimatedDuration = stringRes("~8 min"),
                     transfers =
                         listOf(
-                            MigrationReviewTransferState(1, 5, stringRes("1.348 ZEC"), stringRes("$521.30"), stringRes("~10 mins")),
-                            MigrationReviewTransferState(2, 5, stringRes("1.052 ZEC"), stringRes("$406.86"), stringRes("~6 hours")),
-                            MigrationReviewTransferState(3, 5, stringRes("2.105 ZEC"), stringRes("$813.74"), stringRes("~12 hours")),
-                            MigrationReviewTransferState(4, 5, stringRes("1.897 ZEC"), stringRes("$733.51"), stringRes("~18 hours")),
-                            MigrationReviewTransferState(5, 5, stringRes("4.456 ZEC"), stringRes("$1,723.53"), stringRes("~24 hours")),
+                            MigrationReviewTransferState(
+                                index = 1,
+                                totalCount = 5,
+                                amount = stringRes("1.348 ZEC"),
+                                fiatAmount = stringRes("$521.30"),
+                                scheduledLabel = stringRes("~10 mins"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 2,
+                                totalCount = 5,
+                                amount = stringRes("1.052 ZEC"),
+                                fiatAmount = stringRes("$406.86"),
+                                scheduledLabel = stringRes("~6 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 3,
+                                totalCount = 5,
+                                amount = stringRes("2.105 ZEC"),
+                                fiatAmount = stringRes("$813.74"),
+                                scheduledLabel = stringRes("~12 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 4,
+                                totalCount = 5,
+                                amount = stringRes("1.897 ZEC"),
+                                fiatAmount = stringRes("$733.51"),
+                                scheduledLabel = stringRes("~18 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 5,
+                                totalCount = 5,
+                                amount = stringRes("4.456 ZEC"),
+                                fiatAmount = stringRes("$1,723.53"),
+                                scheduledLabel = stringRes("~24 hours"),
+                            ),
                         ),
                     isKeystone = true,
                     keystoneRound = MigrationKeystoneRound(current = 1, total = 4),
@@ -593,11 +668,41 @@ private fun PreviewPrivacyWithPreparations() =
                         ),
                     transfers =
                         listOf(
-                            MigrationReviewTransferState(1, 5, stringRes("1.348 ZEC"), stringRes("$521.30"), stringRes("~10 mins")),
-                            MigrationReviewTransferState(2, 5, stringRes("1.052 ZEC"), stringRes("$406.86"), stringRes("~6 hours")),
-                            MigrationReviewTransferState(3, 5, stringRes("2.105 ZEC"), stringRes("$813.74"), stringRes("~12 hours")),
-                            MigrationReviewTransferState(4, 5, stringRes("1.897 ZEC"), stringRes("$733.51"), stringRes("~18 hours")),
-                            MigrationReviewTransferState(5, 5, stringRes("4.456 ZEC"), stringRes("$1,723.53"), stringRes("~24 hours")),
+                            MigrationReviewTransferState(
+                                index = 1,
+                                totalCount = 5,
+                                amount = stringRes("1.348 ZEC"),
+                                fiatAmount = stringRes("$521.30"),
+                                scheduledLabel = stringRes("~10 mins"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 2,
+                                totalCount = 5,
+                                amount = stringRes("1.052 ZEC"),
+                                fiatAmount = stringRes("$406.86"),
+                                scheduledLabel = stringRes("~6 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 3,
+                                totalCount = 5,
+                                amount = stringRes("2.105 ZEC"),
+                                fiatAmount = stringRes("$813.74"),
+                                scheduledLabel = stringRes("~12 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 4,
+                                totalCount = 5,
+                                amount = stringRes("1.897 ZEC"),
+                                fiatAmount = stringRes("$733.51"),
+                                scheduledLabel = stringRes("~18 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 5,
+                                totalCount = 5,
+                                amount = stringRes("4.456 ZEC"),
+                                fiatAmount = stringRes("$1,723.53"),
+                                scheduledLabel = stringRes("~24 hours"),
+                            ),
                         ),
                     onConfirm = {},
                     onBack = {},
@@ -646,11 +751,41 @@ private fun PreviewPrivacyWithMultiStepSplitBalance() =
                         ),
                     transfers =
                         listOf(
-                            MigrationReviewTransferState(1, 5, stringRes("1.348 ZEC"), stringRes("$521.30"), stringRes("~10 mins")),
-                            MigrationReviewTransferState(2, 5, stringRes("1.052 ZEC"), stringRes("$406.86"), stringRes("~6 hours")),
-                            MigrationReviewTransferState(3, 5, stringRes("2.105 ZEC"), stringRes("$813.74"), stringRes("~12 hours")),
-                            MigrationReviewTransferState(4, 5, stringRes("1.897 ZEC"), stringRes("$733.51"), stringRes("~18 hours")),
-                            MigrationReviewTransferState(5, 5, stringRes("4.456 ZEC"), stringRes("$1,723.53"), stringRes("~24 hours")),
+                            MigrationReviewTransferState(
+                                index = 1,
+                                totalCount = 5,
+                                amount = stringRes("1.348 ZEC"),
+                                fiatAmount = stringRes("$521.30"),
+                                scheduledLabel = stringRes("~10 mins"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 2,
+                                totalCount = 5,
+                                amount = stringRes("1.052 ZEC"),
+                                fiatAmount = stringRes("$406.86"),
+                                scheduledLabel = stringRes("~6 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 3,
+                                totalCount = 5,
+                                amount = stringRes("2.105 ZEC"),
+                                fiatAmount = stringRes("$813.74"),
+                                scheduledLabel = stringRes("~12 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 4,
+                                totalCount = 5,
+                                amount = stringRes("1.897 ZEC"),
+                                fiatAmount = stringRes("$733.51"),
+                                scheduledLabel = stringRes("~18 hours"),
+                            ),
+                            MigrationReviewTransferState(
+                                index = 5,
+                                totalCount = 5,
+                                amount = stringRes("4.456 ZEC"),
+                                fiatAmount = stringRes("$1,723.53"),
+                                scheduledLabel = stringRes("~24 hours"),
+                            ),
                         ),
                     onConfirm = {},
                     onBack = {},

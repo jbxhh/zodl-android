@@ -5,6 +5,7 @@ import cash.z.ecc.android.sdk.MigrationSchedule
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.TransferProposal
 import cash.z.ecc.android.sdk.fixture.AccountFixture
+import cash.z.ecc.android.sdk.model.Pczt
 import co.electriccoin.zcash.ui.BaseNavigationCommand
 import co.electriccoin.zcash.ui.NavigationCommand
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -152,7 +153,10 @@ class MigrationKeystoneSignVMTest {
             advanceUntilIdle()
 
             val title = vm.state.value?.title
-            assertEquals(DesignR.string.migrationKeystoneSign_scanWithKeystone, (title as? StringResource.ByResource)?.resource)
+            assertEquals(
+                DesignR.string.migrationKeystoneSign_scanWithKeystone,
+                (title as? StringResource.ByResource)?.resource,
+            )
             val roundSuffix = title?.roundSuffixArg()
             assertTrue(
                 roundSuffix is StringResource.ByString && roundSuffix.value.isEmpty(),
@@ -214,7 +218,8 @@ class MigrationKeystoneSignVMTest {
                     splitUnsignedPczt = null,
                     transferUnsignedPczts = (0 until transferCount).map { it.toLong() to byteArrayOf(it.toByte()) },
                     roundIndex = 1,
-                    accumulatedTransferSigned = (0 until NO_SPLIT_ROUND_CAPACITY).map { it.toLong() to byteArrayOf(it.toByte()) },
+                    accumulatedTransferSigned =
+                        (0 until NO_SPLIT_ROUND_CAPACITY).map { it.toLong() to byteArrayOf(it.toByte()) },
                 )
             val sdk = fakeSdk()
             val pendingSchedule =
@@ -286,7 +291,7 @@ class MigrationKeystoneSignVMTest {
                     coEvery { createUnsignedTransferPczts(any()) } answers {
                         callCount++
                         if (callCount == 1) throw RuntimeException("first attempt fails")
-                        listOf(1L to byteArrayOf(0x01))
+                        listOf(1L to Pczt(byteArrayOf(0x01)))
                     }
                     coEvery { buildKeystoneSignBatchQrParts(any(), any(), any(), any()) } returns listOf("frame0")
                 }
@@ -550,8 +555,9 @@ class MigrationKeystoneSignVMTest {
                     coEvery { isNoteSplitNeeded() } returns true
                     coEvery { prepareNoteSplit() } returns fakeProposal
                     coEvery { proposeMigrationTransfersFromSplit(fakeProposal) } returns fakeScheduleFromSplit
-                    coEvery { createUnsignedNoteSplitPczt(fakeProposal) } returns byteArrayOf(0x02)
-                    coEvery { createUnsignedTransferPczts(fakeScheduleFromSplit) } returns listOf(1L to byteArrayOf(0x01))
+                    coEvery { createUnsignedNoteSplitPczt(fakeProposal) } returns Pczt(byteArrayOf(0x02))
+                    coEvery { createUnsignedTransferPczts(fakeScheduleFromSplit) } returns
+                        listOf(1L to Pczt(byteArrayOf(0x01)))
                     coEvery { buildKeystoneSignBatchQrParts(any(), any(), any(), any()) } returns listOf("frame0")
                 }
             val pendingSchedule =
@@ -631,7 +637,7 @@ class MigrationKeystoneSignVMTest {
     private fun fakeSdk(qrParts: List<String> = listOf("frame0")): OrchardMigrationSdk =
         mockk(relaxed = true) {
             coEvery { isNoteSplitNeeded() } returns false
-            coEvery { createUnsignedTransferPczts(any()) } returns listOf(1L to byteArrayOf(0x01))
+            coEvery { createUnsignedTransferPczts(any()) } returns listOf(1L to Pczt(byteArrayOf(0x01)))
             coEvery { buildKeystoneSignBatchQrParts(any(), any(), any(), any()) } returns qrParts
             // The engine's real signing-round constants (signing_rounds.rs).
             coEvery { keystoneSigningRoundBudget() } returns

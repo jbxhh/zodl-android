@@ -18,7 +18,9 @@ import cash.z.ecc.android.sdk.NoteSplitProposal
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.TransferAttemptOutcome
 import cash.z.ecc.android.sdk.TransferResult
+import cash.z.ecc.android.sdk.model.Pczt
 import cash.z.ecc.android.sdk.model.Proposal
+import cash.z.ecc.android.sdk.model.TransactionId
 import cash.z.ecc.android.sdk.model.UnifiedSpendingKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +42,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Deliberately MINIMAL: only the methods Lane A/B, the banner, and the late-prep scenario actually
  * touch are modelled with real behaviour. Everything else throws [NotImplementedError] with a
- * pointer to add it when a new scenario needs it — see the `// TODO(sim):` markers.
+ * pointer to add it when a new scenario needs it — see the `// NOTE(sim):` markers.
  *
  * ── The model ─────────────────────────────────────────────────────────────────
  * The chain is a list of [SimTx] plus a current [tip]. A transaction is *provable* when every
@@ -318,7 +320,9 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
             .filter { it.proved && !it.sent && it.minedHeight == null && isDue(it) }
             .minByOrNull { it.id }
             ?.let { return MigrationAdvanceResult(MigrationAdvanceStep.Broadcast(it.id), next = null) }
-        if (txs.all { it.minedHeight != null }) return MigrationAdvanceResult(MigrationAdvanceStep.Complete, next = null)
+        if (txs.all { it.minedHeight != null }) {
+            return MigrationAdvanceResult(MigrationAdvanceStep.Complete, next = null)
+        }
         return MigrationAdvanceResult(MigrationAdvanceStep.Waiting, next = null)
     }
 
@@ -336,7 +340,7 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
             .sortedBy { it.height }
     }
 
-    override suspend fun applySignature(transferId: Long, signedPczt: ByteArray): Boolean =
+    override suspend fun applySignature(transferId: Long, signedPczt: Pczt): Boolean =
         notImpl("applySignature — add when a Keystone per-transfer signature scenario needs it")
 
     /** The engine's real constants (signing_rounds.rs): 96 actions/round, prep=16, transfer=3. */
@@ -417,7 +421,7 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
             if (minedAt > tip) tip = minedAt
         }
         return TransferAttemptOutcome.Executed(
-            TransferResult.Success(txId = "sim-tx-${candidate.id}")
+            TransferResult.Success(txId = TransactionId.new("sim-tx-${candidate.id}".toByteArray()))
         )
     }
 
@@ -444,7 +448,7 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
     override fun privacySyncBufferDuration(): Duration = 30.seconds
 
     // ── OrchardMigrationSdk: not needed by current scenarios ───────────────────
-    // TODO(sim): implement these as scenarios that exercise the propose/commit, Keystone,
+    // NOTE(sim): implement these as scenarios that exercise the propose/commit, Keystone,
     // completion-summary, or invalidity-recovery flows are added to the harness.
 
     /**
@@ -473,29 +477,29 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
         usk: UnifiedSpendingKey,
     ): TransferResult = notImpl("submitNoteSplit — add when a note-split commit scenario needs it")
 
-    override suspend fun createUnsignedNoteSplitPczt(proposal: NoteSplitProposal): ByteArray =
+    override suspend fun createUnsignedNoteSplitPczt(proposal: NoteSplitProposal): Pczt =
         notImpl("createUnsignedNoteSplitPczt — Keystone path, add when a Keystone scenario needs it")
 
     override suspend fun storeSignedNoteSplitPczt(
-        signedPczt: ByteArray,
+        signedPczt: Pczt,
         options: NetworkPrivacyOptions,
     ): TransferResult = notImpl("storeSignedNoteSplitPczt — Keystone path")
 
     override suspend fun createUnsignedTransferPczts(
         schedule: MigrationSchedule,
-    ): List<Pair<Long, ByteArray>> = notImpl("createUnsignedTransferPczts — Keystone path")
+    ): List<Pair<Long, Pczt>> = notImpl("createUnsignedTransferPczts — Keystone path")
 
     override suspend fun createUnsignedPreparationPczts(
         schedule: MigrationSchedule,
     ): List<cash.z.ecc.android.sdk.UnsignedPreparationPczt> = notImpl("createUnsignedPreparationPczts — Keystone path")
 
-    override suspend fun storeSignedSchedulePczts(signed: List<Pair<Long, ByteArray>>): Unit =
+    override suspend fun storeSignedSchedulePczts(signed: List<Pair<Long, Pczt>>): Unit =
         notImpl("storeSignedSchedulePczts — Keystone path")
 
     override suspend fun buildKeystoneSignBatchQrParts(
         requestId: ByteArray,
-        splitUnsignedPczt: ByteArray?,
-        transferUnsignedPczts: List<ByteArray>,
+        splitUnsignedPczt: Pczt?,
+        transferUnsignedPczts: List<Pczt>,
         maxFragmentLen: Int,
     ): List<String> = notImpl("buildKeystoneSignBatchQrParts — Keystone batch-signing path")
 
@@ -508,8 +512,8 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
     ): KeystoneBatchDecodeResult = notImpl("decodeKeystoneSignBatchPart — Keystone batch-signing path")
 
     override suspend fun applyKeystoneBatchSignatures(
-        splitUnsignedPczt: ByteArray?,
-        transferUnsignedPczts: List<ByteArray>,
+        splitUnsignedPczt: Pczt?,
+        transferUnsignedPczts: List<Pczt>,
         batchSignResponse: ByteArray,
     ): KeystoneBatchSignedPczts = notImpl("applyKeystoneBatchSignatures — Keystone batch-signing path")
 
@@ -577,6 +581,6 @@ class FakeOrchardMigrationSdk : OrchardMigrationSdk {
     private fun notImpl(what: String): Nothing =
         throw NotImplementedError(
             "FakeOrchardMigrationSdk does not model this yet: $what. " +
-                "Extend the fake (see the TODO(sim) block) rather than reaching for a raw mockk stub."
+                "Extend the fake (see the NOTE(sim) block) rather than reaching for a raw mockk stub."
         )
 }

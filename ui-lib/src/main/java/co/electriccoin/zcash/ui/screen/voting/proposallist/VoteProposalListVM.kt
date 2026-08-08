@@ -549,7 +549,9 @@ class VoteProposalListVM(
 private fun Map<Int, Int>.toChoicesJson(): String =
     JSONObject(toSortedMap().mapKeys { (proposalId, _) -> proposalId.toString() }).toString()
 
-private fun Long.toVotingWeightLabel() = "%.4f ZEC".format(this / 100_000_000.0)
+private fun Long.toVotingWeightLabel() = "%.4f ZEC".format(this / ZATOSHI_PER_ZEC)
+
+private const val ZATOSHI_PER_ZEC = 100_000_000.0
 
 private enum class PreparationGate {
     /** `prepareVotingRound` is in flight; suppress proposal-list content. */

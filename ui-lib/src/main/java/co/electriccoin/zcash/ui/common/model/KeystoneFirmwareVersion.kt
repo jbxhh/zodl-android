@@ -139,7 +139,7 @@ private fun ByteArray.indexOfSubArray(needle: ByteArray): Int {
  * pre-migration-support firmware).
  */
 fun ByteArray.toKeystoneFwVersion(): KeystoneFirmwareVersion? {
-    if (size != 3) return null
+    if (size != FIRMWARE_VERSION_VALUE_LENGTH) return null
     return KeystoneFirmwareVersion(
         displayMajor = this[0].toInt() and 0xFF,
         minor = this[1].toInt() and 0xFF,

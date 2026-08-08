@@ -7,6 +7,8 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [3.9.1 (2361)] - 2026-08-08
+
 ### Fixed:
 
 - Transferring to a new phone via device-to-device setup no longer copies the app's local data, including the undecryptable encrypted preferences
@@ -17,6 +19,10 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
   instances are now correctly cached instead of being rebuilt on every access, and steady-state preference reads/writes no longer take a lock at all.
 - Opening the automatic migration progress screen no longer shows a blank screen while it loads. The migration schedule now appears immediately and a
   loading indicator is shown on screens that are still waiting for their content.
+- Automatic migration no longer gets stuck if a scheduled transfer step fails transiently. The background driver now retries instead of silently
+  stopping, which previously required backgrounding and re-foregrounding the app to recover.
+- Fixed a back-navigation bounce through the Battery/Notification permission screens when returning from Review - pressing Back could land you
+  several screens further back than expected.
 
 ## [3.9.0 (2339)] - 2026-08-08
 

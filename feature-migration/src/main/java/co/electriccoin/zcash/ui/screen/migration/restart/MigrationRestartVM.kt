@@ -71,7 +71,8 @@ class MigrationRestartVM(
         onBack = navigationRouter::back,
         body = stringRes(DesignR.string.restartMigration_body),
         migratedLabel = stringRes(DesignR.string.restartMigration_summaryMigratedLabel),
-        migratedValue = stringRes(DesignR.string.restartMigration_summaryMigratedValue, summary.completed, summary.total),
+        migratedValue =
+            stringRes(DesignR.string.restartMigration_summaryMigratedValue, summary.completed, summary.total),
         remainingLabel = stringRes(DesignR.string.restartMigration_summaryRemainingLabel),
         remainingValue = stringRes(summary.remaining),
         warning = stringRes(DesignR.string.restartMigration_warning),

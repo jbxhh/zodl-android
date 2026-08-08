@@ -11,7 +11,6 @@ import cash.z.ecc.android.sdk.fixture.AccountFixture
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
 import co.electriccoin.zcash.ui.common.model.WalletAccount
-import co.electriccoin.zcash.ui.common.model.toStorageKeyId
 import co.electriccoin.zcash.ui.common.provider.PendingMigrationTorFailureStorageProvider
 import co.electriccoin.zcash.ui.common.provider.PersistableWalletProvider
 import co.electriccoin.zcash.ui.screen.home.HomeArgs
@@ -36,7 +35,6 @@ class CheckMigrationRecoveryUseCaseTest {
         AccountFixture.new(
             accountUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
         )
-    private val testAccountKeyId = testSdkAccount.accountUuid.toStorageKeyId()
     private val testWalletAccount: WalletAccount =
         mockk(relaxed = true) {
             every { sdkAccount } returns testSdkAccount
@@ -235,8 +233,10 @@ class CheckMigrationRecoveryUseCaseTest {
             // After Task 6, RequiresAttention no longer auto-navigates to MigrationTransferInvalidArgs.
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
-                    coEvery { getMigrationState() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
-                    coEvery { getMigrationStateUnreconciled() } returns MigrationState.RequiresAttention(AttentionReason.TransferExpired)
+                    coEvery { getMigrationState() } returns
+                        MigrationState.RequiresAttention(AttentionReason.TransferExpired)
+                    coEvery { getMigrationStateUnreconciled() } returns
+                        MigrationState.RequiresAttention(AttentionReason.TransferExpired)
                 }
             val router = mockk<NavigationRouter>(relaxed = true)
 
@@ -350,7 +350,10 @@ class CheckMigrationRecoveryUseCaseTest {
                 scheduleNow = { scheduled = true },
             ).invoke()
 
-            kotlin.test.assertFalse(scheduled, "SCHEDULED must not call scheduleNow anymore — the live driver covers acceleration")
+            kotlin.test.assertFalse(
+                scheduled,
+                "SCHEDULED must not call scheduleNow anymore — the live driver covers acceleration",
+            )
         }
 
     @Test
@@ -375,7 +378,10 @@ class CheckMigrationRecoveryUseCaseTest {
                 migrationLiveDriver = liveDriver,
             ).invoke()
 
-            kotlin.test.assertTrue(startedAccountKeyId != null, "an in-progress migration must always start (or no-op) the live driver")
+            kotlin.test.assertTrue(
+                startedAccountKeyId != null,
+                "an in-progress migration must always start (or no-op) the live driver",
+            )
         }
 
     @Test

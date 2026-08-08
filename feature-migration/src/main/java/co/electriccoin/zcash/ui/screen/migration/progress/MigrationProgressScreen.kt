@@ -142,7 +142,9 @@ fun MigrationProgressView(state: MigrationProgressState) {
                                 else -> TransferRowState.IDLE
                             }
                         TransferProgressTimelineRow(
-                            title = stringRes(DesignR.string.migration_common_splitBalanceNumbered, prep.number).getValue(),
+                            title =
+                                stringRes(DesignR.string.migration_common_splitBalanceNumbered, prep.number)
+                                    .getValue(),
                             statusLabel = prep.statusLabel,
                             isReadyNow = prep.isReadyNow,
                             amount = null,
@@ -447,7 +449,10 @@ private fun PreviewInProgress() =
             state =
                 MigrationProgressState(
                     title = stringRes("Migration Progress"),
-                    subtitle = stringRes("Your balance splits into 5 transfers over ~24 h. There are 3 remaining transfers."),
+                    subtitle =
+                        stringRes(
+                            "Your balance splits into 5 transfers over ~24 h. There are 3 remaining transfers."
+                        ),
                     totalAmount = stringRes("10.458 ZEC"),
                     totalFiatAmount = stringRes("$4,053.46"),
                     transfers =

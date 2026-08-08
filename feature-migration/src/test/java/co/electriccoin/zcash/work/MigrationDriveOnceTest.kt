@@ -11,6 +11,7 @@ import cash.z.ecc.android.sdk.MigrationTransferState
 import cash.z.ecc.android.sdk.MigrationTransferStates
 import cash.z.ecc.android.sdk.TransferAttemptOutcome
 import cash.z.ecc.android.sdk.TransferResult
+import cash.z.ecc.android.sdk.model.TransactionId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,7 +31,7 @@ class MigrationDriveOnceTest {
             val result =
                 executeWithRetries(retryDelayMs = 0) {
                     callCount++
-                    TransferAttemptOutcome.Executed(TransferResult.Success("txid"))
+                    TransferAttemptOutcome.Executed(TransferResult.Success(TransactionId.new("txid".toByteArray())))
                 }
 
             assertIs<TransferAttemptOutcome.Executed>(result)
@@ -106,7 +107,7 @@ class MigrationDriveOnceTest {
                     if (callCount < 2) {
                         TransferAttemptOutcome.Executed(TransferResult.NetworkError(retryable = true))
                     } else {
-                        TransferAttemptOutcome.Executed(TransferResult.Success("txid"))
+                        TransferAttemptOutcome.Executed(TransferResult.Success(TransactionId.new("txid".toByteArray())))
                     }
                 }
 
@@ -365,7 +366,10 @@ class MigrationDriveOnceTest {
 
     @Test
     fun `all sent means a completion sweep`() {
-        assertEquals(WaitingDisposition.COMPLETION_SWEEP, waitingDisposition(allSent = true, hasUnprovableBlocker = false))
+        assertEquals(
+            WaitingDisposition.COMPLETION_SWEEP,
+            waitingDisposition(allSent = true, hasUnprovableBlocker = false)
+        )
     }
 
     @Test
@@ -383,6 +387,9 @@ class MigrationDriveOnceTest {
 
     @Test
     fun `all sent takes priority over an unprovable blocker`() {
-        assertEquals(WaitingDisposition.COMPLETION_SWEEP, waitingDisposition(allSent = true, hasUnprovableBlocker = true))
+        assertEquals(
+            WaitingDisposition.COMPLETION_SWEEP,
+            waitingDisposition(allSent = true, hasUnprovableBlocker = true)
+        )
     }
 }

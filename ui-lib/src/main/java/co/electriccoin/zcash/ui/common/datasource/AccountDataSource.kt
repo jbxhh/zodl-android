@@ -108,7 +108,7 @@ class AccountDataSourceImpl(
                                     observeUnified(synchronizer, sdkAccount),
                                     observeTransparent(synchronizer, sdkAccount),
                                     observeSapling(synchronizer, sdkAccount),
-                                    observeIronwoodBalance(synchronizer, sdkAccount),
+                                    observeIronwoodBalance(sdkAccount),
                                     observeIsSelected(sdkAccount, allSdkAccounts),
                                 ) { unified, transparent, sapling, ironwoodBalance, isSelected ->
                                     when (sdkAccount.keySource?.lowercase()) {
@@ -295,7 +295,7 @@ class AccountDataSourceImpl(
             }
 
         val balanceFlow =
-            synchronizer.walletBalances
+            synchronizerProvider.walletBalances
                 .map {
                     it
                         ?.get(sdkAccount.accountUuid)
@@ -316,7 +316,7 @@ class AccountDataSourceImpl(
                 delay(attempt.coerceAtMost(RETRY_DELAY).seconds)
                 true
             }
-        return combine(transparentAddress, synchronizer.walletBalances) { address, balances ->
+        return combine(transparentAddress, synchronizerProvider.walletBalances) { address, balances ->
             val balance = balances?.get(sdkAccount.accountUuid)
             TransparentInfo(address = address, balance = balance?.unshielded ?: Zatoshi.ZERO)
         }
@@ -333,7 +333,7 @@ class AccountDataSourceImpl(
                     delay(attempt.coerceAtMost(RETRY_DELAY).seconds)
                     true
                 }
-            combine(saplingAddress, synchronizer.walletBalances) { address, balances ->
+            combine(saplingAddress, synchronizerProvider.walletBalances) { address, balances ->
                 val balance = balances?.get(sdkAccount.accountUuid)
                 SaplingInfo(address = address, balance = balance?.sapling ?: createEmptyWalletBalance())
             }
@@ -341,8 +341,8 @@ class AccountDataSourceImpl(
 
     // Ironwood shares the same unified address as Orchard (no address of its own to observe) —
     // just its balance.
-    private fun observeIronwoodBalance(synchronizer: Synchronizer, sdkAccount: Account): Flow<WalletBalance> =
-        synchronizer.walletBalances.map { balances ->
+    private fun observeIronwoodBalance(sdkAccount: Account): Flow<WalletBalance> =
+        synchronizerProvider.walletBalances.map { balances ->
             balances?.get(sdkAccount.accountUuid)?.ironwood ?: createEmptyWalletBalance()
         }
 

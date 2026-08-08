@@ -7,6 +7,7 @@ import cash.z.ecc.android.sdk.MigrationSchedule
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.TransferProposal
 import cash.z.ecc.android.sdk.fixture.AccountFixture
+import cash.z.ecc.android.sdk.model.Pczt
 import co.electriccoin.zcash.ui.BaseNavigationCommand
 import co.electriccoin.zcash.ui.NavigationCommand
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -141,7 +142,8 @@ class MigrationKeystoneScanVMTest {
                                 splitUnsignedPczt = null,
                                 transferUnsignedPczts = (0 until 36).map { it.toLong() to byteArrayOf(it.toByte()) },
                                 roundIndex = 1,
-                                accumulatedTransferSigned = (0 until 35).map { it.toLong() to byteArrayOf(it.toByte()) },
+                                accumulatedTransferSigned =
+                                    (0 until 35).map { it.toLong() to byteArrayOf(it.toByte()) },
                             )
                         )
                     }
@@ -244,7 +246,7 @@ class MigrationKeystoneScanVMTest {
                     firmwareVersion = firmwareVersion,
                 )
             coEvery { applyKeystoneBatchSignatures(any(), any(), any()) } returns
-                KeystoneBatchSignedPczts(splitSignedPczt = null, transferSignedPczts = listOf(byteArrayOf(0)))
+                KeystoneBatchSignedPczts(splitSignedPczt = null, transferSignedPczts = listOf(Pczt(byteArrayOf(0))))
         }
 
     private fun schedule() =

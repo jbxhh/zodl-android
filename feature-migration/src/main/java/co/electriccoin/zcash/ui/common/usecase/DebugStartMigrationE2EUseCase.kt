@@ -115,7 +115,7 @@ class DebugStartMigrationE2EUseCase(
                 if (!retryable || attempt == COMMIT_ATTEMPTS - 1) throw e
                 migrationLog(
                     "E2E: commit attempt ${attempt + 1} failed retryably " +
-                        "(${e.message?.take(120)}) — re-proposing"
+                        "(${e.message?.take(ERROR_MESSAGE_PREVIEW_LENGTH)}) — re-proposing"
                 )
                 delay(COMMIT_RETRY_DELAY)
                 toSign = sdk.proposeMigrationTransfers()
@@ -140,5 +140,6 @@ class DebugStartMigrationE2EUseCase(
         // rounds may be needed before all 9 transfers land on retained boundaries.
         private const val COMMIT_ATTEMPTS = 6
         private val COMMIT_RETRY_DELAY = 5.seconds
+        private const val ERROR_MESSAGE_PREVIEW_LENGTH = 120
     }
 }

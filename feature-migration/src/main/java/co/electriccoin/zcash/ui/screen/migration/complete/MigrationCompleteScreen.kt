@@ -171,7 +171,11 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
             when {
                 state.remainingDust == null -> {
                     ZashiButton(
-                        state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = state.onDone),
+                        state =
+                            ButtonState(
+                                text = stringRes(DesignR.string.migration_common_gotIt),
+                                onClick = state.onDone
+                            ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -181,7 +185,11 @@ fun MigrationCompleteView(state: MigrationCompleteState) {
                     LockedDisclaimer(dustAmount = state.remainingDust.getValue())
                     Spacer(Modifier.height(20.dp))
                     ZashiButton(
-                        state = ButtonState(text = stringRes(DesignR.string.migration_common_gotIt), onClick = state.onDone),
+                        state =
+                            ButtonState(
+                                text = stringRes(DesignR.string.migration_common_gotIt),
+                                onClick = state.onDone
+                            ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

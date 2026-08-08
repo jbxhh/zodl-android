@@ -52,7 +52,11 @@ fun MigrationFailureBottomSheet(state: MigrationTransferFailureState?) {
                 Spacer(Modifier.height(8.dp))
             }
             ZashiButton(
-                state = ButtonState(text = stringRes(DesignR.string.migration_common_dismiss), onClick = state.onDismiss),
+                state =
+                    ButtonState(
+                        text = stringRes(DesignR.string.migration_common_dismiss),
+                        onClick = state.onDismiss
+                    ),
                 modifier = Modifier.fillMaxWidth(),
                 defaultPrimaryColors = ZashiButtonDefaults.secondaryColors(),
             )

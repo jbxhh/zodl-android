@@ -2,6 +2,7 @@ package co.electriccoin.zcash.ui.screen.migration.keystonescan
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cash.z.ecc.android.sdk.model.Pczt
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.KeystoneFirmwarePolicy
@@ -134,10 +135,10 @@ class MigrationKeystoneScanVM(
 
                 val signed =
                     sdk.applyKeystoneBatchSignatures(
-                        splitUnsignedPczt = splitForRound,
+                        splitUnsignedPczt = splitForRound?.let(::Pczt),
                         // Same [preps..., transfers...] order the sign screen built the QR with — the
                         // response list aligns positionally, split back by the same counts below.
-                        transferUnsignedPczts = (prepsForRound + transfersForRound).map { it.second },
+                        transferUnsignedPczts = (prepsForRound + transfersForRound).map { Pczt(it.second) },
                         batchSignResponse = data,
                     )
                 migrationLog(
@@ -146,9 +147,9 @@ class MigrationKeystoneScanVM(
                         "transfers=${transfersForRound.size})"
                 )
 
-                val accumulatedSplitSigned = signed.splitSignedPczt ?: pending.accumulatedSplitSigned
-                val signedPreps = signed.transferSignedPczts.take(prepsForRound.size)
-                val signedTransfers = signed.transferSignedPczts.drop(prepsForRound.size)
+                val accumulatedSplitSigned = signed.splitSignedPczt?.toByteArray() ?: pending.accumulatedSplitSigned
+                val signedPreps = signed.transferSignedPczts.take(prepsForRound.size).map { it.toByteArray() }
+                val signedTransfers = signed.transferSignedPczts.drop(prepsForRound.size).map { it.toByteArray() }
                 val accumulatedPrepSigned =
                     pending.accumulatedPrepSigned +
                         prepsForRound.map { it.first }.zip(signedPreps)
@@ -188,7 +189,8 @@ class MigrationKeystoneScanVM(
                         )
                     )
                     migrationLog(
-                        "KeystoneScan: round ${pending.roundIndex} done — handing off to round ${pending.roundIndex + 1} of $totalRounds"
+                        "KeystoneScan: round ${pending.roundIndex} done — handing off to round " +
+                            "${pending.roundIndex + 1} of $totalRounds"
                     )
                     navigationRouter.replace(MigrationKeystoneSignArgs(args.mode))
                     return@launch

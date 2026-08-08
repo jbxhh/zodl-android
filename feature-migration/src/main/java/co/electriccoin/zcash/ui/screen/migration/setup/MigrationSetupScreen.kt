@@ -162,7 +162,11 @@ fun MigrationSetupView(state: MigrationSetupState) {
 // MOB-1620 (Figma node 3925:16408): the balance figure is a distinct, brighter emphasis color
 // against the rest of this muted sentence, not just bold-in-the-same-tertiary-gray.
 @Composable
-private fun buildMigrationBodyText(zecAmount: String, fiatAmount: String?, emphasisColor: Color): androidx.compose.ui.text.AnnotatedString {
+private fun buildMigrationBodyText(
+    zecAmount: String,
+    fiatAmount: String?,
+    emphasisColor: Color
+): androidx.compose.ui.text.AnnotatedString {
     val prefix = stringRes(DesignR.string.migrationSetup_bodyPrefix).getValue()
     val fiatSuffix = fiatAmount?.let { stringRes(DesignR.string.migrationSetup_bodyFiatSuffix, it).getValue() }
     val suffix = stringRes(DesignR.string.migrationSetup_bodySuffix).getValue()

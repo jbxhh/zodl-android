@@ -124,7 +124,9 @@ internal fun MigrationSchedulingView() {
                             .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_totalToTransferLabel).getValue())
+                    SkeletonSummaryRow(
+                        label = stringRes(DesignR.string.migrationScheduled_totalToTransferLabel).getValue()
+                    )
                     SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_poolLabel).getValue())
                     SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_transfersLabel).getValue())
                     SkeletonSummaryRow(label = stringRes(DesignR.string.migrationScheduled_durationLabel).getValue())
@@ -281,7 +283,8 @@ private fun Preview() =
                     duration = stringRes("~24 hours"),
                     backgroundHint =
                         stringRes(
-                            "Transfers run when you open the app — enable background activity in Settings for automatic sending."
+                            "Transfers run when you open the app — enable background activity in Settings " +
+                                "for automatic sending."
                         ),
                     onDone = {},
                 )

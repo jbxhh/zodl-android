@@ -73,7 +73,11 @@ class ReviewTransactionOrchardPrivacyWarningTest {
         var cancelViaButton = false
         val viaButton =
             assertNotNull(
-                orchardWarningSheetState(usesOrchardInputs = true, onContinue = {}, onCancel = { cancelViaButton = true })
+                orchardWarningSheetState(
+                    usesOrchardInputs = true,
+                    onContinue = {},
+                    onCancel = { cancelViaButton = true }
+                )
             )
         viaButton.secondaryAction?.onClick?.invoke()
         assertTrue(cancelViaButton)

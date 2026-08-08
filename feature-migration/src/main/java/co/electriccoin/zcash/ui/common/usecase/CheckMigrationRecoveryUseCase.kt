@@ -60,7 +60,9 @@ class CheckMigrationRecoveryUseCase(
     private val context: Context,
     private val migrationLiveDriver: MigrationLiveDriver,
     /** Extracted for testability — production default checks WorkManager. */
-    private val getWorkerRunState: suspend (String) -> MigrationWorkerRunState = { migrationWorkerRunState(context, it) },
+    private val getWorkerRunState: suspend (String) -> MigrationWorkerRunState = {
+        migrationWorkerRunState(context, it)
+    },
     /**
      * Extracted for testability — production default enqueues an immediate WorkManager run
      * (`Duration.ZERO`), replacing whatever delay the worker last armed for itself.
@@ -139,7 +141,8 @@ class CheckMigrationRecoveryUseCase(
                             // on its own or be superseded by the live driver's own re-arm (reArm's
                             // MigrationScheduler.schedule call), whichever comes first.
                             migrationLog(
-                                "MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) for $accountKeyId — nothing to do."
+                                "MigrationRecovery: migration worker already active (RUNNING or SCHEDULED) " +
+                                    "for $accountKeyId — nothing to do."
                             )
                         }
 
@@ -147,7 +150,9 @@ class CheckMigrationRecoveryUseCase(
                             // Revival: recovers the DURABLE background chain after process kill, device
                             // reboot, or an app upgrade that cleared WorkManager state — the live driver
                             // covers speed while alive, but only the worker chain survives process death.
-                            migrationLog("MigrationRecovery: migration worker absent for $accountKeyId — scheduling now.")
+                            migrationLog(
+                                "MigrationRecovery: migration worker absent for $accountKeyId — scheduling now."
+                            )
                             scheduleNow(accountKeyId)
                         }
                     }
@@ -196,7 +201,10 @@ class CheckMigrationRecoveryUseCase(
             // simply leaves the engine NotStarted, and every screen renders that live).
         }.onFailure { e ->
             if (e is kotlinx.coroutines.CancellationException) throw e
-            migrationLog("MigrationRecovery: engine read failed (${e.message}) — un-stamping the throttle for a clean retry.", e)
+            migrationLog(
+                "MigrationRecovery: engine read failed (${e.message}) — un-stamping the throttle for a clean retry.",
+                e
+            )
             throttleMutex.withLock { lastRunMark = null }
         }
     }

@@ -12,7 +12,6 @@ import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.Synchronizer
 import cash.z.ecc.android.sdk.TransferAttemptOutcome
 import cash.z.ecc.android.sdk.TransferResult
-import cash.z.ecc.android.sdk.model.TransactionId
 import co.electriccoin.zcash.migration.BuildConfig
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.common.model.migration.LiveMigrationSnapshot
@@ -255,7 +254,9 @@ class MigrationDriveOnce(
                 // but avoidable now that the id is already in hand).
                 val prep = isPreparationTransfer(sdk.getMigrationTransferStates(), nextStep.transferId)
                 if (prep) {
-                    migrationLog("MigrationDriveOnce: sync done, next=$nextStep (preparation) — broadcasting same-beat.")
+                    migrationLog(
+                        "MigrationDriveOnce: sync done, next=$nextStep (preparation) — broadcasting same-beat."
+                    )
                     broadcastRun(sdk, accountKeyId, nextStep.transferId, allowForcedBroadcastWindow)
                 } else {
                     val chainDelay = sdk.privacySyncBufferDuration()
@@ -377,7 +378,10 @@ class MigrationDriveOnce(
                 // backgrounded) — unchanged from today's behavior.
                 val deferDelay = if (prepFastTrack) PREP_FAST_TRACK_REARM else sdk.privacySyncBufferDuration()
                 scheduleUnlessLiveLoop(accountKeyId, deferDelay)
-                migrationLog("MigrationDriveOnce: deferring broadcast $deferDelay — a sync source is live or the quiet gap is unmet.")
+                migrationLog(
+                    "MigrationDriveOnce: deferring broadcast $deferDelay — a sync source is live or the quiet " +
+                        "gap is unmet."
+                )
                 return DriveOnceResult.ReArmed(deferDelay, respectAntiSpinFloor = !prepFastTrack)
             }
         }
@@ -417,7 +421,9 @@ class MigrationDriveOnce(
                     sdk.executeNextPendingTransfer(NetworkPrivacyOptions(useTor = useTor), useEstimatedTip = true)
                 }
             } ?: run {
-                migrationLog("MigrationDriveOnce: broadcast attempt timed out after $BROADCAST_ATTEMPT_TIMEOUT — re-arming.")
+                migrationLog(
+                    "MigrationDriveOnce: broadcast attempt timed out after $BROADCAST_ATTEMPT_TIMEOUT — re-arming."
+                )
                 return DriveOnceResult.ReArmed(reArm(sdk, accountKeyId, floor = REARM_FLOOR))
             }
         return when (outcome) {
@@ -432,12 +438,21 @@ class MigrationDriveOnce(
                 // Defensive: nextStep said Broadcast, so the engine had a proved transaction — a
                 // proof can only have vanished through a concurrent reorg/rescan. Re-arm floored;
                 // the next run re-asks the engine from scratch.
-                migrationLog("MigrationDriveOnce: AwaitingProof for ${outcome.transferId} despite a Broadcast step — re-arming.")
+                migrationLog(
+                    "MigrationDriveOnce: AwaitingProof for ${outcome.transferId} despite a Broadcast step — " +
+                        "re-arming."
+                )
                 DriveOnceResult.ReArmed(reArm(sdk, accountKeyId, floor = REARM_FLOOR))
             }
 
             is TransferAttemptOutcome.Executed -> {
-                handleExecuted(sdk, accountKeyId, outcome.result, snapshotBefore, sentWasPrep = nextCandidate?.isTransfer == false)
+                handleExecuted(
+                    sdk,
+                    accountKeyId,
+                    outcome.result,
+                    snapshotBefore,
+                    sentWasPrep = nextCandidate?.isTransfer == false,
+                )
             }
         }
     }
@@ -452,14 +467,14 @@ class MigrationDriveOnce(
     ): DriveOnceResult =
         when (result) {
             is TransferResult.Success -> {
-                migrationLog("MigrationDriveOnce: sent — txId=${result.txId}")
+                migrationLog("MigrationDriveOnce: sent — txId=${result.txId.txIdString()}")
                 // Classify zip318_kind immediately rather than waiting on the mempool watcher or a
                 // later rescan — our own broadcast path already stores `raw` locally, which makes
                 // the normal enhancement queue skip this txid forever (`raw IS NOT NULL` guard), so
                 // without this call the tx would sit permanently NOT_CLASSIFIED ("Sent" instead of
                 // "Migrating…"/"Migrated"). One call is enough for both labels: mined-height driven
                 // Pending→Success derivation is independent of zip318_kind and isn't reset by it.
-                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(result.txId))
+                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(result.txId)
                 // Everything below reads the engine's post-send state live — there is no cache to
                 // write through anymore (the banner reads the same live states).
                 val snapshot = sdk.snapshot()
@@ -490,13 +505,21 @@ class MigrationDriveOnce(
                         scheduleUnlessLiveLoop(accountKeyId, PREP_FAST_TRACK_REARM)
                         migrationLog("MigrationDriveOnce: ready preparation next — chaining in $PREP_FAST_TRACK_REARM")
                         if (!sentWasPrep && snapshot != null) {
-                            migrationNotifier.notifyTransferComplete(accountKeyId, snapshot.completedCount, snapshot.totalCount)
+                            migrationNotifier.notifyTransferComplete(
+                                accountKeyId,
+                                snapshot.completedCount,
+                                snapshot.totalCount,
+                            )
                         }
                         DriveOnceResult.ReArmed(PREP_FAST_TRACK_REARM, respectAntiSpinFloor = false)
                     } else {
                         val delay = reArm(sdk, accountKeyId, floor = sdk.privacySyncBufferDuration())
                         if (!sentWasPrep && snapshot != null) {
-                            migrationNotifier.notifyTransferComplete(accountKeyId, snapshot.completedCount, snapshot.totalCount)
+                            migrationNotifier.notifyTransferComplete(
+                                accountKeyId,
+                                snapshot.completedCount,
+                                snapshot.totalCount,
+                            )
                         }
                         DriveOnceResult.ReArmed(delay)
                     }
@@ -594,7 +617,9 @@ class MigrationDriveOnce(
      */
     private suspend fun replanRun(sdk: OrchardMigrationSdk, accountKeyId: String) {
         val snapshot = sdk.snapshot()
-        migrationLog("MigrationDriveOnce: engine requests Replan — the whole plan is dead, user-driven reschedule required.")
+        migrationLog(
+            "MigrationDriveOnce: engine requests Replan — the whole plan is dead, user-driven reschedule required."
+        )
         migrationNotifier.notifyRescheduleRequired(
             accountKeyId,
             (snapshot?.nextPending?.index?.plus(1)) ?: 1,
@@ -617,10 +642,17 @@ class MigrationDriveOnce(
      * [MigrationBlocker.UNPROVABLE_ANCHOR] is still threaded through the UI layer
      * (`MigrationProgressVM`, `MigrationHomeMessageSourceImpl`, `MigrationTransferStatus`).
      */
-    private suspend fun surfaceUnprovableBlocker(sdk: OrchardMigrationSdk, accountKeyId: String, states: MigrationTransferStates?) {
+    private suspend fun surfaceUnprovableBlocker(
+        sdk: OrchardMigrationSdk,
+        accountKeyId: String,
+        states: MigrationTransferStates?,
+    ) {
         val stuck = states?.transfers?.firstOrNull { it.blocker == MigrationBlocker.UNPROVABLE_ANCHOR } ?: return
         val snapshot = sdk.snapshot()
-        migrationLog("MigrationDriveOnce: transfer ${stuck.id} blocked on an unprovable anchor — user-driven reschedule required.")
+        migrationLog(
+            "MigrationDriveOnce: transfer ${stuck.id} blocked on an unprovable anchor — user-driven reschedule " +
+                "required."
+        )
         migrationNotifier.notifyRescheduleRequired(
             accountKeyId,
             (snapshot?.nextPending?.index?.plus(1)) ?: 1,
@@ -654,7 +686,11 @@ class MigrationDriveOnce(
      * always reflects state as of THIS re-arm decision, per [MigrationPeek]'s "holds only as of
      * the call that returned it" doc.
      */
-    private suspend fun reArm(sdk: OrchardMigrationSdk, accountKeyId: String, floor: Duration = Duration.ZERO): Duration {
+    private suspend fun reArm(
+        sdk: OrchardMigrationSdk,
+        accountKeyId: String,
+        floor: Duration = Duration.ZERO,
+    ): Duration {
         val states = sdk.getMigrationTransferStates()
         val est = sdk.estimatedChainTip()
         val peek = sdk.nextStep()?.next

@@ -2,6 +2,7 @@ package co.electriccoin.zcash.ui.screen.migration.keystonesign
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cash.z.ecc.android.sdk.model.Pczt
 import cash.z.ecc.sdk.ANDROID_STATE_FLOW_TIMEOUT
 import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
@@ -95,7 +96,7 @@ class MigrationKeystoneSignVM(
                     if (sdk.isNoteSplitNeeded()) {
                         val splitProposal = sdk.prepareNoteSplit()
                         val scheduleFromSplit = sdk.proposeMigrationTransfersFromSplit(splitProposal)
-                        splitUnsignedPczt = sdk.createUnsignedNoteSplitPczt(splitProposal)
+                        splitUnsignedPczt = sdk.createUnsignedNoteSplitPczt(splitProposal).toByteArray()
                         // The WHOLE note-split tree is built (and pre-signable) at commit — every
                         // preparation beyond the first layer-0 split joins the batch here; only
                         // that first split keeps the immediate-broadcast storeSignedNoteSplitPczt
@@ -105,13 +106,18 @@ class MigrationKeystoneSignVM(
                             sdk
                                 .createUnsignedPreparationPczts(scheduleFromSplit)
                                 .filterNot { it.layer == 0 && it.index == 0 }
-                                .map { it.id to it.pcztBytes }
-                        transferUnsignedPczts = sdk.createUnsignedTransferPczts(scheduleFromSplit)
+                                .map { it.id to it.pczt.toByteArray() }
+                        transferUnsignedPczts =
+                            sdk
+                                .createUnsignedTransferPczts(scheduleFromSplit)
+                                .map { it.first to it.second.toByteArray() }
                         pendingSchedule.set(accountKeyId, scheduleFromSplit)
                     } else {
                         splitUnsignedPczt = null
-                        prepUnsignedPczts = sdk.createUnsignedPreparationPczts(sched).map { it.id to it.pcztBytes }
-                        transferUnsignedPczts = sdk.createUnsignedTransferPczts(sched)
+                        prepUnsignedPczts =
+                            sdk.createUnsignedPreparationPczts(sched).map { it.id to it.pczt.toByteArray() }
+                        transferUnsignedPczts =
+                            sdk.createUnsignedTransferPczts(sched).map { it.first to it.second.toByteArray() }
                     }
                     roundIndex = 0
                     accumulatedSplitSigned = null
@@ -135,10 +141,10 @@ class MigrationKeystoneSignVM(
                 val parts =
                     sdk.buildKeystoneSignBatchQrParts(
                         requestId = requestId,
-                        splitUnsignedPczt = splitForRound,
+                        splitUnsignedPczt = splitForRound?.let(::Pczt),
                         // Extra preparations ride ahead of the transfers — the device signs PCZTs
                         // kind-agnostically; ScanVM splits the response back by the same counts.
-                        transferUnsignedPczts = (prepsForRound + transfersForRound).map { it.second },
+                        transferUnsignedPczts = (prepsForRound + transfersForRound).map { Pczt(it.second) },
                         maxFragmentLen = MAX_FRAGMENT_LEN,
                     )
                 pendingKeystonePczts.set(
@@ -188,7 +194,12 @@ class MigrationKeystoneSignVM(
     }
 
     private val combinedState: Flow<SignKeystoneTransactionState?> =
-        combine(getSelectedWalletAccount.observe(), qrParts, qrFrameIndex, roundInfo) { account, parts, frameIndex, round ->
+        combine(
+            getSelectedWalletAccount.observe(),
+            qrParts,
+            qrFrameIndex,
+            roundInfo
+        ) { account, parts, frameIndex, round ->
             val accountKeyId = account?.sdkAccount?.accountUuid?.toStorageKeyId()
             if (account == null || accountKeyId == null || pendingSchedule.peek(accountKeyId) == null) {
                 // Edge case only (e.g. process death mid-flow) — the schedule is proposed
@@ -205,7 +216,11 @@ class MigrationKeystoneSignVM(
             val roundSuffix =
                 round
                     ?.let { (index, total) ->
-                        if (total > 1) stringRes(DesignR.string.migrationKeystoneSign_roundSuffix, index + 1, total) else stringRes("")
+                        if (total > 1) {
+                            stringRes(DesignR.string.migrationKeystoneSign_roundSuffix, index + 1, total)
+                        } else {
+                            stringRes("")
+                        }
                     }
                     ?: stringRes("")
             SignKeystoneTransactionState(
@@ -230,7 +245,8 @@ class MigrationKeystoneSignVM(
                         text = stringRes(DesignR.string.migrationKeystoneSign_getSignature),
                         onClick = ::onGetSignature
                     ),
-                negativeButton = ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_reject), onClick = ::onReject),
+                negativeButton =
+                    ButtonState(text = stringRes(DesignR.string.migrationKeystoneSign_reject), onClick = ::onReject),
                 onBack = ::onReject,
             )
         }
@@ -256,10 +272,13 @@ class MigrationKeystoneSignVM(
         // reference point since Keystone devices are the same physical scan target either way).
         private const val MAX_FRAGMENT_LEN = 150
 
+        // A UUID is two 64-bit longs.
+        private const val UUID_BYTE_LENGTH = 16
+
         private fun randomRequestId(): ByteArray {
             val uuid = UUID.randomUUID()
             return ByteBuffer
-                .allocate(16)
+                .allocate(UUID_BYTE_LENGTH)
                 .putLong(uuid.mostSignificantBits)
                 .putLong(uuid.leastSignificantBits)
                 .array()

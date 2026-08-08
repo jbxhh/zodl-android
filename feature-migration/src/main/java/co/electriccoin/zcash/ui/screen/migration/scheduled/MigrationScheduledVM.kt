@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cash.z.ecc.android.sdk.NetworkPrivacyOptions
 import cash.z.ecc.android.sdk.TransferResult
-import cash.z.ecc.android.sdk.model.TransactionId
+import cash.z.ecc.android.sdk.model.Pczt
 import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.migration.migrationLog
 import co.electriccoin.zcash.ui.NavigationRouter
@@ -87,7 +87,7 @@ class MigrationScheduledVM(
                 val useTor = isMigrationTorEnabledStorageProvider.get()
                 val splitResult =
                     sdk.storeSignedNoteSplitPczt(
-                        splitSignedPczt,
+                        Pczt(splitSignedPczt),
                         NetworkPrivacyOptions(useTor = useTor),
                     )
                 if (splitResult !is TransferResult.Success) {
@@ -108,11 +108,14 @@ class MigrationScheduledVM(
                 // it forever and the Activity row would stay "Sent" instead of "Note
                 // split"/"Migrated". See MigrationDriveOnce.handleExecuted's identical call for
                 // transfers.
-                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(TransactionId.new(splitResult.txId))
+                synchronizerProvider.getSynchronizerOrNull()?.enhanceTransaction(splitResult.txId)
             }
             // Kind-agnostic per-id signature application — extra PREPARATIONS of the note-split
             // tree go through the same call as the transfers.
-            sdk.storeSignedSchedulePczts(pending.accumulatedPrepSigned + pending.accumulatedTransferSigned)
+            sdk.storeSignedSchedulePczts(
+                (pending.accumulatedPrepSigned + pending.accumulatedTransferSigned)
+                    .map { (id, bytes) -> id to Pczt(bytes) }
+            )
             migrationLog(
                 "MigrationScheduled: stored ${pending.accumulatedPrepSigned.size} signed prep + " +
                     "${pending.accumulatedTransferSigned.size} signed transfer PCZT(s) " +
