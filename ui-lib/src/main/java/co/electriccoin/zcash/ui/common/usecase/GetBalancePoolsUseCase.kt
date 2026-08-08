@@ -52,7 +52,7 @@ class GetBalancePoolsUseCase(
             if (synchronizer == null || account == null) {
                 flowOf(null)
             } else {
-                synchronizer.walletBalances.map { balances ->
+                synchronizerProvider.walletBalances.map { balances ->
                     val balance = balances?.get(account.sdkAccount.accountUuid)
                     val orchard = (balance?.orchard?.total ?: Zatoshi.ZERO) + (balance?.orchard?.locked ?: Zatoshi.ZERO)
                     val sapling = (balance?.sapling?.total ?: Zatoshi.ZERO) + (balance?.sapling?.locked ?: Zatoshi.ZERO)

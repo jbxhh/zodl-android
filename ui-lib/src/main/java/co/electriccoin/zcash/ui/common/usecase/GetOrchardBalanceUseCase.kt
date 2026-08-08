@@ -29,9 +29,9 @@ class GetOrchardBalanceUseCase(
     private val accountDataSource: AccountDataSource,
 ) {
     suspend operator fun invoke(): Zatoshi {
-        val synchronizer = synchronizerProvider.getSynchronizer()
+        synchronizerProvider.getSynchronizer()
         val account = accountDataSource.getSelectedAccount()
-        val balances = synchronizer.walletBalances.filterNotNull().first()
+        val balances = synchronizerProvider.walletBalances.filterNotNull().first()
         return balances[account.sdkAccount.accountUuid]?.orchard?.available ?: Zatoshi.ZERO
     }
 
@@ -46,7 +46,7 @@ class GetOrchardBalanceUseCase(
             if (synchronizer == null || account == null) {
                 flowOf(null)
             } else {
-                synchronizer.walletBalances.map { balances ->
+                synchronizerProvider.walletBalances.map { balances ->
                     balances?.get(account.sdkAccount.accountUuid)?.orchard?.available
                 }
             }
