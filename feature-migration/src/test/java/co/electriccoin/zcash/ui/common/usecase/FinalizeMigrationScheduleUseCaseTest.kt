@@ -72,7 +72,13 @@ class FinalizeMigrationScheduleUseCaseTest {
                     ),
                 preparations =
                     listOf(
-                        PreparationStep(id = 1, layer = 0, index = 1, broadcastHeight = 4219043, dependsOn = emptyList())
+                        PreparationStep(
+                            id = 1,
+                            layer = 0,
+                            index = 1,
+                            broadcastHeight = 4219043,
+                            dependsOn = emptyList()
+                        )
                     ),
                 estimatedDurationHours = 1,
                 proposalHandle = 1,

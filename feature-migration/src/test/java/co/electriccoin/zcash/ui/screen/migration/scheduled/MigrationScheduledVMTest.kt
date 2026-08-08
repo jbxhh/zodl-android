@@ -95,7 +95,10 @@ class MigrationScheduledVMTest {
 
             advanceUntilIdle()
             val state = vm.state.first { !it.isLoading }
-            assertNotNull(state.content?.backgroundHint, "backgroundHint should not be null when background execution is unavailable")
+            assertNotNull(
+                state.content?.backgroundHint,
+                "backgroundHint should not be null when background execution is unavailable",
+            )
         }
 
     @Test
@@ -109,7 +112,10 @@ class MigrationScheduledVMTest {
 
             advanceUntilIdle()
             val state = vm.state.first { !it.isLoading }
-            assertNull(state.content?.backgroundHint, "backgroundHint should be null when background execution is available")
+            assertNull(
+                state.content?.backgroundHint,
+                "backgroundHint should be null when background execution is available",
+            )
         }
 
     @Test
@@ -263,7 +269,8 @@ class MigrationScheduledVMTest {
         getSelectedWalletAccount: GetSelectedWalletAccountUseCase = testGetSelectedWalletAccount,
         getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase = mockk(relaxed = true),
         pendingSchedule: PendingMigrationScheduleRepositoryImpl = PendingMigrationScheduleRepositoryImpl(),
-        pendingKeystonePczts: PendingKeystoneMigrationPcztsRepositoryImpl = PendingKeystoneMigrationPcztsRepositoryImpl(),
+        pendingKeystonePczts: PendingKeystoneMigrationPcztsRepositoryImpl =
+            PendingKeystoneMigrationPcztsRepositoryImpl(),
         finalizeMigrationSchedule: FinalizeMigrationScheduleUseCase = mockk(relaxed = true),
         isMigrationTorEnabledStorageProvider: IsMigrationTorEnabledStorageProvider = mockk(relaxed = true),
         synchronizerProvider: SynchronizerProvider = mockk(relaxed = true),

@@ -365,7 +365,10 @@ class MigrationDriveOnceTest {
 
     @Test
     fun `all sent means a completion sweep`() {
-        assertEquals(WaitingDisposition.COMPLETION_SWEEP, waitingDisposition(allSent = true, hasUnprovableBlocker = false))
+        assertEquals(
+            WaitingDisposition.COMPLETION_SWEEP,
+            waitingDisposition(allSent = true, hasUnprovableBlocker = false)
+        )
     }
 
     @Test
@@ -383,6 +386,9 @@ class MigrationDriveOnceTest {
 
     @Test
     fun `all sent takes priority over an unprovable blocker`() {
-        assertEquals(WaitingDisposition.COMPLETION_SWEEP, waitingDisposition(allSent = true, hasUnprovableBlocker = true))
+        assertEquals(
+            WaitingDisposition.COMPLETION_SWEEP,
+            waitingDisposition(allSent = true, hasUnprovableBlocker = true)
+        )
     }
 }

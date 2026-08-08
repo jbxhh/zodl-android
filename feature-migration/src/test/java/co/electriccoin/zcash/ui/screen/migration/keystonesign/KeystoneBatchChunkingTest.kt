@@ -49,7 +49,10 @@ class KeystoneBatchChunkingTest {
     @Test
     fun roundSlice_single_round_includes_the_split_and_every_transfer() {
         val slice = keystoneBatchRoundSlice(roundIndex = 0, hasSplit = true, transferCount = 12, budget = budget)
-        assertEquals(KeystoneBatchRoundSlice(includeSplit = true, prepRange = IntRange.EMPTY, transferRange = 0 until 12), slice)
+        assertEquals(
+            KeystoneBatchRoundSlice(includeSplit = true, prepRange = IntRange.EMPTY, transferRange = 0 until 12),
+            slice,
+        )
     }
 
     @Test
@@ -59,11 +62,20 @@ class KeystoneBatchChunkingTest {
         val round2 = keystoneBatchRoundSlice(roundIndex = 2, hasSplit = true, transferCount = 64, budget = budget)
 
         // Round 0: split (16 actions) + 26 transfers (78) = 94 ≤ 96.
-        assertEquals(KeystoneBatchRoundSlice(includeSplit = true, prepRange = IntRange.EMPTY, transferRange = 0 until 26), round0)
+        assertEquals(
+            KeystoneBatchRoundSlice(includeSplit = true, prepRange = IntRange.EMPTY, transferRange = 0 until 26),
+            round0,
+        )
         // Round 1: no split, 32 transfers = 96 actions exactly.
-        assertEquals(KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 26 until 58), round1)
+        assertEquals(
+            KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 26 until 58),
+            round1,
+        )
         // Round 2: the remaining 6.
-        assertEquals(KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 58 until 64), round2)
+        assertEquals(
+            KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 58 until 64),
+            round2,
+        )
 
         // Every transfer is covered exactly once across all rounds.
         val covered = (round0.transferRange.toList() + round1.transferRange.toList() + round2.transferRange.toList())
@@ -75,8 +87,14 @@ class KeystoneBatchChunkingTest {
         val round0 = keystoneBatchRoundSlice(roundIndex = 0, hasSplit = false, transferCount = 33, budget = budget)
         val round1 = keystoneBatchRoundSlice(roundIndex = 1, hasSplit = false, transferCount = 33, budget = budget)
 
-        assertEquals(KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 0 until 32), round0)
-        assertEquals(KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 32 until 33), round1)
+        assertEquals(
+            KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 0 until 32),
+            round0,
+        )
+        assertEquals(
+            KeystoneBatchRoundSlice(includeSplit = false, prepRange = IntRange.EMPTY, transferRange = 32 until 33),
+            round1,
+        )
     }
 
     @Test

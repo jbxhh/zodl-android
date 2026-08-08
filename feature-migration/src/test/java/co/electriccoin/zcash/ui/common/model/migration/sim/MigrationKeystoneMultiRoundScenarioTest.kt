@@ -105,7 +105,11 @@ class MigrationKeystoneMultiRoundScenarioTest {
 
             // ── Round 3 clears all but dust. ──
             driver.setMigratableResidual(zatoshi = DUST - 1L) // 99_999 — below the dust threshold
-            assertEquals(1, sdk.estimateMigrationRunCount(), "a sub-dust residual still counts as 1 run to the raw estimate…")
+            assertEquals(
+                1,
+                sdk.estimateMigrationRunCount(),
+                "a sub-dust residual still counts as 1 run to the raw estimate…",
+            )
             assertFalse(
                 anotherRoundNeeded(sdk),
                 "…but the app gates on the dust threshold: 99_999 < 100_000 is negligible — campaign ends.",

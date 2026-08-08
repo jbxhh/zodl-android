@@ -302,7 +302,11 @@ class MigrationReviewVMTest {
     // real subscriber is exactly the kind of Flow-timing plumbing this test isn't meant to be
     // about. `MigrationCompleteVMTest.invokeOnDone` establishes the same
     // call-the-private-handler-via-reflection pattern for the identical reason.
-    private fun invokeOnConfirmImmediate(vm: MigrationReviewVM, proposal: Proposal, amountZatoshi: Zatoshi = Zatoshi(500_000L)) {
+    private fun invokeOnConfirmImmediate(
+        vm: MigrationReviewVM,
+        proposal: Proposal,
+        amountZatoshi: Zatoshi = Zatoshi(500_000L)
+    ) {
         val method =
             MigrationReviewVM::class.java.getDeclaredMethod(
                 "onConfirmImmediate",
