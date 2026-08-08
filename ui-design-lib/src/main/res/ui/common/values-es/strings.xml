@@ -652,6 +652,10 @@
 
     <!-- ===== send_confirmation ===== -->
     <string name="send_confirmationTitle">Confirmación</string>
+    <string name="send_orchardWarning_title">Este envío requiere gastar fondos de Orchard</string>
+    <string name="send_orchardWarning_message">Recomendamos migrar tus fondos primero para evitar filtrar el monto de la transacción en la cadena.</string>
+    <string name="send_orchardWarning_continue">Continuar de todos modos</string>
+    <string name="send_orchardWarning_cancel">Cancelar</string>
     <string name="send_amountSummary">Monto Total</string>
     <string name="accounts_sendingFrom">Enviar desde</string>
     <string name="send_message">Mensaje</string>
