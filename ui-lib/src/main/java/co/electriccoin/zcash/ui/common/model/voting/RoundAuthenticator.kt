@@ -15,26 +15,29 @@ class VotingRoundAuthenticationException(
     val roundIdHex: String
 ) : VotingConfigException(votingRoundAuthMessage(status, roundIdHex))
 
+private const val ROUND_ID_DISPLAY_LENGTH = 16
+
 private fun votingRoundAuthMessage(status: RoundAuthStatus, roundIdHex: String): String =
     when (status) {
         RoundAuthStatus.AUTHENTICATED -> {
-            "Voting round ${roundIdHex.take(16)}... is authenticated"
+            "Voting round ${roundIdHex.take(ROUND_ID_DISPLAY_LENGTH)}... is authenticated"
         }
 
         RoundAuthStatus.UNKNOWN_AUTH_VERSION -> {
-            "Voting round ${roundIdHex.take(16)}... requires a newer wallet. Please update the wallet."
+            "Voting round ${roundIdHex.take(ROUND_ID_DISPLAY_LENGTH)}... requires a newer wallet. " +
+                "Please update the wallet."
         }
 
         RoundAuthStatus.MISSING_ROUND -> {
-            "Voting config does not authenticate round ${roundIdHex.take(16)}..."
+            "Voting config does not authenticate round ${roundIdHex.take(ROUND_ID_DISPLAY_LENGTH)}..."
         }
 
         RoundAuthStatus.INVALID_SIGNATURES -> {
-            "Voting config signature is invalid for round ${roundIdHex.take(16)}..."
+            "Voting config signature is invalid for round ${roundIdHex.take(ROUND_ID_DISPLAY_LENGTH)}..."
         }
 
         RoundAuthStatus.EA_PK_MISMATCH -> {
-            "Voting config EA key does not match round ${roundIdHex.take(16)}..."
+            "Voting config EA key does not match round ${roundIdHex.take(ROUND_ID_DISPLAY_LENGTH)}..."
         }
     }
 

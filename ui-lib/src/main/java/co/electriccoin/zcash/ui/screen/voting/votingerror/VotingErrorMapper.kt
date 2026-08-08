@@ -52,7 +52,8 @@ object VotingErrorMapper {
                 stringRes(UiR.string.coinVote_store_userError_roundNotFound)
             }
 
-            lower.contains("round") && (lower.contains("not active") || lower.contains("inactive") || lower.contains("closed")) -> {
+            lower.contains("round") &&
+                (lower.contains("not active") || lower.contains("inactive") || lower.contains("closed")) -> {
                 stringRes(UiR.string.coinVote_store_userError_roundNotActive)
             }
 

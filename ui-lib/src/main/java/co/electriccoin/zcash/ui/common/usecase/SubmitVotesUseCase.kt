@@ -156,7 +156,11 @@ class SubmitVotesUseCase(
                         VotingErrors.MissingPreparedRecovery(roundId)
                     )
             votingRecoveryRepository.storeVoteServerUrls(accountUuidString, roundId, voteServerUrls)
-            votingRecoveryRepository.storeVoteEndEpochSeconds(accountUuidString, roundId, session.voteEndTime.epochSecond)
+            votingRecoveryRepository.storeVoteEndEpochSeconds(
+                accountUuidString,
+                roundId,
+                session.voteEndTime.epochSecond
+            )
             val recoveryBundleCount = recovery.bundleCount
             val hotkeySeed = getHotkeySeed(accountUuidString, roundId, recovery)
 

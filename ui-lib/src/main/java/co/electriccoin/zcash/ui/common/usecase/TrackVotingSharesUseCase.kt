@@ -73,7 +73,7 @@ class TrackVotingSharesUseCase(
                     return@withContext VotingShareTrackingResult.Completed
                 }
 
-                val nowEpochSeconds = System.currentTimeMillis() / 1_000
+                val nowEpochSeconds = System.currentTimeMillis() / MILLIS_PER_SECOND
                 var nextDelayMillis = DEFAULT_DELAY_MILLIS
 
                 shareDelegations
@@ -88,7 +88,8 @@ class TrackVotingSharesUseCase(
                             nextDelayMillis =
                                 min(
                                     nextDelayMillis,
-                                    ((firstCheckAt - nowEpochSeconds) * 1_000L).coerceAtLeast(MIN_DELAY_MILLIS)
+                                    ((firstCheckAt - nowEpochSeconds) * MILLIS_PER_SECOND)
+                                        .coerceAtLeast(MIN_DELAY_MILLIS)
                                 )
                             return@forEach
                         }
@@ -129,7 +130,7 @@ class TrackVotingSharesUseCase(
                             nextDelayMillis =
                                 min(
                                     nextDelayMillis,
-                                    ((resubmitAt - nowEpochSeconds) * 1_000L).coerceAtLeast(MIN_DELAY_MILLIS)
+                                    ((resubmitAt - nowEpochSeconds) * MILLIS_PER_SECOND).coerceAtLeast(MIN_DELAY_MILLIS)
                                 )
                             return@forEach
                         }
@@ -206,7 +207,7 @@ class TrackVotingSharesUseCase(
         }
 
     private fun ByteArray.toLowerHex(): String =
-        joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and BYTE_MASK) }
 
     private companion object {
         const val CHECK_GRACE_SECONDS = 10L
@@ -214,6 +215,8 @@ class TrackVotingSharesUseCase(
         const val MIN_DELAY_MILLIS = 3_000L
         const val DEFAULT_DELAY_MILLIS = 15_000L
         const val POST_RESUBMIT_DELAY_MILLIS = 10_000L
+        const val MILLIS_PER_SECOND = 1_000L
+        const val BYTE_MASK = 0xff
     }
 }
 
@@ -228,7 +231,7 @@ private fun VotingShareDelegationRecord.resubmitAt(voteEndEpochSeconds: Long?): 
             RESUBMIT_MIN_DELAY_SECONDS,
             min(
                 RESUBMIT_MAX_DELAY_SECONDS,
-                remainingAtSubmit / 4
+                remainingAtSubmit / OVERDUE_THRESHOLD_DIVISOR
             )
         )
     return submitAt + overdueThreshold
@@ -236,5 +239,6 @@ private fun VotingShareDelegationRecord.resubmitAt(voteEndEpochSeconds: Long?): 
 
 private const val RESUBMIT_MIN_DELAY_SECONDS = 30L
 private const val RESUBMIT_MAX_DELAY_SECONDS = 3_600L
+private const val OVERDUE_THRESHOLD_DIVISOR = 4
 
 private fun ZcashNetwork.toVotingNetworkId() = if (isMainnet()) 1 else 0

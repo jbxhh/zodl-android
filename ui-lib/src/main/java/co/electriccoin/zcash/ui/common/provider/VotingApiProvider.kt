@@ -834,12 +834,15 @@ private fun JSONObject.optNumber(key: String): Number {
 
 private fun String.hexToBase64String(): String =
     chunked(2)
-        .map { chunk -> chunk.toInt(16).toByte() }
+        .map { chunk -> chunk.toInt(HEX_RADIX).toByte() }
         .toByteArray()
         .toBase64String()
 
 private fun ByteArray.toLowerHex(): String =
-    joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and BYTE_MASK) }
+
+private const val HEX_RADIX = 16
+private const val BYTE_MASK = 0xff
 
 private fun tallyResultsPath(roundIdHex: String): String =
     "/shielded-vote/v1/tally-results/$roundIdHex"

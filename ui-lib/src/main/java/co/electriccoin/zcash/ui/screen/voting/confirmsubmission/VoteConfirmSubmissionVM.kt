@@ -320,7 +320,12 @@ class VoteConfirmSubmissionVM(
                 text = stringRes(R.string.coinVote_common_retry),
                 style = ButtonStyle.PRIMARY,
                 isEnabled = isPrepared && draftChoices.isNotEmpty(),
-                onClick = if (isKeystone && keystoneSignedBundles < preparedBundleCount) ::onStartKeystoneSigning else ::onSubmit
+                onClick =
+                    if (isKeystone && keystoneSignedBundles < preparedBundleCount) {
+                        ::onStartKeystoneSigning
+                    } else {
+                        ::onSubmit
+                    }
             )
         }
 
@@ -361,7 +366,12 @@ class VoteConfirmSubmissionVM(
                     },
                 style = ButtonStyle.PRIMARY,
                 isEnabled = isPrepared && !isSubmitting && draftChoices.isNotEmpty(),
-                onClick = if (isKeystone && keystoneSignedBundles < preparedBundleCount) ::onStartKeystoneSigning else ::onSubmit
+                onClick =
+                    if (isKeystone && keystoneSignedBundles < preparedBundleCount) {
+                        ::onStartKeystoneSigning
+                    } else {
+                        ::onSubmit
+                    }
             )
         }
     }
@@ -615,7 +625,9 @@ private data class SubmissionUiState(
     val activeIncludesAuthorizationProgress: Boolean?
 )
 
-private fun Long.toVotingWeightLabel() = "%.4f ZEC".format(this / 100_000_000.0)
+private fun Long.toVotingWeightLabel() = "%.4f ZEC".format(this / ZATOSHI_PER_ZEC)
+
+private const val ZATOSHI_PER_ZEC = 100_000_000.0
 
 private fun String?.toErrorMessageOrDefault(default: StringResource): StringResource =
     if (isNullOrBlank()) {

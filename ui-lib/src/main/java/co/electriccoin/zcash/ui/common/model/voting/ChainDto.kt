@@ -206,11 +206,12 @@ private fun String.isHexEncoded(): Boolean =
     isNotEmpty() && length % 2 == 0 && all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
 
 private fun String.hexToBytes(): ByteArray =
-    chunked(2).map { chunk -> chunk.toInt(16).toByte() }.toByteArray()
+    chunked(2).map { chunk -> chunk.toInt(HEX_RADIX).toByte() }.toByteArray()
 
 private fun ByteArray.toHexString(): String =
     joinToString(separator = "") { byte -> "%02x".format(byte) }
 
+private const val HEX_RADIX = 16
 private const val MIN_PROPOSALS = 1
 private const val MAX_PROPOSALS = 15
 private const val MIN_PROPOSAL_ID = 1
