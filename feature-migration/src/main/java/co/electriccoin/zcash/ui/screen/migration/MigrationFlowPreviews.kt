@@ -18,9 +18,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import co.electriccoin.zcash.ui.common.model.migration.MigrationAttentionKind
 import co.electriccoin.zcash.ui.common.model.migration.MigrationMode
-import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationDetails
-import co.electriccoin.zcash.ui.common.model.migration.MigrationPreparationStepDetail
-import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
 import co.electriccoin.zcash.ui.design.component.ButtonState
 import co.electriccoin.zcash.ui.design.component.CheckboxState
 import co.electriccoin.zcash.ui.design.component.ZashiConfirmationState
@@ -163,7 +160,13 @@ private fun InvalidTransferRecoveryFlowPreview() =
         }
     }
 
-@Preview(name = "Migration – IMMEDIATE flow", widthDp = 2200, heightDp = 950, showBackground = true, backgroundColor = 0xFFDDDDDDL)
+@Preview(
+    name = "Migration – IMMEDIATE flow",
+    widthDp = 2200,
+    heightDp = 950,
+    showBackground = true,
+    backgroundColor = 0xFFDDDDDDL
+)
 @Composable
 private fun ImmediateFlowPreview() =
     ZcashTheme {
@@ -198,7 +201,9 @@ private fun AdditionalScreensPreview() =
             FlowStep("Privacy: Tor Failure") { MigrationTorFailureView(previewTorFailureState()) }
             FlowStep("Lock Balance Explainer") { MigrationLockExplainerView(previewLockExplainerState()) }
             FlowStep("Restart Migration") { MigrationRestartView(previewRestartState(confirming = false)) }
-            FlowStep("Restart Migration — confirm sheet open") { MigrationRestartView(previewRestartState(confirming = true)) }
+            FlowStep("Restart Migration — confirm sheet open") {
+                MigrationRestartView(previewRestartState(confirming = true))
+            }
         }
     }
 
@@ -223,7 +228,9 @@ private fun SpecialStatesPreview() =
                 MigrationTransferInvalidView(previewTransferInvalidState(kind = MigrationAttentionKind.PLAN_UPDATE))
             }
 //            FlowStep("Sending: failure sheet") { MigrationSendingView(previewSendingStateWithFailure()) }
-//            FlowStep("Failure bottom sheet (standalone)") { MigrationFailureBottomSheet(previewTransferFailureState()) }
+//            FlowStep("Failure bottom sheet (standalone)") {
+//                MigrationFailureBottomSheet(previewTransferFailureState())
+//            }
 //            FlowStep("Progress: preparation details sheet") {
 //                MigrationPreparationDetailsBottomSheet(previewPreparationDetails())
 //            }
@@ -288,22 +295,56 @@ private fun previewNotificationState() =
         onBack = {},
     )
 
-private fun previewReviewStateAutomatic() =
-    MigrationReviewState(
+private fun previewReviewStateAutomatic(): MigrationReviewState {
+    val previewTransferCount = 5
+    val previewThirdTransferIndex = 3
+    val previewFourthTransferIndex = 4
+    return MigrationReviewState(
         mode = MigrationMode.AUTOMATIC,
         totalAmount = stringRes("12.458 ZEC"),
         estimatedDuration = stringRes("~8 min"),
         transfers =
             listOf(
-                MigrationReviewTransferState(1, 5, stringRes("1.348 ZEC"), stringRes("$521.30"), stringRes("~10 mins")),
-                MigrationReviewTransferState(2, 5, stringRes("1.052 ZEC"), stringRes("$406.86"), stringRes("~6 hours")),
-                MigrationReviewTransferState(3, 5, stringRes("2.105 ZEC"), stringRes("$813.74"), stringRes("~12 hours")),
-                MigrationReviewTransferState(4, 5, stringRes("1.897 ZEC"), stringRes("$733.51"), stringRes("~18 hours")),
-                MigrationReviewTransferState(5, 5, stringRes("4.456 ZEC"), stringRes("$1,723.53"), stringRes("~24 hours")),
+                MigrationReviewTransferState(
+                    1,
+                    previewTransferCount,
+                    stringRes("1.348 ZEC"),
+                    stringRes("$521.30"),
+                    stringRes("~10 mins")
+                ),
+                MigrationReviewTransferState(
+                    2,
+                    previewTransferCount,
+                    stringRes("1.052 ZEC"),
+                    stringRes("$406.86"),
+                    stringRes("~6 hours")
+                ),
+                MigrationReviewTransferState(
+                    previewThirdTransferIndex,
+                    previewTransferCount,
+                    stringRes("2.105 ZEC"),
+                    stringRes("$813.74"),
+                    stringRes("~12 hours")
+                ),
+                MigrationReviewTransferState(
+                    previewFourthTransferIndex,
+                    previewTransferCount,
+                    stringRes("1.897 ZEC"),
+                    stringRes("$733.51"),
+                    stringRes("~18 hours")
+                ),
+                MigrationReviewTransferState(
+                    previewTransferCount,
+                    previewTransferCount,
+                    stringRes("4.456 ZEC"),
+                    stringRes("$1,723.53"),
+                    stringRes("~24 hours")
+                ),
             ),
         onConfirm = {},
         onBack = {},
     )
+}
 
 private fun previewReviewStateImmediate() =
     MigrationReviewState(
@@ -312,7 +353,13 @@ private fun previewReviewStateImmediate() =
         estimatedDuration = stringRes("~1 min"),
         transfers =
             listOf(
-                MigrationReviewTransferState(1, 1, stringRes("12.458 ZEC"), stringRes("$4,832.86"), stringRes("Send immediately")),
+                MigrationReviewTransferState(
+                    1,
+                    1,
+                    stringRes("12.458 ZEC"),
+                    stringRes("$4,832.86"),
+                    stringRes("Send immediately")
+                ),
             ),
         isKeystone = false,
         fee = stringRes("0.0003 ZEC"),
@@ -367,8 +414,11 @@ private fun previewCompleteStateWithDust() =
         onHelp = {},
     )
 
-private fun previewProgressStateInProgress() =
-    MigrationProgressState(
+private fun previewProgressStateInProgress(): MigrationProgressState {
+    val previewThirdTransferIndex = 3
+    val previewFourthTransferIndex = 4
+    val previewFifthTransferIndex = 5
+    return MigrationProgressState(
         title = stringRes("Migration Progress"),
         subtitle = stringRes("Your balance splits into 5 transfers over ~24 h. There are 3 remaining transfers."),
         totalAmount = stringRes("10.858 ZEC"),
@@ -391,7 +441,7 @@ private fun previewProgressStateInProgress() =
                     isSent = false
                 ),
                 MigrationProgressTransferState(
-                    3,
+                    previewThirdTransferIndex,
                     stringRes("2.105 ZEC"),
                     stringRes("~2 h"),
                     isReadyNow = false,
@@ -399,7 +449,7 @@ private fun previewProgressStateInProgress() =
                     isSent = false
                 ),
                 MigrationProgressTransferState(
-                    4,
+                    previewFourthTransferIndex,
                     stringRes("1.897 ZEC"),
                     stringRes("~5 h"),
                     isReadyNow = false,
@@ -407,7 +457,7 @@ private fun previewProgressStateInProgress() =
                     isSent = false
                 ),
                 MigrationProgressTransferState(
-                    5,
+                    previewFifthTransferIndex,
                     stringRes("4.456 ZEC"),
                     stringRes("Needs reschedule"),
                     isReadyNow = false,
@@ -418,6 +468,7 @@ private fun previewProgressStateInProgress() =
         isComplete = false,
         onBack = {},
     )
+}
 
 private fun previewTransferInvalidState(kind: MigrationAttentionKind = MigrationAttentionKind.TRANSFER_EXPIRED) =
     MigrationTransferInvalidState(
@@ -469,7 +520,11 @@ private fun previewLockExplainerState() =
 private fun previewRestartState(confirming: Boolean) =
     MigrationRestartState(
         onBack = {},
-        body = stringRes("If your migration looks stuck, you can restart it safely. This creates a new plan for your remaining funds."),
+        body =
+            stringRes(
+                "If your migration looks stuck, you can restart it safely. This creates a new plan for your " +
+                    "remaining funds."
+            ),
         migratedLabel = stringRes("Migrated"),
         migratedValue = stringRes("1 of 9 transfers"),
         remainingLabel = stringRes("Remaining balance"),
@@ -480,52 +535,14 @@ private fun previewRestartState(confirming: Boolean) =
         confirmationDialog = if (confirming) ZashiConfirmationState.preview else null,
     )
 
-private fun previewSendingStateWithFailure() =
-    MigrationSendingState(
-        failureSheet = previewTransferFailureState(),
-        onBack = {},
-    )
-
-private fun previewTransferFailureState() =
-    MigrationTransferFailureState(
-        message = stringRes("Something went wrong while sending this transfer. Please try again."),
-        onRetry = {},
-        onDismiss = {},
-    )
-
 private fun previewProgressStateComplete() =
     previewProgressStateInProgress().copy(
         subtitle = stringRes("All 5 transfers are complete."),
-        transfers = previewProgressStateInProgress().transfers.map { it.copy(statusLabel = stringRes("Sent"), isSent = true) },
+        transfers =
+            previewProgressStateInProgress().transfers.map {
+                it.copy(statusLabel = stringRes("Sent"), isSent = true)
+            },
         isComplete = true,
-    )
-
-private fun previewPreparationDetails() =
-    MigrationPreparationDetails(
-        stepCount = 3,
-        totalAmount = stringRes("12.458 ZEC"),
-        steps =
-            listOf(
-                MigrationPreparationStepDetail(
-                    title = stringRes("Split 1 of 3"),
-                    timeLabel = stringRes(""),
-                    statusLabel = stringRes("Done"),
-                    isDone = true,
-                ),
-                MigrationPreparationStepDetail(
-                    title = stringRes("Split 2 of 3"),
-                    timeLabel = stringRes("in ~10 min"),
-                    statusLabel = stringRes("Waiting for previous split"),
-                    isDone = false,
-                ),
-                MigrationPreparationStepDetail(
-                    title = stringRes("Split 3 of 3"),
-                    timeLabel = stringRes("in ~20 min"),
-                    statusLabel = stringRes("Waiting for previous split"),
-                    isDone = false,
-                ),
-            ),
-        onDismiss = {},
     )
 
 private fun previewCompleteStateDustLocked() =
