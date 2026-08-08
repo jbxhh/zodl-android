@@ -504,9 +504,17 @@ class TransactionDetailVM(
 
                                 Zip318Kind.NOT_CLASSIFIED, Zip318Kind.NONCONFORMING -> {
                                     when (transaction) {
-                                        is SendTransaction.Success -> stringRes(R.string.transaction_sent)
-                                        is SendTransaction.Pending -> stringRes(R.string.transaction_sending)
-                                        is SendTransaction.Failed -> stringRes(R.string.transaction_history_sending_failed)
+                                        is SendTransaction.Success -> {
+                                            stringRes(R.string.transaction_sent)
+                                        }
+
+                                        is SendTransaction.Pending -> {
+                                            stringRes(R.string.transaction_sending)
+                                        }
+
+                                        is SendTransaction.Failed -> {
+                                            stringRes(R.string.transaction_history_sending_failed)
+                                        }
                                     }
                                 }
                             }

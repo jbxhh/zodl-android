@@ -21,4 +21,6 @@ fun AccountUuid.toStorageKeyId(): String = value.toHex()
  * Keystone account's migration never overwrite each other's. Hash collision across two accounts is
  * theoretically possible but negligible; a registry was considered and rejected as unnecessary state.
  */
-fun accountIdOffset(accountKeyId: String): Int = accountKeyId.hashCode() and 0xFFFF
+fun accountIdOffset(accountKeyId: String): Int = accountKeyId.hashCode() and ACCOUNT_ID_OFFSET_MASK
+
+private const val ACCOUNT_ID_OFFSET_MASK = 0xFFFF

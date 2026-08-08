@@ -103,11 +103,25 @@ fun MigrationMessage(
         title = {
             Text(
                 state.title ?: when (state.phase) {
-                    MigrationBannerPhase.COMPLETE -> stringRes(DesignR.string.migrationHome_completeTitle).getValue()
-                    MigrationBannerPhase.IN_PROGRESS -> stringRes(DesignR.string.migration_common_progressTitle).getValue()
-                    MigrationBannerPhase.REQUIRED -> stringRes(DesignR.string.migrationHome_requiredTitle).getValue()
-                    MigrationBannerPhase.READY_TO_SEND -> stringRes(DesignR.string.migrationHome_readyToSendTitle).getValue()
-                    MigrationBannerPhase.ATTENTION -> stringRes(DesignR.string.migrationHome_attentionTitle).getValue()
+                    MigrationBannerPhase.COMPLETE -> {
+                        stringRes(DesignR.string.migrationHome_completeTitle).getValue()
+                    }
+
+                    MigrationBannerPhase.IN_PROGRESS -> {
+                        stringRes(DesignR.string.migration_common_progressTitle).getValue()
+                    }
+
+                    MigrationBannerPhase.REQUIRED -> {
+                        stringRes(DesignR.string.migrationHome_requiredTitle).getValue()
+                    }
+
+                    MigrationBannerPhase.READY_TO_SEND -> {
+                        stringRes(DesignR.string.migrationHome_readyToSendTitle).getValue()
+                    }
+
+                    MigrationBannerPhase.ATTENTION -> {
+                        stringRes(DesignR.string.migrationHome_attentionTitle).getValue()
+                    }
                 }
             )
         },
