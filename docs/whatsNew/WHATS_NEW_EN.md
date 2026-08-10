@@ -14,6 +14,16 @@ directly impact users rather than highlighting other key architectural updates.*
 
 ## [Unreleased]
 
+## [3.9.2 (2370)] - 2026-08-10
+
+### Changed:
+
+- We made Keystone migration signing much faster.
+
+### Fixed:
+
+- We fixed migration UI issues.
+
 ## [3.9.1 (2361)] - 2026-08-08
 
 ### Fixed:
