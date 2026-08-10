@@ -59,6 +59,8 @@ Note that `FIREBASE_DEBUG_JSON_BASE64` and `FIREBASE_RELEASE_JSON_BASE64` are no
 ### Firebase App Distribution deployment
 The [Firebase App Distribution](../.github/workflows/firebase-app-distribution.yml) workflow is manually triggered (`workflow_dispatch`) from the Actions tab.  The branch picker in the "Run workflow" dialog selects which branch is built, and the `variants` input selects which app variants are built and uploaded (`all`, or a comma-separated subset of the seven distributable variants listed in the workflow file).
 
+The Firebase secrets listed below (everything except the repository-level `SLACK_WEBHOOK_URL_WALLET_TEAM`) live in the `firebase-distribution` GitHub environment, which is deliberately separate from the `Deployment` environment used by the Google Play release deployment.  The `firebase-distribution` environment must be created **without a deployment branch policy**: the `Deployment` environment restricts jobs to `main`, `release/*` and release tags, which would block dispatching this workflow for a feature branch, and any-branch dispatch is the whole point of the workflow.
+
 * Secrets
     * `FIREBASE_APP_DIST_DEBUG_KEY_BASE64` - Base64 encoded service account JSON with the Firebase App Distribution Admin role in the debug Firebase project.
     * `FIREBASE_APP_DIST_FOSS_KEY_BASE64` - Base64 encoded service account JSON with the Firebase App Distribution Admin role in the FOSS Firebase project.
@@ -68,3 +70,5 @@ The [Firebase App Distribution](../.github/workflows/firebase-app-distribution.y
     * `SLACK_WEBHOOK_URL_WALLET_TEAM` - Optional Slack incoming webhook URL for the wallet-team channel.  A final best-effort job posts the deploy result there; it is skipped when the secret is unset and cannot fail the workflow run.
 
 When no `version_code` input is provided, the version code defaults to the git commit count of the selected branch (the build's own default).  Release notes default to an auto-generated string containing the variant, branch, and commit.
+
+FOSS variants are built without `google-services.json`: the workflow skips exporting `FIREBASE_DEBUG_JSON_BASE64` / `FIREBASE_RELEASE_JSON_BASE64` for them, because those files belong to the Store Firebase project and applying the Google Services plugin to a FOSS applicationId fails the build.  This matches `scripts/prepare-foss-build.sh`, which removes the same files before FOSS builds in the release workflow.
