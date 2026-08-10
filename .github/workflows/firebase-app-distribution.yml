@@ -8,10 +8,9 @@
 # FIREBASE_APP_DIST_DEBUG_KEY_BASE64 - Base64 encoded service account JSON for the debug Firebase project (secant-android-debug)
 # FIREBASE_APP_DIST_FOSS_KEY_BASE64 - Base64 encoded service account JSON for the FOSS Firebase project (secant-android-foss-debug)
 # FIREBASE_APP_DIST_RELEASE_KEY_BASE64 - Base64 encoded service account JSON for the release Firebase project (secant-android-release)
-# UPLOAD_KEYSTORE_BASE_64 - The upload signing key for the app (release variants only)
-# UPLOAD_KEYSTORE_PASSWORD - The password for UPLOAD_KEYSTORE_BASE_64
-# UPLOAD_KEY_ALIAS - The key alias inside UPLOAD_KEYSTORE_BASE_64
-# UPLOAD_KEY_ALIAS_PASSWORD - The password for the key alias
+# FIREBASE_DEBUG_KEYSTORE_BASE64 - Base64 encoded shared debug keystore (androiddebugkey alias, default passwords) used to
+#                                  sign ALL distributed builds, debug and release alike, so that successive builds keep the
+#                                  same signature and testers can update-install instead of wiping their wallet
 # FIREBASE_DEBUG_JSON_BASE64 - Optional JSON to enable Firebase (e.g. Crashlytics) for debug builds
 # FIREBASE_RELEASE_JSON_BASE64 - Optional JSON to enable Firebase (e.g. Crashlytics) for release builds
 # FLEXA_PUBLISHABLE_KEY - Optional Flexa key embedded into release variants
@@ -207,26 +206,31 @@ jobs:
           mkdir -p app/src/release/
           echo ${FIREBASE_DEBUG_JSON_BASE64} | base64 --decode > app/src/debug/google-services.json
           echo ${FIREBASE_RELEASE_JSON_BASE64} | base64 --decode > app/src/release/google-services.json
-      - name: Export Signing Key
-        if: ${{ steps.variant.outputs.build_type == 'release' }}
+      - name: Install Shared Debug Keystore
         env:
-          # The upload key must be exported using `base64 -w 0 <filename.jks>` for use
-          # as a Github Secrets value; if the key is exported with standard wrapping,
-          # it will fail to import correctly.
-          SIGNING_KEYSTORE_BASE_64: ${{ secrets.UPLOAD_KEYSTORE_BASE_64 }}
-          SIGNING_KEY_PATH: ${{ format('{0}/release.jks', runner.temp) }}
+          # All distributed builds (debug and release build types) are signed with this
+          # shared debug keystore. Ephemeral runners otherwise generate a fresh debug
+          # keystore per run, which would change the app signature on every deploy and
+          # force testers to uninstall (and lose their wallet database) to update.
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.FIREBASE_DEBUG_KEYSTORE_BASE64 }}
         shell: bash
         run: |
-          echo ${SIGNING_KEYSTORE_BASE_64} | base64 --decode > ${SIGNING_KEY_PATH}
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "FIREBASE_DEBUG_KEYSTORE_BASE64 is not configured."
+            echo "Refusing to build with an ephemeral runner-generated keystore: the resulting"
+            echo "signature would differ on every run and testers could never update-install."
+            exit 1
+          fi
+          mkdir -p "$HOME/.android"
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
       - name: Build variant
         timeout-minutes: 30
         env:
           VARIANT: ${{ matrix.variant }}
           VERSION_CODE_OVERRIDE: ${{ inputs.version_code }}
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PATH: ${{ format('{0}/release.jks', runner.temp) }}
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEY_ALIAS_PASSWORD: ${{ secrets.UPLOAD_KEY_ALIAS_PASSWORD }}
+          # Signs release build types with the shared debug keystore installed above,
+          # matching how locally-distributed builds have been signed so far.
+          ORG_GRADLE_PROJECT_IS_SIGN_RELEASE_BUILD_WITH_DEBUG_KEY: true
           ORG_GRADLE_PROJECT_ZCASH_FLEXA_KEY: ${{ secrets.FLEXA_PUBLISHABLE_KEY }}
           ORG_GRADLE_PROJECT_ZCASH_CMC_KEY: ${{ secrets.CMC_PUBLISHABLE_KEY }}
         shell: bash
