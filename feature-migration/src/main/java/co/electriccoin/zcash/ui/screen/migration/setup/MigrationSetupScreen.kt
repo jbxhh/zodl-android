@@ -117,6 +117,7 @@ fun MigrationSetupView(state: MigrationSetupState) {
                 style = ZashiTypography.textSm,
                 color = ZashiColors.Text.textTertiary,
             )
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = stringRes(DesignR.string.migrationSetup_findOutMore).getValue(),
                 style = ZashiTypography.textSm.copy(textDecoration = TextDecoration.Underline),
