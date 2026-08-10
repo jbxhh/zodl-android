@@ -321,33 +321,46 @@ class MigrationKeystoneSignVMTest {
         }
 
     @Test
-    fun failureSheetDismissNavigatesBack() =
+    fun failureSheetDismissOnlyHidesSheet() =
         runTest {
+            val existingPczts =
+                PendingKeystoneMigrationPczts(
+                    requestId = byteArrayOf(0x01),
+                    splitUnsignedPczt = null,
+                    transferUnsignedPczts = listOf(1L to byteArrayOf(0x02)),
+                    roundIndex = 0,
+                    accumulatedSplitSigned = null,
+                    accumulatedPrepSigned = emptyList(),
+                    accumulatedTransferSigned = listOf(1L to byteArrayOf(0x03)),
+                )
             val sdk =
                 mockk<OrchardMigrationSdk>(relaxed = true) {
                     coEvery { keystoneSigningRoundBudget() } returns
                         cash.z.ecc.android.sdk
                             .KeystoneSigningRoundBudget(96, 16, 3)
-                    coEvery { isNoteSplitNeeded() } returns false
-                    coEvery { createUnsignedTransferPczts(any()) } throws RuntimeException("SDK error")
+                    coEvery { buildKeystoneSignBatchQrParts(any(), any(), any(), any()) } throws
+                        RuntimeException("SDK error")
                 }
             val pendingSchedule =
                 PendingMigrationScheduleRepositoryImpl()
                     .apply { set(testAccountKeyId, schedule()) }
-            val pendingPczts = PendingKeystoneMigrationPcztsRepositoryImpl()
+            val pendingPczts =
+                PendingKeystoneMigrationPcztsRepositoryImpl()
+                    .apply { set(testAccountKeyId, existingPczts) }
             val router = FakeNavigationRouter()
             val vm = vm(sdk, pendingSchedule, pendingPczts, router)
 
             advanceUntilIdle()
 
             assertNotNull(vm.failureSheet.value)
-            // onDismiss must call onReject → back() + clear repos.
             vm.failureSheet.value!!
                 .onDismiss
                 .invoke()
 
-            assertEquals(1, router.backCount)
             assertNull(vm.failureSheet.value)
+            assertEquals(0, router.backCount)
+            assertNotNull(pendingSchedule.peek(testAccountKeyId))
+            assertNotNull(pendingPczts.get(testAccountKeyId))
         }
 
     @Test
