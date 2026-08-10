@@ -104,6 +104,14 @@ sealed class RuntimeMessage : HomeMessageData {
 }
 
 /**
+ * Home-banner payload produced by the feature-migration module. A [RuntimeMessage] subclass so it
+ * keeps the always-shown priority the banner had when it lived in ui-lib; abstract (and declared
+ * here, in [RuntimeMessage]'s own package, per the sealed-subclassing rule) because the concrete
+ * data class lives in the feature module — see MigrationContracts.kt.
+ */
+abstract class MigrationHomeMessage : RuntimeMessage()
+
+/**
  * Message which always is displayed only if previous message was lower priority.
  */
 sealed interface Prioritized : HomeMessageData

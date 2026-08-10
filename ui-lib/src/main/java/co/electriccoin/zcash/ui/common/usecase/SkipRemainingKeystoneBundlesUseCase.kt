@@ -1,5 +1,6 @@
 package co.electriccoin.zcash.ui.common.usecase
 
+import cash.z.ecc.android.sdk.model.ZcashNetwork
 import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.provider.VotingCryptoClient
 import co.electriccoin.zcash.ui.common.repository.VotingRecoveryRepository
@@ -46,6 +47,7 @@ class SkipRemainingKeystoneBundlesUseCase(
             val signedWeight = recovery.bundleWeights.take(keepCount).sum()
             val skippedWeight = recovery.bundleWeights.subList(keepCount, bundleCount).sum()
 
+            val networkId = synchronizerProvider.getSynchronizer().network.toVotingNetworkId()
             val votingDbPath =
                 File(synchronizerProvider.getVotingWalletDbPath())
                     .parentFile
@@ -56,7 +58,7 @@ class SkipRemainingKeystoneBundlesUseCase(
             check(dbHandle != 0L) { "Failed to open voting DB at $votingDbPath" }
 
             try {
-                votingCryptoClient.setWalletId(dbHandle, selectedAccount.sdkAccount.accountUuid.toString())
+                votingCryptoClient.setWalletId(dbHandle, selectedAccount.sdkAccount.accountUuid.toString(), networkId)
                 // If the snapshot write below fails, retrying this DB delete is safe: deleting rows at or after
                 // keepCount is idempotent once those rows are already gone. The reverse order would hide the retry.
                 votingCryptoClient.deleteSkippedBundles(
@@ -90,3 +92,5 @@ data class SkippedKeystoneBundles(
     val signedWeight: Long,
     val skippedWeight: Long
 )
+
+private fun ZcashNetwork.toVotingNetworkId() = if (isMainnet()) 1 else 0

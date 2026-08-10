@@ -30,6 +30,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(projects.preferenceApiLib)
 
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
+
     androidTestImplementation(libs.bundles.androidx.test)
     androidTestImplementation(libs.kotlinx.coroutines.test)
 

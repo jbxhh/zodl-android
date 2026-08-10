@@ -1,11 +1,14 @@
 package co.electriccoin.zcash.ui.common.repository
 
+import cash.z.ecc.android.sdk.model.Proposal
+import cash.z.ecc.android.sdk.model.Zatoshi
 import cash.z.ecc.android.sdk.model.ZecSend
 import co.electriccoin.zcash.spackle.Twig
 import co.electriccoin.zcash.ui.common.datasource.AccountDataSource
 import co.electriccoin.zcash.ui.common.datasource.ExactInputSwapTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.ExactOutputSwapTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.InsufficientFundsException
+import co.electriccoin.zcash.ui.common.datasource.MigrationSweepTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.ProposalDataSource
 import co.electriccoin.zcash.ui.common.datasource.RegularTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.TransactionProposal
@@ -43,6 +46,13 @@ interface ZashiProposalRepository {
 
     @Throws(TransactionProposalNotCreatedException::class, InsufficientFundsException::class)
     suspend fun createShieldProposal()
+
+    /**
+     * Adopt an already-built IMMEDIATE send-max migration [proposal] as the current transaction, so
+     * the migration sweep goes through the shared submit + Transaction Progress pipeline exactly
+     * like a regular send (mirrors [KeystoneProposalRepository.setMigrationSweepProposal]).
+     */
+    fun setMigrationSweepProposal(proposal: Proposal, amount: Zatoshi)
 
     suspend fun submit(): SubmitResult
 
@@ -109,6 +119,10 @@ class ZashiProposalRepositoryImpl(
                 account = accountDataSource.getSelectedAccount(),
             )
         }
+    }
+
+    override fun setMigrationSweepProposal(proposal: Proposal, amount: Zatoshi) {
+        transactionProposal.update { MigrationSweepTransactionProposal(amount, proposal) }
     }
 
     @Suppress("TooGenericExceptionCaught", "UseCheckOrError")

@@ -115,8 +115,9 @@ sealed interface VotingErrors {
  * Exception wrapper used at coroutine boundaries that already map failures to voting error UI.
  */
 class VotingSubmissionRecoverableException(
-    val failure: VotingErrors
-) : Exception(failure.userMessage)
+    val failure: VotingErrors,
+    cause: Throwable? = null
+) : Exception(failure.userMessage, cause)
 
 /**
  * Result of a fast, non-blocking probe for an already-cached transaction hash.

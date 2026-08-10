@@ -37,19 +37,23 @@ class VotingProofPrecomputeRepositoryTest {
 
             assertEquals(VotingDelegationPirPrecomputeResult(cachedCount = 2, fetchedCount = 3), result)
             assertEquals(
-                listOf(ResolveCall(endpoints = listOf("https://pir-a", "https://pir-b"), expectedSnapshotHeight = 123L)),
+                listOf(
+                    ResolveCall(
+                        endpoints = listOf("https://pir-a", "https://pir-b"),
+                        expectedSnapshotHeight = 123L
+                    )
+                ),
                 pirSnapshotResolver.calls
             )
             assertEquals(
                 listOf(
                     CryptoCall.OpenVotingDb("/tmp/voting.sqlite3"),
-                    CryptoCall.SetWalletId(dbHandle = DB_HANDLE, walletId = "wallet-id"),
+                    CryptoCall.SetWalletId(dbHandle = DB_HANDLE, walletId = "wallet-id", networkId = 0),
                     CryptoCall.PrecomputeDelegationPir(
                         dbHandle = DB_HANDLE,
                         roundId = "round-id",
                         bundleIndex = 1,
                         pirServerUrl = "https://pir.example",
-                        networkId = 0,
                         notesJson = "[notes]"
                     ),
                     CryptoCall.CloseVotingDb(DB_HANDLE)
@@ -93,7 +97,8 @@ class VotingProofPrecomputeRepositoryTest {
         runBlocking {
             val cryptoClient =
                 FakeVotingCryptoClient(
-                    precomputeFailure = IllegalStateException("refusing to regress round phase from PROVED to DELEGATION")
+                    precomputeFailure =
+                        IllegalStateException("refusing to regress round phase from PROVED to DELEGATION")
                 )
             val scope = CoroutineScope(coroutineContext + SupervisorJob())
             val repository =
@@ -192,7 +197,8 @@ private class FakeVotingCryptoClient(
                     calls +=
                         CryptoCall.SetWalletId(
                             dbHandle = args.valueAt(0),
-                            walletId = args.valueAt(1)
+                            walletId = args.valueAt(1),
+                            networkId = args.valueAt(2)
                         )
                     Unit
                 }
@@ -204,8 +210,7 @@ private class FakeVotingCryptoClient(
                             roundId = args.valueAt(1),
                             bundleIndex = args.valueAt(2),
                             pirServerUrl = args.valueAt(3),
-                            networkId = args.valueAt(4),
-                            notesJson = args.valueAt(5)
+                            notesJson = args.valueAt(4)
                         )
                     precomputeFailure?.let { throw it }
                     VotingDelegationPirPrecomputeResult(cachedCount = 2, fetchedCount = 3)
@@ -240,7 +245,8 @@ private sealed interface CryptoCall {
 
     data class SetWalletId(
         val dbHandle: Long,
-        val walletId: String
+        val walletId: String,
+        val networkId: Int
     ) : CryptoCall
 
     data class PrecomputeDelegationPir(
@@ -248,7 +254,6 @@ private sealed interface CryptoCall {
         val roundId: String,
         val bundleIndex: Int,
         val pirServerUrl: String,
-        val networkId: Int,
         val notesJson: String
     ) : CryptoCall
 

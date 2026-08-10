@@ -30,6 +30,7 @@ import co.electriccoin.zcash.spackle.Twig
 import co.electriccoin.zcash.ui.common.compose.BindCompLocalProvider
 import co.electriccoin.zcash.ui.common.compose.DisableScreenTimeout
 import co.electriccoin.zcash.ui.common.extension.setContentCompat
+import co.electriccoin.zcash.ui.common.migration.MigrationAppHooks
 import co.electriccoin.zcash.ui.common.viewmodel.AuthenticationUIState
 import co.electriccoin.zcash.ui.common.viewmodel.AuthenticationViewModel
 import co.electriccoin.zcash.ui.common.viewmodel.OldHomeViewModel
@@ -76,6 +77,7 @@ class MainActivity : FragmentActivity() {
     val configurationOverrideFlow = MutableStateFlow<ConfigurationOverride?>(null)
 
     private val navigationRouter: NavigationRouter by inject()
+    private val migrationAppHooks: MigrationAppHooks by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,6 +94,7 @@ class MainActivity : FragmentActivity() {
         if (intent.data != null) {
             navigationRouter.forward(ThirdPartyScan)
         }
+        handleMigrationIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -100,12 +103,24 @@ class MainActivity : FragmentActivity() {
         if (intent.data != null) {
             navigationRouter.forward(ThirdPartyScan)
         }
+        handleMigrationIntent(intent)
     }
+
+    private fun handleMigrationIntent(intent: Intent): Boolean = migrationAppHooks.handleIntent(intent, lifecycleScope)
 
     override fun onStart() {
         Twig.debug { "Activity state: Start" }
         authenticationViewModel.runAuthenticationRequiredCheck()
+        checkMigrationRecoveryOnStart()
         super.onStart()
+    }
+
+    // RootNavGraph's secretState-driven redirect only re-fires when secretState changes
+    // identity, so it won't catch "a transfer became overdue while backgrounded, already
+    // unlocked." onStart() fires on every foreground transition and catches that case —
+    // isSyncBlocked() has already stopped sync regardless, this is routing only.
+    private fun checkMigrationRecoveryOnStart() {
+        lifecycleScope.launch { migrationAppHooks.checkRecovery() }
     }
 
     override fun onStop() {

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,20 +22,23 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import co.electriccoin.zcash.ui.common.appbar.ZashiMainTopAppBarState.AccountType
 import co.electriccoin.zcash.ui.design.R
 import co.electriccoin.zcash.ui.design.component.IconButtonState
+import co.electriccoin.zcash.ui.design.component.ShimmerableImage
+import co.electriccoin.zcash.ui.design.component.ShimmerableText
 import co.electriccoin.zcash.ui.design.component.Spacer
 import co.electriccoin.zcash.ui.design.component.ZashiIconButton
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
+import co.electriccoin.zcash.ui.design.component.rememberZashiShimmer
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
+import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
+import com.valentinilk.shimmer.shimmer
 
 @Composable
 fun ZashiTopAppBarWithAccountSelection(
@@ -55,7 +57,10 @@ fun ZashiTopAppBarWithAccountSelection(
                 }
                 ZashiIconButton(
                     state.moreButton,
-                    modifier = Modifier.size(40.dp).testTag(ZashiTopAppBarWithAccountSelectionTag.MORE)
+                    modifier =
+                        Modifier
+                            .size(40.dp)
+                            .testTag(ZashiTopAppBarWithAccountSelectionTag.MORE)
                 )
                 Spacer(Modifier.width(20.dp))
             },
@@ -67,50 +72,52 @@ fun ZashiTopAppBarWithAccountSelection(
 }
 
 @Composable
-private fun AccountSwitch(state: AccountSwitchState) {
+private fun AccountSwitch(state: AccountSwitchState?) {
+    val onAccountTypeClick = state?.onAccountTypeClick
     val clickModifier =
-        if (state.onAccountTypeClick != null) {
-            Modifier.clickable(onClick = state.onAccountTypeClick)
+        if (onAccountTypeClick != null) {
+            Modifier.clickable(onClick = onAccountTypeClick)
         } else {
             Modifier
+        }
+
+    val painter =
+        when (state?.accountType) {
+            AccountType.ZASHI -> painterResource(R.drawable.ic_item_zashi)
+            AccountType.KEYSTONE -> painterResource(R.drawable.ic_item_keystone)
+            null -> null
+        }
+    val text =
+        when (state?.accountType) {
+            AccountType.ZASHI -> stringResource(co.electriccoin.zcash.ui.R.string.accounts_zashi)
+            AccountType.KEYSTONE -> stringResource(co.electriccoin.zcash.ui.R.string.accounts_keystone)
+            null -> null
         }
 
     Row(
         modifier =
             Modifier
                 .defaultMinSize(40.dp, 40.dp)
+                .then(if (state == null) Modifier.shimmer(rememberZashiShimmer()) else Modifier)
                 .padding(start = 16.dp)
                 .clip(RoundedCornerShape(8.dp))
                 then clickModifier then Modifier.padding(start = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
+        ShimmerableImage(
             modifier = Modifier.size(32.dp),
-            painter =
-                painterResource(
-                    when (state.accountType) {
-                        AccountType.ZASHI -> R.drawable.ic_item_zashi
-                        AccountType.KEYSTONE -> R.drawable.ic_item_keystone
-                    }
-                ),
-            contentDescription = null
+            painter = painter
         )
         Spacer(8.dp)
-        Text(
-            when (state.accountType) {
-                AccountType.ZASHI -> stringResource(co.electriccoin.zcash.ui.R.string.accounts_zashi)
-                AccountType.KEYSTONE -> stringResource(co.electriccoin.zcash.ui.R.string.accounts_keystone)
-            },
-            style =
-                TextStyle(
-                    fontSize = 24.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.W600,
-                    color = ZashiColors.Text.textPrimary,
-                    textAlign = TextAlign.Center,
-                )
+        ShimmerableText(
+            text = text,
+            shimmerText = stringResource(co.electriccoin.zcash.ui.R.string.accounts_zashi),
+            style = ZashiTypography.header6,
+            fontWeight = FontWeight.SemiBold,
+            color = ZashiColors.Text.textPrimary,
+            textAlign = TextAlign.Center,
         )
-        if (state.onAccountTypeClick != null) {
+        if (onAccountTypeClick != null) {
             Spacer(Modifier.width(8.dp))
             Image(
                 painter = painterResource(R.drawable.ic_app_bar_arrow_down),
@@ -120,19 +127,6 @@ private fun AccountSwitch(state: AccountSwitchState) {
         }
     }
 }
-
-data class ZashiMainTopAppBarState(
-    val accountSwitchState: AccountSwitchState,
-    val balanceVisibilityButton: IconButtonState,
-    val moreButton: IconButtonState
-) {
-    enum class AccountType { ZASHI, KEYSTONE }
-}
-
-data class AccountSwitchState(
-    val onAccountTypeClick: (() -> Unit)?,
-    val accountType: AccountType,
-)
 
 object ZashiTopAppBarWithAccountSelectionTag {
     const val MORE = "HOME_MORE"

@@ -20,18 +20,19 @@ import cash.z.ecc.android.sdk.model.Zatoshi
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.wallet.ExchangeRateState
 import co.electriccoin.zcash.ui.design.component.BlankSurface
+import co.electriccoin.zcash.ui.design.component.ShimmerTextPlaceholder
 import co.electriccoin.zcash.ui.design.component.Spacer
 import co.electriccoin.zcash.ui.design.component.StyledBalance
 import co.electriccoin.zcash.ui.design.component.StyledBalanceDefaults
+import co.electriccoin.zcash.ui.design.component.rememberZashiShimmer
 import co.electriccoin.zcash.ui.design.newcomponent.PreviewScreens
 import co.electriccoin.zcash.ui.design.theme.ZcashTheme
 import co.electriccoin.zcash.ui.design.theme.balances.LocalBalancesAvailable
 import co.electriccoin.zcash.ui.design.theme.colors.ZashiColors
 import co.electriccoin.zcash.ui.design.theme.typography.ZashiTypography
-import co.electriccoin.zcash.ui.design.util.stringRes
-import co.electriccoin.zcash.ui.fixture.ObserveFiatCurrencyResultFixture
 import co.electriccoin.zcash.ui.screen.balances.BalanceTag.BALANCE_VIEWS
 import co.electriccoin.zcash.ui.screen.exchangerate.widget.StyledExchangeBalance
+import com.valentinilk.shimmer.shimmer
 
 @Composable
 fun BalanceWidget(state: BalanceWidgetState, modifier: Modifier = Modifier) {
@@ -63,18 +64,18 @@ fun BalanceWidget(state: BalanceWidgetState, modifier: Modifier = Modifier) {
             BalanceWidgetButton(it)
         }
 
-        state.exchangeRate?.let {
+        if (state.exchangeRate != null) {
             if (state.exchangeRate is ExchangeRateState.Data) {
                 Spacer(12.dp)
             }
-            StyledExchangeBalance(state = it, zatoshi = state.totalBalance)
+            StyledExchangeBalance(state = state.exchangeRate, zatoshi = state.totalBalance)
         }
     }
 }
 
 @Composable
 fun BalanceWidgetHeader(
-    zatoshi: Zatoshi,
+    zatoshi: Zatoshi?,
     modifier: Modifier = Modifier,
     isHideBalances: Boolean = LocalBalancesAvailable.current.not(),
     showDust: Boolean = true,
@@ -89,42 +90,41 @@ fun BalanceWidgetHeader(
             colorFilter = ColorFilter.tint(ZashiColors.Text.textPrimary)
         )
         Spacer(6.dp)
-        StyledBalance(
-            showDust = showDust,
-            balance = zatoshi,
-            isHideBalances = isHideBalances,
-            textStyle =
-                StyledBalanceDefaults.textStyles(
-                    mostSignificantPart = ZashiTypography.header2.copy(fontWeight = FontWeight.SemiBold),
-                    leastSignificantPart = ZashiTypography.textXs.copy(fontWeight = FontWeight.SemiBold),
-                )
-        )
+
+        if (zatoshi == null) {
+            ShimmerTextPlaceholder(
+                sampleText = "0.000",
+                style = ZashiTypography.header2.copy(fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.shimmer(rememberZashiShimmer()),
+            )
+        } else {
+            StyledBalance(
+                showDust = showDust,
+                balance = zatoshi,
+                isHideBalances = isHideBalances,
+                textStyle =
+                    StyledBalanceDefaults.textStyles(
+                        mostSignificantPart = ZashiTypography.header2.copy(fontWeight = FontWeight.SemiBold),
+                        leastSignificantPart = ZashiTypography.textXs.copy(fontWeight = FontWeight.SemiBold),
+                    )
+            )
+        }
     }
 }
 
 @PreviewScreens
 @Composable
-private fun BalanceWidgetPreview() {
+private fun LoadingPreview() = Preview(BalanceWidgetState.loadingPreview)
+
+@PreviewScreens
+@Composable
+private fun CompletePreview() = Preview(BalanceWidgetState.completePreview)
+
+@Composable
+private fun Preview(state: BalanceWidgetState) {
     ZcashTheme(forceDarkMode = false) {
-        BlankSurface(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            BalanceWidget(
-                state =
-                    BalanceWidgetState(
-                        totalBalance = Zatoshi(1234567891234567L),
-                        button =
-                            BalanceButtonState(
-                                icon = R.drawable.ic_help,
-                                text = stringRes("text"),
-                                amount = Zatoshi(1000),
-                                onClick = {}
-                            ),
-                        exchangeRate = ObserveFiatCurrencyResultFixture.new(),
-                        showDust = true
-                    ),
-                modifier = Modifier,
-            )
+        BlankSurface(modifier = Modifier.fillMaxWidth()) {
+            BalanceWidget(state)
         }
     }
 }

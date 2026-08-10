@@ -19,6 +19,6 @@ class IsScreenTimeoutDisabledDuringRestoreUseCase(
         }.distinctUntilChanged()
 
     companion object {
-        private val KEEP_OPEN_STATES = listOf(WalletRestoringState.RESTORING, WalletRestoringState.SYNCING)
+        private val KEEP_OPEN_STATES = listOf(WalletRestoringState.RESTORING, WalletRestoringState.RESYNCING)
     }
 }

@@ -86,7 +86,7 @@ class PrepareVotingRoundUseCase(
 
             val preparationResult =
                 try {
-                    votingCryptoClient.setWalletId(dbHandle, accountUuid.toString())
+                    votingCryptoClient.setWalletId(dbHandle, accountUuid.toString(), networkId)
                     var existingRoundState = votingCryptoClient.getRoundState(dbHandle, roundId)
                     var effectiveRecoverySnapshot = recoverySnapshot
                     // iOS `verifyWitnesses` (VotingStore+Delegation.swift:96-99) clears stale Rust
@@ -238,8 +238,7 @@ class PrepareVotingRoundUseCase(
                             val hotkey =
                                 votingCryptoClient.generateHotkey(
                                     dbHandle = dbHandle,
-                                    roundId = roundId,
-                                    seed = hotkeySeed
+                                    storedSecret = hotkeySeed
                                 )
                             votingRecoveryRepository.storeHotkey(
                                 accountUuid = accountUuidString,
@@ -286,10 +285,12 @@ class PrepareVotingRoundUseCase(
                                     hotkeySeed = hotkeySeed,
                                     seedFingerprint =
                                         requireNotNull(selectedAccount.sdkAccount.seedFingerprint) {
-                                            "Software wallet account is missing seed fingerprint for voting round $roundId"
+                                            "Software wallet account is missing seed fingerprint " +
+                                                "for voting round $roundId"
                                         },
                                     roundName = session.title,
-                                    pirEndpoints = sessionContext.serviceConfig.pirEndpoints.map { endpoint -> endpoint.url },
+                                    pirEndpoints =
+                                        sessionContext.serviceConfig.pirEndpoints.map { endpoint -> endpoint.url },
                                     expectedSnapshotHeight = session.snapshotHeight
                                 )
                         }.onFailure { throwable ->

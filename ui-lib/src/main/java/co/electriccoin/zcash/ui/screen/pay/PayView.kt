@@ -74,7 +74,6 @@ import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.design.util.stringResByDynamicNumber
 import co.electriccoin.zcash.ui.design.util.stringResByNumber
 import co.electriccoin.zcash.ui.design.util.withStyle
-import co.electriccoin.zcash.ui.fixture.BalanceStateFixture
 import co.electriccoin.zcash.ui.fixture.ZashiMainTopAppBarStateFixture
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidget
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidgetState
@@ -408,7 +407,7 @@ private fun Preview() {
     ZcashTheme {
         PayView(
             appBarState = ZashiMainTopAppBarStateFixture.new(),
-            balanceState = BalanceStateFixture.new(),
+            balanceState = BalanceWidgetState.emptyPreview,
             state =
                 PayState(
                     asset =
@@ -465,7 +464,7 @@ private fun ErrorPreview() {
     ZcashTheme {
         PayView(
             appBarState = ZashiMainTopAppBarStateFixture.new(),
-            balanceState = BalanceStateFixture.new(),
+            balanceState = BalanceWidgetState.emptyPreview,
             state =
                 PayState(
                     asset =

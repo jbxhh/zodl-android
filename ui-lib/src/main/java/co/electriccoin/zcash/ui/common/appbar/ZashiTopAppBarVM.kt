@@ -11,7 +11,6 @@ import co.electriccoin.zcash.ui.NavigationRouter
 import co.electriccoin.zcash.ui.common.model.DistributionDimension
 import co.electriccoin.zcash.ui.common.model.KeystoneAccount
 import co.electriccoin.zcash.ui.common.model.WalletAccount
-import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.provider.GetVersionInfoProvider
 import co.electriccoin.zcash.ui.common.repository.ConfigurationRepository
 import co.electriccoin.zcash.ui.common.usecase.GetWalletAccountsUseCase
@@ -58,23 +57,21 @@ class ZashiTopAppBarVM(
                 )
         )
 
-    private fun createState(
-        accounts: List<WalletAccount>?,
-        isHideBalances: Boolean?
-    ): ZashiMainTopAppBarState {
+    private fun createState(accounts: List<WalletAccount>?, isHideBalances: Boolean?): ZashiMainTopAppBarState {
         val current = accounts?.firstOrNull { it.isSelected }
-
         return ZashiMainTopAppBarState(
             accountSwitchState =
-                AccountSwitchState(
-                    accountType =
-                        when (current) {
-                            is KeystoneAccount -> ZashiMainTopAppBarState.AccountType.KEYSTONE
-                            is ZashiAccount -> ZashiMainTopAppBarState.AccountType.ZASHI
-                            else -> ZashiMainTopAppBarState.AccountType.ZASHI
-                        },
-                    onAccountTypeClick = ::onAccountTypeClicked,
-                ),
+                accounts?.let {
+                    AccountSwitchState(
+                        onAccountTypeClick = ::onAccountTypeClicked,
+                        accountType =
+                            if (current is KeystoneAccount) {
+                                ZashiMainTopAppBarState.AccountType.KEYSTONE
+                            } else {
+                                ZashiMainTopAppBarState.AccountType.ZASHI
+                            },
+                    )
+                },
             balanceVisibilityButton =
                 IconButtonState(
                     icon =
@@ -97,7 +94,7 @@ class ZashiTopAppBarVM(
                     icon = co.electriccoin.zcash.ui.R.drawable.ic_home_more,
                     onClick = { onInfoClick(accounts) },
                     onDoubleClick = { navigationRouter.forward(MoreArgs) }.takeIf { BuildConfig.DEBUG },
-                    contentDescription = stringRes(co.electriccoin.zcash.ui.design.R.string.general_more)
+                    contentDescription = stringRes(R.string.general_more)
                 )
         )
     }

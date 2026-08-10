@@ -4,7 +4,9 @@ private fun List<ByteArray>.contentListEquals(other: List<ByteArray>) =
     size == other.size && indices.all { this[it].contentEquals(other[it]) }
 
 private fun List<ByteArray>.contentListHashCode() =
-    fold(1) { acc, value -> 31 * acc + value.contentHashCode() }
+    fold(1) { acc, value -> HASH_MULTIPLIER * acc + value.contentHashCode() }
+
+private const val HASH_MULTIPLIER = 31
 
 data class VotingBundleSetupResult(
     val bundleCount: Int,
@@ -13,19 +15,19 @@ data class VotingBundleSetupResult(
 )
 
 data class VotingHotkey(
-    val publicKey: ByteArray,
+    val rawAddress: ByteArray,
     val address: String
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is VotingHotkey) return false
 
-        return publicKey.contentEquals(other.publicKey) &&
+        return rawAddress.contentEquals(other.rawAddress) &&
             address == other.address
     }
 
     override fun hashCode(): Int {
-        var result = publicKey.contentHashCode()
+        var result = rawAddress.contentHashCode()
         result = 31 * result + address.hashCode()
         return result
     }
@@ -110,7 +112,7 @@ data class VotingVoteCommitment(
     val voteAuthorityNoteNew: ByteArray,
     val voteCommitment: ByteArray,
     val rVpk: ByteArray,
-    val alphaV: ByteArray,
+    val voteAuthSig: ByteArray,
     val anchorHeight: Int,
     val encSharesJson: String,
     val rawBundleJson: String
@@ -124,6 +126,20 @@ data class VotingVoteCommitment(
 
     override fun hashCode(): Int = voteCommitment.contentHashCode()
 }
+
+/**
+ * Recovered `vote::commit` result for an already-committed vote, as returned by
+ * `recoverCommittedVoteNative` once [VotingCryptoClient.recordVcPosition] has recorded its
+ * confirmed vote-commitment-tree position. [sharePayloadsJson] carries the crate-computed share
+ * payloads for this vote so callers reconstruct delegation shares from recovery state instead of
+ * decoding a stored commitment bundle themselves.
+ */
+data class VotingCommittedVoteRecord(
+    val bundleIndex: Int,
+    val proposalId: Int,
+    val vcTreePosition: Long,
+    val sharePayloadsJson: String
+)
 
 sealed interface VotingTxHashLookup {
     data object NotFound : VotingTxHashLookup

@@ -7,6 +7,7 @@ import cash.z.ecc.sdk.ANDROID_STATE_FLOW_TIMEOUT
 import co.electriccoin.zcash.ui.R
 import co.electriccoin.zcash.ui.common.datasource.ExactInputSwapTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.ExactOutputSwapTransactionProposal
+import co.electriccoin.zcash.ui.common.datasource.MigrationSweepTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.RegularTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.SendTransactionProposal
 import co.electriccoin.zcash.ui.common.datasource.ShieldTransactionProposal
@@ -123,6 +124,10 @@ class TransactionProgressVM(
                         stringRes(R.string.swapAndPay_sendingInfo).withStyle()
                     }
 
+                    is MigrationSweepTransactionProposal -> {
+                        stringRes("Your ZEC is being migrated to\nIronwood...").withStyle()
+                    }
+
                     else -> {
                         styledStringResource(
                             R.string.send_sendingInfo,
@@ -169,6 +174,10 @@ class TransactionProgressVM(
 
                     is ExactOutputSwapTransactionProposal -> {
                         stringRes(R.string.swapAndPay_successPayInfo).withStyle()
+                    }
+
+                    is MigrationSweepTransactionProposal -> {
+                        stringRes("Your ZEC was successfully\nmigrated to Ironwood.").withStyle()
                     }
 
                     else -> {
@@ -226,6 +235,14 @@ class TransactionProgressVM(
                         }
                     }
 
+                    is MigrationSweepTransactionProposal -> {
+                        ButtonState(
+                            text = stringRes(R.string.general_close),
+                            onClick = ::onCloseClick,
+                            style = ButtonStyle.PRIMARY
+                        )
+                    }
+
                     else -> {
                         ButtonState(
                             text = stringRes(R.string.general_close),
@@ -249,8 +266,11 @@ class TransactionProgressVM(
             background = PENDING,
             title =
                 when (proposal) {
+                    // Same shape as this block's RegularTransactionProposal/default arm — a
+                    // send-max sweep has no destination/memo of its own to show.
                     is Zip321TransactionProposal,
-                    is RegularTransactionProposal -> {
+                    is RegularTransactionProposal,
+                    is MigrationSweepTransactionProposal -> {
                         stringRes(R.string.send_pendingTitle)
                     }
 
@@ -269,8 +289,11 @@ class TransactionProgressVM(
             subtitle =
                 result.pendingDescription()
                     ?: when (proposal) {
+                        // Same shape as this block's RegularTransactionProposal/default arm — a
+                        // send-max sweep has no destination/memo of its own to show.
                         is Zip321TransactionProposal,
-                        is RegularTransactionProposal -> {
+                        is RegularTransactionProposal,
+                        is MigrationSweepTransactionProposal -> {
                             stringRes(R.string.send_pendingInfo)
                         }
 

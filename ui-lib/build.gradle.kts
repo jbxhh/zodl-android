@@ -29,6 +29,13 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        // Android SDK stubs (e.g. android.util.Log, used by Twig) throw by default under plain
+        // JVM unit tests instead of no-oping — needed so ViewModel logging doesn't crash tests
+        // that don't otherwise touch Android framework classes.
+        unitTests.isReturnDefaultValues = true
+    }
+
     composeOptions {
         kotlinCompilerExtensionVersion = libs.androidx.compose.compiler.get().versionConstraint.displayName
     }

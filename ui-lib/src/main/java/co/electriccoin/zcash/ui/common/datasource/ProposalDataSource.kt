@@ -275,10 +275,10 @@ class ProposalDataSourceImpl(
     @Suppress("CyclomaticComplexMethod", "TooGenericExceptionCaught")
     private suspend fun submitTransactionInternal(
         logTag: String,
-        block: suspend (SdkSynchronizer) -> List<CreatedTransaction>
+        block: suspend (Synchronizer) -> List<CreatedTransaction>
     ): SubmitResult =
         withContext(Dispatchers.IO) {
-            val synchronizer = synchronizerProvider.getSynchronizer() as SdkSynchronizer
+            val synchronizer = synchronizerProvider.getSynchronizer()
             val transactions = block(synchronizer)
 
             if (transactions.isEmpty()) {
@@ -305,14 +305,18 @@ class ProposalDataSourceImpl(
             Twig.debug { "Internal transaction submit results: $submitResults" }
 
             val result = submitResults.toSubmitResult()
-            synchronizer.refreshTransactions()
-            synchronizer.refreshAllBalances()
+
+            if (synchronizer is SdkSynchronizer) {
+                synchronizer.refreshTransactions()
+                synchronizer.refreshAllBalances()
+            }
+
             Twig.debug { "Transaction submit result: $result" }
             result
         }
 
     private suspend fun submitCreatedTransactions(
-        synchronizer: SdkSynchronizer,
+        synchronizer: Synchronizer,
         transactions: List<CreatedTransaction>,
         endpoints: List<LightWalletEndpoint>,
         logTag: String
@@ -515,6 +519,22 @@ data class ExactOutputSwapTransactionProposal(
     override val proposal: Proposal,
     override val quote: SwapQuote,
 ) : SwapTransactionProposal
+
+/**
+ * IMMEDIATE-mode migration send-max: an ordinary send proposal (see
+ * [cash.z.ecc.android.sdk.OrchardMigrationSdk.proposeImmediateMigration]) sweeping all spendable
+ * Orchard funds into this account's own Ironwood receiver. There is no destination/memo to
+ * validate, only an already-built [proposal].
+ *
+ * Both account types adopt it into the same shared submit pipeline every other send uses (see
+ * `MigrationReviewVM.onConfirmImmediate`): a Keystone account routes it through the external-signer
+ * QR flow, a software-key (Zashi) account through [ZashiProposalRepository.submit]. Either way the
+ * generic Transaction Progress screen renders its sending/success states.
+ */
+data class MigrationSweepTransactionProposal(
+    val amount: Zatoshi,
+    override val proposal: Proposal,
+) : TransactionProposal
 
 private const val DEFAULT_SHIELDING_THRESHOLD = 100000L
 private const val MULTI_SUBMIT_TAG = "[MultiSubmit]"

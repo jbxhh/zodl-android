@@ -129,8 +129,10 @@ internal fun VoteSubmissionBottomSection(state: VoteConfirmSubmissionState) {
     }
 }
 
+private const val DELEGATION_PROGRESS_WEIGHT = 0.3f
+
 private fun VoteConfirmSubmissionState.submissionProgress(): Float {
-    val delegationWeight = 0.3f
+    val delegationWeight = DELEGATION_PROGRESS_WEIGHT
     return when (val status = status) {
         is VoteSubmissionStatus.Authorizing -> {
             if (includesAuthorizationProgress) {

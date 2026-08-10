@@ -44,7 +44,7 @@ class WalletViewModel(
                 } else {
                     combine(
                         synchronizer.fullyScannedHeight,
-                        synchronizer.walletBalances,
+                        synchronizerProvider.walletBalances,
                         walletRepository.isIronwoodAnnouncementShown,
                     ) { scannedHeight, balances, isShown ->
                         val activationHeight = IronwoodActivation.heightFor(synchronizer.network)

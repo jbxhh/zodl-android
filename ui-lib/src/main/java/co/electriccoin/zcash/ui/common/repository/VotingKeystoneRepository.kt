@@ -183,36 +183,33 @@ class VotingKeystoneRepositoryImpl(
 
             val (signingBundle, pendingPrecomputeRequest) =
                 try {
-                    votingCryptoClient.setWalletId(dbHandle, selectedAccount.sdkAccount.accountUuid.toString())
+                    votingCryptoClient.setWalletId(
+                        dbHandle,
+                        selectedAccount.sdkAccount.accountUuid.toString(),
+                        networkId
+                    )
                     // Keystone signing starts by building a governance PCZT. Once Rust
                     // advances past delegation, rebuilding it would regress the round phase.
                     val roundState = votingCryptoClient.getRoundState(dbHandle, roundId)
                     if (!roundState?.phase.canBuildGovernancePczt()) {
                         throw VotingKeystoneRoundPhaseAdvancedException(roundId, roundState?.phase)
                     }
-                    val witnessesJson =
-                        votingCryptoClient.generateNoteWitnessesJson(
-                            dbHandle = dbHandle,
-                            roundId = roundId,
-                            bundleIndex = bundleIndex,
-                            walletDbPath = walletDbPath,
-                            networkId = networkId,
-                            notesJson = allNotesJson
-                        )
+                    votingCryptoClient.generateNoteWitnessesJson(
+                        dbHandle = dbHandle,
+                        roundId = roundId,
+                        bundleIndex = bundleIndex,
+                        walletDbPath = walletDbPath,
+                        networkId = networkId,
+                        notesJson = allNotesJson
+                    )
                     val fvkBytes = votingCryptoClient.extractOrchardFvkFromUfvk(ufvk, networkId)
-                    val hotkeyRawAddress =
-                        votingCryptoClient.deriveHotkeyRawAddress(
-                            hotkeySeed = hotkeySeed,
-                            networkId = networkId
-                        )
                     val governancePczt =
                         votingCryptoClient.buildGovernancePczt(
                             dbHandle = dbHandle,
                             roundId = roundId,
                             bundleIndex = bundleIndex,
                             fvkBytes = fvkBytes,
-                            hotkeyRawAddress = hotkeyRawAddress,
-                            networkId = networkId,
+                            hotkeySeed = hotkeySeed,
                             accountIndex = accountIndex,
                             notesJson = allNotesJson,
                             seedFingerprint = seedFingerprint,
@@ -328,7 +325,7 @@ class VotingKeystoneRepositoryImpl(
         }
 
     private fun ByteArray.toLowerHex(): String =
-        joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and BYTE_MASK) }
 
     private suspend fun getHotkeySeed(
         accountUuid: String,
@@ -379,5 +376,6 @@ class VotingKeystoneRepositoryImpl(
 
     private companion object {
         const val TAG = "VotingKeystoneRepository"
+        const val BYTE_MASK = 0xff
     }
 }

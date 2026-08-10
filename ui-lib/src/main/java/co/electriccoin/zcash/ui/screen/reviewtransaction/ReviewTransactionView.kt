@@ -45,6 +45,7 @@ import co.electriccoin.zcash.ui.design.component.SwapTokenAmountState
 import co.electriccoin.zcash.ui.design.component.TextFieldState
 import co.electriccoin.zcash.ui.design.component.ZashiButton
 import co.electriccoin.zcash.ui.design.component.ZashiChipButton
+import co.electriccoin.zcash.ui.design.component.ZashiConfirmationBottomSheet
 import co.electriccoin.zcash.ui.design.component.ZashiHorizontalDivider
 import co.electriccoin.zcash.ui.design.component.ZashiSmallTopAppBar
 import co.electriccoin.zcash.ui.design.component.ZashiSwapQuoteHeader
@@ -67,6 +68,7 @@ import co.electriccoin.zcash.ui.design.util.stringResByDynamicCurrencyNumber
 import co.electriccoin.zcash.ui.design.util.styleAsAddress
 import co.electriccoin.zcash.ui.design.util.withStyle
 import co.electriccoin.zcash.ui.screen.balances.BalanceWidgetHeader
+import co.electriccoin.zcash.ui.screen.common.PrivacyDisclaimerCard
 import co.electriccoin.zcash.ui.screen.exchangerate.widget.StyledExchangeLabel
 import kotlin.time.Clock
 
@@ -139,6 +141,11 @@ fun ReviewTransactionView(state: ReviewTransactionState) {
                             MessagePlaceholderWidget(item)
                         }
 
+                        is OrchardPrivacyWarningState -> {
+                            Spacer(16.dp)
+                            PrivacyDisclaimerCard(title = item.title, body = item.body)
+                        }
+
                         is SimpleListItemState -> {
                             Spacer(12.dp)
                             ListItemWidget(item)
@@ -157,6 +164,8 @@ fun ReviewTransactionView(state: ReviewTransactionState) {
             }
             BottomBar(state)
         }
+
+        ZashiConfirmationBottomSheet(state.orchardWarningSheet)
     }
 }
 

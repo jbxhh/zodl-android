@@ -1,10 +1,11 @@
 package co.electriccoin.zcash.ui.screen.deletewallet
 
-import cash.z.ecc.android.sdk.SdkSynchronizer
+import cash.z.ecc.android.sdk.CloseableSynchronizer
 import cash.z.ecc.android.sdk.WalletCoordinator
 import co.electriccoin.zcash.preference.EncryptedPreferenceProvider
 import co.electriccoin.zcash.preference.StandardPreferenceProvider
 import co.electriccoin.zcash.ui.R
+import co.electriccoin.zcash.ui.common.migration.MigrationAppHooks
 import co.electriccoin.zcash.ui.common.provider.SynchronizerProvider
 import co.electriccoin.zcash.ui.common.repository.AddressBookRepository
 import co.electriccoin.zcash.ui.common.repository.BiometricRepository
@@ -28,11 +29,16 @@ class ResetZashiUseCase(
     private val biometricRepository: BiometricRepository,
     private val addressBookRepository: AddressBookRepository,
     private val metadataRepository: MetadataRepository,
+    private val migrationAppHooks: MigrationAppHooks,
 ) {
     @Suppress("TooGenericExceptionCaught", "ThrowsCount")
     suspend operator fun invoke(keepFiles: Boolean) {
         try {
             requestBiometrics()
+            // Migration workers are self-rechaining OneTimeWork — a wallet wipe that leaves them
+            // scheduled produces zombie retries against a wallet that no longer exists (Milan,
+            // 2026-07-30). Cancel while the accounts are still resolvable.
+            migrationAppHooks.cancelMigrationWork()
             flexaRepository.disconnect()
             deleteLocalFiles(keepFiles)
             closeSynchronizer()
@@ -59,7 +65,7 @@ class ResetZashiUseCase(
     }
 
     private suspend fun closeSynchronizer() {
-        (synchronizerProvider.getSynchronizer() as SdkSynchronizer).closeQuietly()
+        (synchronizerProvider.getSynchronizer() as CloseableSynchronizer).closeQuietly()
     }
 
     private fun deleteLocalFiles(keepFiles: Boolean) {

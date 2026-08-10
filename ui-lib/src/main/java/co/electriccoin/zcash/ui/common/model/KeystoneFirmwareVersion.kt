@@ -19,8 +19,10 @@ data class KeystoneFirmwareStamp(
 /**
  * Keystone hardware-wallet firmware version in **display** numbering — the triple the device
  * screen shows the user, and the only numbering [MINIMUM_SUPPORTED] and comparisons should use.
- * Construct this from a raw [KeystoneFirmwareStamp] via [fromStamp]; the `displayMajor` label on
- * the constructor exists to make every call site say which numbering it's using.
+ * Construct this from a raw [KeystoneFirmwareStamp] via [fromStamp] for the legacy single-
+ * transaction PCZT-echo path, or from [toKeystoneFwVersion] for the batch-sign migration path;
+ * the `displayMajor` label on the constructor exists to make every call site say which numbering
+ * it's using.
  */
 data class KeystoneFirmwareVersion(
     val displayMajor: Int,
@@ -116,15 +118,46 @@ private fun ByteArray.indexOfSubArray(needle: ByteArray): Int {
 }
 
 /**
+ * Keystone hardware-wallet firmware version, as reported by the device itself in the
+ * `zcash-batch-sig-result` UR envelope's dedicated firmware-version field (CBOR key 3) — see
+ * `ZcashBatchSigResult::get_firmware_version()` in keystone-sdk-rust's `ur-registry` crate.
+ *
+ * Converts the raw `[major, minor, build]` bytes carried directly in the batch-sign-result UR
+ * envelope (`KeystoneBatchDecodeResult.firmwareVersion`) into a [KeystoneFirmwareVersion].
+ *
+ * Unlike the legacy single-transaction PCZT-echo response ([readKeystoneFwStamp]), the compact
+ * batch protocol never echoes signed PCZT bytes back (`BatchSignResponse` is signatures-only), so
+ * there is no `keystone:fw_version` proprietary field to scan for on that path — the envelope's
+ * own dedicated field is the only source of the firmware version for migration.
+ *
+ * ASSUMPTION (unverified against a physical device with old + new firmware): this field reports
+ * DISPLAY numbering directly, not the legacy PCZT-stamp's raw/offset numbering — so no
+ * [KeystoneFirmwareVersion.fromStamp] conversion is applied here, matching prior behavior.
+ * If migration firmware gating is ever found to under- or over-block, verify this first.
+ *
+ * Returns `null` if the byte array isn't exactly 3 bytes (device didn't report a version —
+ * pre-migration-support firmware).
+ */
+fun ByteArray.toKeystoneFwVersion(): KeystoneFirmwareVersion? {
+    if (size != FIRMWARE_VERSION_VALUE_LENGTH) return null
+    return KeystoneFirmwareVersion(
+        displayMajor = this[0].toInt() and 0xFF,
+        minor = this[1].toInt() and 0xFF,
+        build = this[2].toInt() and 0xFF,
+    )
+}
+
+/**
  * Decides whether a Keystone-signed transaction may proceed to broadcast, given the firmware
- * version (if any) detected on the signed PCZT.
+ * version (if any) detected on the signed PCZT or batch-sign-result envelope, against whatever
+ * minimum the caller requires.
  */
 object KeystoneFirmwarePolicy {
     enum class Outcome {
-        /** Firmware reported a version and it meets [KeystoneFirmwareVersion.MINIMUM_SUPPORTED]. */
+        /** Firmware reported a version and it meets [required]. */
         OK,
 
-        /** Firmware reported a version but it's below the minimum. */
+        /** Firmware reported a version but it's below [required]. */
         UPDATE_REQUIRED,
 
         /** Firmware didn't report a version at all (pre-stamp build). */
