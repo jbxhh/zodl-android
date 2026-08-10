@@ -14,6 +14,16 @@ directly impact users rather than highlighting other key architectural updates.*
 
 ## [Unreleased]
 
+## [3.9.2 (2370)] - 2026-08-10
+
+### Cambiado:
+
+- Aceleramos considerablemente la firma de migraciones con Keystone.
+
+### Corregido:
+
+- Corregimos problemas de interfaz en las migraciones.
+
 ## [3.9.1 (2361)] - 2026-08-08
 
 ### Corregido:
