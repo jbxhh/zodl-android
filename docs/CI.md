@@ -55,3 +55,15 @@ Note that security of release deployments is enhanced via two mechanisms:
  - Deployment to Google Play can only be made to testing tracks.  Release to production requires manual human login under a different account with greater permissions.
 
 Note that `FIREBASE_DEBUG_JSON_BASE64` and `FIREBASE_RELEASE_JSON_BASE64` are not truly considered secret, as they contain API keys that are embedded in the application.  However we are not including them in the repository to reduce accidental pollution of our crash report data from repository forks.
+
+### Firebase App Distribution deployment
+The [Firebase App Distribution](../.github/workflows/firebase-app-distribution.yml) workflow is manually triggered (`workflow_dispatch`) from the Actions tab.  The branch picker in the "Run workflow" dialog selects which branch is built, and the `variants` input selects which app variants are built and uploaded (`all`, or a comma-separated subset of the seven distributable variants listed in the workflow file).
+
+* Secrets
+    * `FIREBASE_APP_DIST_DEBUG_KEY_BASE64` - Base64 encoded service account JSON with the Firebase App Distribution Admin role in the debug Firebase project.
+    * `FIREBASE_APP_DIST_FOSS_KEY_BASE64` - Base64 encoded service account JSON with the Firebase App Distribution Admin role in the FOSS Firebase project.
+    * `FIREBASE_APP_DIST_RELEASE_KEY_BASE64` - Base64 encoded service account JSON with the Firebase App Distribution Admin role in the release Firebase project.
+    * Release variants additionally reuse the `UPLOAD_KEYSTORE_*`, `FLEXA_PUBLISHABLE_KEY`, and `CMC_PUBLISHABLE_KEY` secrets documented under Release deployment above.
+    * `SLACK_WEBHOOK_URL_WALLET_TEAM` - Optional Slack incoming webhook URL for the wallet-team channel.  A final best-effort job posts the deploy result there; it is skipped when the secret is unset and cannot fail the workflow run.
+
+When no `version_code` input is provided, the version code defaults to the git commit count of the selected branch (the build's own default).  Release notes default to an auto-generated string containing the variant, branch, and commit.
