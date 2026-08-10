@@ -7,6 +7,10 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Fixed:
+
+- Closing the error sheet during Keystone migration signing no longer discards already-signed rounds.
+
 ## [3.9.1 (2361)] - 2026-08-08
 
 ### Fixed:
