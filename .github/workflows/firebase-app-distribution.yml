@@ -30,7 +30,7 @@ on:
       variants:
         description: "Variants to build and upload: 'all' or a comma-separated subset of: zcashtestnetStoreDebug, zcashmainnetStoreDebug, zcashmainnetFossDebug, zcashtestnetFossDebug, zcashmainnetStoreRelease, zcashtestnetStoreRelease, zcashmainnetInternalRelease"
         required: true
-        default: 'all'
+        default: 'zcashmainnetInternalRelease,zcashtestnetFossDebug'
         type: string
       groups:
         description: 'Firebase App Distribution tester groups (comma-separated)'
@@ -118,6 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         variant: ${{ fromJSON(needs.prepare_matrix.outputs.variants) }}
     steps:
