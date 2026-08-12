@@ -18,6 +18,7 @@ import co.electriccoin.zcash.ui.common.model.WalletAccount
 import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_RESIDUAL_MIN_ZATOSHI
+import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
 import co.electriccoin.zcash.ui.common.provider.HasLockedOrchardDustStorageProvider
 import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageProvider
 import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
@@ -28,16 +29,20 @@ import co.electriccoin.zcash.ui.common.usecase.GetOrchardBalanceUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
 import co.electriccoin.zcash.ui.common.usecase.migrationMessageFor
+import co.electriccoin.zcash.ui.design.util.stringRes
 import co.electriccoin.zcash.ui.screen.migration.success.MigrationSuccessArgs
 import co.electriccoin.zcash.ui.screen.signkeystonetransaction.SignKeystoneTransactionArgs
 import co.electriccoin.zcash.work.MigrationScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -339,6 +344,47 @@ class MigrationCompleteVMTest {
             coVerify(exactly = 1) { sdk.getMigrationSummary() }
         }
 
+    @Test
+    fun durationDoesNotApplyThePrivacyFloorSinceBothTimestampsAreAlreadyMined() =
+        runTest {
+            // The displayed duration spans the campaign's first to last MINED transfer -- both
+            // already public on-chain, so formatMigrationDuration's default pre-broadcast privacy
+            // floor must not apply here (applyPrivacyFloor = false), or a short real span would be
+            // inflated up to the floor (10 min testnet / 1 hour mainnet) instead of showing its
+            // actual duration.
+            val firstAt = 1_785_281_502L
+            val spanSeconds = 120L // well under either privacy floor
+            val summary =
+                MigrationSummary(
+                    totalMigratedZatoshi = 500_000L,
+                    transferCount = 2,
+                    firstMinedEpochSeconds = firstAt,
+                    lastMinedEpochSeconds = firstAt + spanSeconds,
+                )
+            val sdk =
+                mockk<OrchardMigrationSdk> {
+                    coEvery { getMigrationSummary() } returns summary
+                }
+            val vm =
+                vm(
+                    account = mockk<KeystoneAccount>(relaxed = true),
+                    orchardBalanceZatoshi = 500_000L,
+                    router = FakeNavigationRouter(),
+                    getOrchardMigrationSdk = mockk { coEvery { this@mockk() } returns sdk },
+                )
+
+            val collectJob = launch { vm.state.collect {} }
+            advanceUntilIdle()
+
+            val expected = stringRes(formatMigrationDuration(spanSeconds, applyPrivacyFloor = false))
+            assertEquals(
+                expected,
+                vm.state.value.content
+                    ?.duration
+            )
+            collectJob.cancel()
+        }
+
     private fun invokeOnDone(vm: MigrationCompleteVM) {
         val onDone = MigrationCompleteVM::class.java.getDeclaredMethod("onDone")
         onDone.isAccessible = true
@@ -373,7 +419,13 @@ class MigrationCompleteVMTest {
                 coEvery { this@mockk() } returns Zatoshi(orchardBalanceZatoshi)
             },
         hasSeenMigrationCompleteStorageProvider = seen,
-        hasLockedOrchardDustStorageProvider = mockk<HasLockedOrchardDustStorageProvider>(relaxed = true),
+        hasLockedOrchardDustStorageProvider =
+            mockk<HasLockedOrchardDustStorageProvider>(relaxed = true) {
+                // A relaxed mock's default Flow return is empty (never emits), which would starve
+                // state's combine() forever -- it only emits once every source has emitted at least
+                // once. Tests that read vm.state.value.content need this to actually fire.
+                every { observe() } returns flowOf(false)
+            },
         getSelectedWalletAccount =
             mockk<GetSelectedWalletAccountUseCase> {
                 coEvery { this@mockk() } returns account

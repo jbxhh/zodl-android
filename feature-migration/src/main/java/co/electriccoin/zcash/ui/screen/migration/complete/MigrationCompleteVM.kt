@@ -160,7 +160,14 @@ class MigrationCompleteVM(
                     summary.totalCount,
                     summary.totalCount
                 ),
-            duration = stringRes(formatMigrationDuration(summary.lastAt - summary.firstAt)),
+            // The full campaign span between its first and last MINED transfer -- both timestamps
+            // are already on-chain-public, so the pre-broadcast correlation risk the privacy floor
+            // guards against (see formatMigrationDuration's kdoc) doesn't apply here; flooring it
+            // would only inflate an already-short real duration up to a full hour on mainnet.
+            duration =
+                stringRes(
+                    formatMigrationDuration(summary.lastAt - summary.firstAt, applyPrivacyFloor = false)
+                ),
             isMigrating = isMigrating,
             isLocking = isLocking,
             onDone = ::onDone,
