@@ -161,6 +161,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0 # to fetch all commits
+      - name: Set up companion SDK build (if SDK_COMMIT_PIN is set)
+        timeout-minutes: 30
+        uses: ./.github/actions/setup-sdk-companion
       - name: Set up Java
         uses: ./.github/actions/setup-java
         timeout-minutes: 1
@@ -168,7 +171,11 @@ jobs:
         uses: ./.github/actions/setup-gradle
         timeout-minutes: 5
       - name: Android Lint
-        timeout-minutes: 15
+        # 45 rather than the usual 15: when SDK_COMMIT_PIN is set (see
+        # setup-sdk-companion), this compiles the full companion SDK's Rust dependency
+        # graph (Tor, orchard, etc.) for the first time with a cold cargo/target cache —
+        # observed at ~20-25 min alone before this step even reaches lint analysis.
+        timeout-minutes: 45
         env:
           # Disable minify, since it makes lint run faster
           ORG_GRADLE_PROJECT_IS_MINIFY_ENABLED: false
@@ -242,7 +249,11 @@ jobs:
     name: test_android_modules_emulator (${{ matrix.shard }})
     needs: [validate_gradle_wrapper]
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 90 rather than the usual 45: the `app` shard needs the SDK compiled, and when
+    # SDK_COMMIT_PIN is set (see setup-sdk-companion) a cold cargo/target cache eats
+    # 20-25 min before the emulator/test steps even start — the emulator was previously
+    # observed dying mid-run ("device not found") once the job ran past 45 min total.
+    timeout-minutes: 90
     permissions:
       contents: read
     strategy:
@@ -269,12 +280,30 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0 # to fetch all commits
+      - name: Set up companion SDK build (if SDK_COMMIT_PIN is set)
+        timeout-minutes: 30
+        uses: ./.github/actions/setup-sdk-companion
       - name: Set up Java
         uses: ./.github/actions/setup-java
         timeout-minutes: 1
       - name: Set up Gradle
         uses: ./.github/actions/setup-gradle
         timeout-minutes: 5
+      - name: Pre-build companion SDK native libs (app shard only)
+        # When SDK_COMMIT_PIN is set, the app shard's instrumentation-test Gradle
+        # invocation would otherwise compile the companion SDK's Rust natives for the
+        # first time while the emulator is already up and running screenshot tests --
+        # observed causing rendering contention (ComposeTimeoutException, "Failed to
+        # find ColorBuffer") from CPU/memory pressure, not real UI regressions.
+        # Assembling (not running) the instrumentation APKs here forces that
+        # compilation to finish before Enable KVM/emulator boot, so the later
+        # `connectedAndroidTest` step only installs and runs against
+        # already-built artifacts. The libs shard doesn't depend on feature-voting
+        # (confirmed: it passes unaffected), so it skips this entirely.
+        if: matrix.shard == 'app'
+        timeout-minutes: 60
+        run: |
+          ./gradlew :app:assembleZcashmainnetStoreDebugAndroidTest :ui-screenshot-test:assembleAndroidTest
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -405,6 +434,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0 # to fetch all commits
+      - name: Set up companion SDK build (if SDK_COMMIT_PIN is set)
+        timeout-minutes: 30
+        uses: ./.github/actions/setup-sdk-companion
       - name: Set up Java
         uses: ./.github/actions/setup-java
         timeout-minutes: 1
@@ -434,7 +466,11 @@ jobs:
         run: |
           keytool -genkey -v -keystore $SIGNING_KEY_PATH -keypass android -storepass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 100000 -dname "CN=, OU=, O=Test, L=, S=, C=" -noprompt
       - name: Build Store APK
-        timeout-minutes: 25
+        # 60 rather than the usual 25: when SDK_COMMIT_PIN is set (see
+        # setup-sdk-companion), this compiles the full companion SDK's Rust dependency
+        # graph for release, across both mainnet/testnet variants, with a cold
+        # cargo/target cache on the first run.
+        timeout-minutes: 60
         env:
           ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PATH: ${{ format('{0}/release.jks', env.home) }}
           ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PASSWORD: android
@@ -442,8 +478,25 @@ jobs:
           ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEY_ALIAS_PASSWORD: android
           ORG_GRADLE_PROJECT_ZCASH_FLEXA_KEY: ${{ secrets.FLEXA_PUBLISHABLE_KEY }}
           ORG_GRADLE_PROJECT_ZCASH_CMC_KEY: ${{ secrets.CMC_PUBLISHABLE_KEY }}
+        shell: bash
         run: |
-          ./gradlew :app:assembleZcashmainnetStoreDebug :app:assembleZcashtestnetStoreDebug :app:bundleZcashmainnetStoreRelease :app:bundleZcashtestnetStoreRelease :app:packageZcashmainnetStoreReleaseUniversalApk
+          # This step's worker processes (bundletool's standalone-APK packaging,
+          # in particular) can OOM on the standard runner's RAM when SDK_COMMIT_PIN
+          # is set and the companion SDK's Rust compilation is sharing the box with
+          # this already-heavy multi-variant release build. A fresh Gradle daemon
+          # (and freshly-spawned workers) reliably clears it -- retry once, matching
+          # zodl-helpers/scripts/deploy.sh's established OOM-retry-once handling for
+          # this same build.
+          TASKS=":app:assembleZcashmainnetStoreDebug :app:assembleZcashtestnetStoreDebug :app:bundleZcashmainnetStoreRelease :app:bundleZcashtestnetStoreRelease :app:packageZcashmainnetStoreReleaseUniversalApk"
+          if ! ./gradlew ${TASKS} 2>&1 | tee build-store-apk.log; then
+            if grep -qi "OutOfMemoryError\|Java heap space" build-store-apk.log; then
+              echo "::warning::Build Store APK failed with OOM -- stopping the daemon and retrying once with a fresh heap."
+              ./gradlew --stop
+              ./gradlew ${TASKS}
+            else
+              exit 1
+            fi
+          fi
 
       - name: Collect Artifacts
         timeout-minutes: 1
