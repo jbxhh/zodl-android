@@ -75,7 +75,9 @@ fun WalletHeaderIcons(
             modifier =
                 Modifier
                     .size(48.dp)
-                    .offset(x = 36.dp)
+                    // Figma's "All Icons" row (node 3925:16402) uses gap: -3px between the two
+                    // 48dp circles -- a 3dp overlap, not the 12dp this offset used to produce.
+                    .offset(x = 45.dp)
                     .clip(CircleShape)
                     .background(background)
                     .border(2.dp, ZashiColors.Surfaces.bgPrimary, CircleShape)
