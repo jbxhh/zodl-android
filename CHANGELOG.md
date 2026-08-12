@@ -11,6 +11,7 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 
 - Closing the error sheet during Keystone migration signing no longer discards already-signed rounds.
 - Tapping Receive no longer hangs indefinitely when a transient address-derivation error occurs; the app falls back to the account's current address instead.
+- The device authentication prompt no longer appears on app launch before a wallet has been created or restored.
 
 ## [3.9.1 (2361)] - 2026-08-08
 
