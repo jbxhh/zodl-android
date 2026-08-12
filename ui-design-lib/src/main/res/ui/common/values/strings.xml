@@ -765,7 +765,7 @@
     <string name="settings_version">Version <xliff:g example="1" id="version">%s</xliff:g></string>
     <string name="settings_addressBook">Address Book</string>
     <string name="settings_whats_new">What\'s New</string>
-    <string name="settings_coinholderPolling" translatable="false">Beta: Coinholder Polling</string>
+    <string name="settings_coinholderPolling" tools:ignore="MissingTranslation">Beta: Coinholder Polling</string>
     <string name="settings_troubleshooting_menu_content_description">Additional settings</string>
     <string name="settings_troubleshooting_rescan">Rescan blockchain</string>
     <string name="settings_troubleshooting_enable_background_sync">Background sync</string>
@@ -782,17 +782,17 @@
     <string name="sign_keystone_transaction_bottom_sheet_subtitle">Rejecting the signature will cancel the transaction, and you’ll need to start over if you want to proceed. This action cannot be undone.</string>
     <string name="keystoneTransactionReject_goBack">Go back</string>
     <string name="keystoneTransactionReject_rejectSig">Reject Signature</string>
-    <string name="coinVote_common_confirmation" translatable="false">Confirmation</string>
-    <string name="coinVote_delegationSigning_instruction" translatable="false">After you have signed with Keystone, tap on the Scan Signature button below.</string>
-    <string name="coinVote_delegationSigning_scanSignature" translatable="false">Scan Signature</string>
-    <string name="sign_keystone_voting_error_title" translatable="false">Unable to prepare Keystone signing</string>
-    <string name="sign_keystone_voting_error_skip_remaining" translatable="false">Unable to skip remaining Keystone bundles.</string>
-    <string name="sign_keystone_voting_error_no_account" translatable="false">No selected Keystone account is available.</string>
-    <string name="sign_keystone_voting_error_prepare_request" translatable="false">Failed to prepare the Keystone signing request.</string>
-    <string name="scan_keystone_voting_rejected_title" translatable="false">Signature not accepted</string>
-    <string name="coinVote_delegationSigning_duplicateSignature" translatable="false">That Keystone signature was already scanned for bundle %1$d of %2$d. Sign the current bundle on Keystone, then scan the new QR.</string>
-    <string name="coinVote_delegationSigning_wrongSignature" translatable="false">That signature is for a different bundle. Sign bundle %1$d of %2$d on Keystone, then scan the new QR.</string>
-    <string name="sign_keystone_voting_skip_remaining_bundle" translatable="false">Skip remaining bundle</string>
+    <string name="coinVote_common_confirmation" tools:ignore="MissingTranslation">Confirmation</string>
+    <string name="coinVote_delegationSigning_instruction" tools:ignore="MissingTranslation" translatable="false">After you have signed with Keystone, tap on the Scan Signature button below.</string>
+    <string name="coinVote_delegationSigning_scanSignature" tools:ignore="MissingTranslation" translatable="false">Scan Signature</string>
+    <string name="sign_keystone_voting_error_title" tools:ignore="MissingTranslation" translatable="false">Unable to prepare Keystone signing</string>
+    <string name="sign_keystone_voting_error_skip_remaining" tools:ignore="MissingTranslation" translatable="false">Unable to skip remaining Keystone bundles.</string>
+    <string name="sign_keystone_voting_error_no_account" tools:ignore="MissingTranslation" translatable="false">No selected Keystone account is available.</string>
+    <string name="sign_keystone_voting_error_prepare_request" tools:ignore="MissingTranslation" translatable="false">Failed to prepare the Keystone signing request.</string>
+    <string name="scan_keystone_voting_rejected_title" tools:ignore="MissingTranslation" translatable="false">Signature not accepted</string>
+    <string name="coinVote_delegationSigning_duplicateSignature" tools:ignore="MissingTranslation" translatable="false">That Keystone signature was already scanned for bundle %1$d of %2$d. Sign the current bundle on Keystone, then scan the new QR.</string>
+    <string name="coinVote_delegationSigning_wrongSignature" tools:ignore="MissingTranslation" translatable="false">That signature is for a different bundle. Sign bundle %1$d of %2$d on Keystone, then scan the new QR.</string>
+    <string name="sign_keystone_voting_skip_remaining_bundle" tools:ignore="MissingTranslation" translatable="false">Skip remaining bundle</string>
     <string name="sign_keystone_voting_skip_remaining_bundles" translatable="false" tools:ignore="PluralsCandidate">Skip %1$d remaining bundles</string>
     <string name="sign_keystone_voting_skip_remaining_title" tools:ignore="MissingTranslation" translatable="false">Skip remaining bundles?</string>
     <string name="sign_keystone_voting_skip_remaining_message" tools:ignore="MissingTranslation" translatable="false">You will submit with %1$s signed and give up %2$s from the unsigned bundles.</string>
@@ -1039,211 +1039,211 @@
     <string name="addressBook_alert_message">You are about to delete this contact. This cannot be undone.</string>
 
     <!-- ===== voting ===== -->
-    <string name="coinVote_common_screenTitle" translatable="false">Coinholder Polling</string>
-    <string name="coinVote_common_continue" translatable="false">Continue</string>
-    <string name="coinVote_pollsList_chainConfigAccessibility" translatable="false">Voting chain config</string>
-    <string name="coinVote_configSettings_screenTitle" translatable="false">Select Data Source</string>
-    <string name="coinVote_configSettings_sectionTitle" translatable="false">Poll Data Source</string>
-    <string name="coinVote_configSettings_sectionSubtitle" translatable="false">Pick a poll source, or add your own.</string>
-    <string name="coinVote_configSettings_bundledName" translatable="false">Coinholder Poll</string>
-    <string name="coinVote_configSettings_defaultBadge" translatable="false">Default</string>
-    <string name="vote_chain_config_custom_empty" translatable="false">No custom chains yet.</string>
-    <string name="vote_chain_config_add" translatable="false">Add</string>
-    <string name="coinVote_configSettings_addCustomSource" translatable="false">Add custom source</string>
-    <string name="coinVote_configSettings_edit" translatable="false">Edit</string>
-    <string name="coinVote_configSettings_delete" translatable="false">Delete</string>
-    <string name="coinVote_common_cancel" translatable="false">Cancel</string>
-    <string name="coinVote_configSettings_save" translatable="false">Save</string>
-    <string name="coinVote_configSettings_saveChanges" translatable="false">Save changes</string>
-    <string name="coinVote_configSettings_toolbarAdd" translatable="false">Add Source</string>
-    <string name="coinVote_configSettings_toolbarEdit" translatable="false">Edit Source</string>
-    <string name="coinVote_configSettings_headerAddTitle" translatable="false">Add Custom Source</string>
-    <string name="coinVote_configSettings_headerEditTitle" translatable="false">Edit Custom Source</string>
-    <string name="coinVote_configSettings_headerAddBody" translatable="false">Add a poll source that isn\'t listed by default. You\'ll need a valid chain URL from the provider hosting the poll.</string>
-    <string name="coinVote_configSettings_headerEditBody" translatable="false">Update the title or URL for this custom poll source. You\'ll need a valid chain URL from the provider hosting the poll.</string>
-    <string name="coinVote_configSettings_titleField" translatable="false">Title</string>
-    <string name="coinVote_configSettings_urlField" translatable="false">URL</string>
-    <string name="coinVote_configSettings_urlPlaceholder" translatable="false">Enter...</string>
-    <string name="vote_chain_config_error_title" translatable="false">Invalid Source</string>
-    <string name="vote_chain_config_error_name_required" translatable="false">Enter a title for this source.</string>
-    <string name="coinVote_configSettings_errorTitleTooLong" translatable="false">Title must be 15 characters or less, including spaces.</string>
-    <string name="vote_chain_config_error_url_required" translatable="false">Enter a static config HTTPS URL.</string>
-    <string name="coinVote_configSettings_errorInvalidUrl" translatable="false">Please enter a valid URL (e.g. https://zodl.com/polls)</string>
-    <string name="vote_chain_config_error_duplicate_default" translatable="false">That URL is the default source. Select Default instead.</string>
-    <string name="coinVote_configSettings_errorDuplicateUrl" translatable="false">This source URL is already added.</string>
-    <string name="vote_chain_config_error_validation_failed" translatable="false">Unable to validate this source. Check the URL and checksum, then try again.</string>
-    <string name="coinVote_howToVote_titleZodl" translatable="false">How to vote with %1$s</string>
-    <string name="coinVote_howToVote_subtitle" translatable="false">Your ZEC gives you a voice. Shape the future of the Zcash network by voting on active proposals.</string>
-    <string name="coinVote_howToVote_stepVotingTitle" translatable="false">Voting on Proposals</string>
-    <string name="coinVote_howToVote_stepVotingBody" translatable="false">Vote on each question by selecting an answer. You can skip questions and update your choices anytime before submitting.</string>
-    <string name="coinVote_howToVote_stepAuthorizeTitle" translatable="false">Authorize and Submit</string>
-    <string name="coinVote_howToVote_stepAuthorizeBody" translatable="false">When you\'re ready, you\'ll confirm a small authorization transaction and submit your vote in one step. After submission, your vote cannot be changed.</string>
-    <string name="coinVote_howToVote_infoCard" translatable="false">Your balance at the snapshot time determines your voting weight. You don\'t need to move your funds anywhere.</string>
-    <string name="coinVote_pollsList_emptyTitle" translatable="false">No Polls Right Now</string>
-    <string name="coinVote_pollsList_emptyMessage" translatable="false">There aren\'t any active polls at the moment. Check back later.</string>
-    <string name="coinVote_common_gotIt" translatable="false">Got it</string>
-    <string name="coinVote_common_refresh" translatable="false">Refresh</string>
-    <string name="coinVote_common_pollDescription" translatable="false">Poll Description</string>
-    <string name="coinVote_pollsList_statusActive" translatable="false">Active</string>
-    <string name="coinVote_common_voted" translatable="false">Voted</string>
-    <string name="coinVote_pollsList_statusClosed" translatable="false">Closed</string>
-    <string name="coinVote_pollsList_approvedByZodl" translatable="false">Approved by Zodl</string>
-    <string name="coinVote_pollsList_unverifiedSheetTitle" translatable="false">Unverified Poll</string>
-    <string name="coinVote_pollsList_dateCloses" translatable="false">Closes %1$s</string>
-    <string name="coinVote_pollsList_dateClosed" translatable="false">Closed %1$s</string>
-    <string name="coinVote_pollsList_enterPoll" translatable="false">Enter Poll</string>
-    <string name="coinVote_proposalList_ctaReviewAnswers" translatable="false">Review</string>
-    <string name="coinVote_common_viewResults" translatable="false">View Results</string>
-    <string name="coinVote_delegationSigning_signedProgress" translatable="false">%1$d of %2$d voted</string>
-    <string name="coinVote_pollsList_loadErrorTitle" translatable="false">Couldn\'t load polls</string>
-    <string name="vote_error_unable_to_load_polls_message" translatable="false">Could not fetch voting rounds. Please try again.</string>
-    <string name="vote_error_confirmation_unavailable_title" translatable="false">Confirmation unavailable</string>
-    <string name="vote_error_confirmation_unavailable_message" translatable="false">Could not load poll details. Please try again.</string>
-    <string name="vote_error_proposal_unavailable_title" translatable="false">Proposal unavailable</string>
-    <string name="vote_error_proposal_unavailable_message" translatable="false">Could not load proposal. Please try again.</string>
-    <string name="coinVote_error_configUnavailableTitle" translatable="false">Voting unavailable</string>
-    <string name="vote_error_voting_unavailable_message" translatable="false">Could not load voting proposals. Please try again.</string>
-    <string name="coinVote_results_loadErrorTitle" translatable="false">Couldn\'t load results</string>
-    <string name="vote_error_results_unavailable_message" translatable="false">Could not load voting results. Please try again.</string>
-    <string name="vote_error_unable_to_load_round_title" translatable="false">Unable to load round</string>
-    <string name="vote_error_unable_to_load_round_message" translatable="false">Could not fetch voting round data. Please try again.</string>
-    <string name="vote_error_something_went_wrong_message" translatable="false">We couldn\'t connect to the voting service. Please try again later, or contact support if the issue persists.</string>
-    <string name="vote_error_wallet_update_required" translatable="false">Wallet Update Required</string>
-    <string name="vote_error_insufficient_funds_message" translatable="false">You don\'t have enough ZEC to cover the transaction fee. Add funds to your wallet and try again.</string>
-    <string name="coinVote_common_goBack" translatable="false">Go Back</string>
-    <string name="coinVote_confirmSubmission_authorizationFailedTitle" translatable="false">Authorization Failed</string>
-    <string name="coinVote_confirmSubmission_authorizationFailedMessage" translatable="false">We couldn\'t authorize your vote. Check your connection and try again.</string>
-    <string name="coinVote_pollClosedSheet_title" translatable="false">Poll Closed</string>
-    <string name="coinVote_pollClosedSheet_message" translatable="false">The voting period has ended.
+    <string name="coinVote_common_screenTitle" tools:ignore="MissingTranslation">Coinholder Polling</string>
+    <string name="coinVote_common_continue" tools:ignore="MissingTranslation">Continue</string>
+    <string name="coinVote_pollsList_chainConfigAccessibility" tools:ignore="MissingTranslation">Voting chain config</string>
+    <string name="coinVote_configSettings_screenTitle" tools:ignore="MissingTranslation">Select Data Source</string>
+    <string name="coinVote_configSettings_sectionTitle" tools:ignore="MissingTranslation">Poll Data Source</string>
+    <string name="coinVote_configSettings_sectionSubtitle" tools:ignore="MissingTranslation">Pick a poll source, or add your own.</string>
+    <string name="coinVote_configSettings_bundledName" tools:ignore="MissingTranslation">Coinholder Poll</string>
+    <string name="coinVote_configSettings_defaultBadge" tools:ignore="MissingTranslation">Default</string>
+    <string name="vote_chain_config_custom_empty" tools:ignore="MissingTranslation">No custom chains yet.</string>
+    <string name="vote_chain_config_add" tools:ignore="MissingTranslation">Add</string>
+    <string name="coinVote_configSettings_addCustomSource" tools:ignore="MissingTranslation">Add custom source</string>
+    <string name="coinVote_configSettings_edit" tools:ignore="MissingTranslation">Edit</string>
+    <string name="coinVote_configSettings_delete" tools:ignore="MissingTranslation">Delete</string>
+    <string name="coinVote_common_cancel" tools:ignore="MissingTranslation">Cancel</string>
+    <string name="coinVote_configSettings_save" tools:ignore="MissingTranslation">Save</string>
+    <string name="coinVote_configSettings_saveChanges" tools:ignore="MissingTranslation">Save changes</string>
+    <string name="coinVote_configSettings_toolbarAdd" tools:ignore="MissingTranslation">Add Source</string>
+    <string name="coinVote_configSettings_toolbarEdit" tools:ignore="MissingTranslation">Edit Source</string>
+    <string name="coinVote_configSettings_headerAddTitle" tools:ignore="MissingTranslation">Add Custom Source</string>
+    <string name="coinVote_configSettings_headerEditTitle" tools:ignore="MissingTranslation">Edit Custom Source</string>
+    <string name="coinVote_configSettings_headerAddBody" tools:ignore="MissingTranslation">Add a poll source that isn\'t listed by default. You\'ll need a valid chain URL from the provider hosting the poll.</string>
+    <string name="coinVote_configSettings_headerEditBody" tools:ignore="MissingTranslation">Update the title or URL for this custom poll source. You\'ll need a valid chain URL from the provider hosting the poll.</string>
+    <string name="coinVote_configSettings_titleField" tools:ignore="MissingTranslation">Title</string>
+    <string name="coinVote_configSettings_urlField" tools:ignore="MissingTranslation">URL</string>
+    <string name="coinVote_configSettings_urlPlaceholder" tools:ignore="MissingTranslation">Enter...</string>
+    <string name="vote_chain_config_error_title" tools:ignore="MissingTranslation">Invalid Source</string>
+    <string name="vote_chain_config_error_name_required" tools:ignore="MissingTranslation">Enter a title for this source.</string>
+    <string name="coinVote_configSettings_errorTitleTooLong" tools:ignore="MissingTranslation">Title must be 15 characters or less, including spaces.</string>
+    <string name="vote_chain_config_error_url_required" tools:ignore="MissingTranslation">Enter a static config HTTPS URL.</string>
+    <string name="coinVote_configSettings_errorInvalidUrl" tools:ignore="MissingTranslation">Please enter a valid URL (e.g. https://zodl.com/polls)</string>
+    <string name="vote_chain_config_error_duplicate_default" tools:ignore="MissingTranslation">That URL is the default source. Select Default instead.</string>
+    <string name="coinVote_configSettings_errorDuplicateUrl" tools:ignore="MissingTranslation">This source URL is already added.</string>
+    <string name="vote_chain_config_error_validation_failed" tools:ignore="MissingTranslation">Unable to validate this source. Check the URL and checksum, then try again.</string>
+    <string name="coinVote_howToVote_titleZodl" tools:ignore="MissingTranslation">How to vote with %1$s</string>
+    <string name="coinVote_howToVote_subtitle" tools:ignore="MissingTranslation">Your ZEC gives you a voice. Shape the future of the Zcash network by voting on active proposals.</string>
+    <string name="coinVote_howToVote_stepVotingTitle" tools:ignore="MissingTranslation">Voting on Proposals</string>
+    <string name="coinVote_howToVote_stepVotingBody" tools:ignore="MissingTranslation">Vote on each question by selecting an answer. You can skip questions and update your choices anytime before submitting.</string>
+    <string name="coinVote_howToVote_stepAuthorizeTitle" tools:ignore="MissingTranslation">Authorize and Submit</string>
+    <string name="coinVote_howToVote_stepAuthorizeBody" tools:ignore="MissingTranslation">When you\'re ready, you\'ll confirm a small authorization transaction and submit your vote in one step. After submission, your vote cannot be changed.</string>
+    <string name="coinVote_howToVote_infoCard" tools:ignore="MissingTranslation">Your balance at the snapshot time determines your voting weight. You don\'t need to move your funds anywhere.</string>
+    <string name="coinVote_pollsList_emptyTitle" tools:ignore="MissingTranslation">No Polls Right Now</string>
+    <string name="coinVote_pollsList_emptyMessage" tools:ignore="MissingTranslation">There aren\'t any active polls at the moment. Check back later.</string>
+    <string name="coinVote_common_gotIt" tools:ignore="MissingTranslation">Got it</string>
+    <string name="coinVote_common_refresh" tools:ignore="MissingTranslation">Refresh</string>
+    <string name="coinVote_common_pollDescription" tools:ignore="MissingTranslation">Poll Description</string>
+    <string name="coinVote_pollsList_statusActive" tools:ignore="MissingTranslation">Active</string>
+    <string name="coinVote_common_voted" tools:ignore="MissingTranslation">Voted</string>
+    <string name="coinVote_pollsList_statusClosed" tools:ignore="MissingTranslation">Closed</string>
+    <string name="coinVote_pollsList_approvedByZodl" tools:ignore="MissingTranslation">Approved by Zodl</string>
+    <string name="coinVote_pollsList_unverifiedSheetTitle" tools:ignore="MissingTranslation">Unverified Poll</string>
+    <string name="coinVote_pollsList_dateCloses" tools:ignore="MissingTranslation">Closes %1$s</string>
+    <string name="coinVote_pollsList_dateClosed" tools:ignore="MissingTranslation">Closed %1$s</string>
+    <string name="coinVote_pollsList_enterPoll" tools:ignore="MissingTranslation">Enter Poll</string>
+    <string name="coinVote_proposalList_ctaReviewAnswers" tools:ignore="MissingTranslation">Review</string>
+    <string name="coinVote_common_viewResults" tools:ignore="MissingTranslation">View Results</string>
+    <string name="coinVote_delegationSigning_signedProgress" tools:ignore="MissingTranslation">%1$d of %2$d voted</string>
+    <string name="coinVote_pollsList_loadErrorTitle" tools:ignore="MissingTranslation">Couldn\'t load polls</string>
+    <string name="vote_error_unable_to_load_polls_message" tools:ignore="MissingTranslation">Could not fetch voting rounds. Please try again.</string>
+    <string name="vote_error_confirmation_unavailable_title" tools:ignore="MissingTranslation">Confirmation unavailable</string>
+    <string name="vote_error_confirmation_unavailable_message" tools:ignore="MissingTranslation">Could not load poll details. Please try again.</string>
+    <string name="vote_error_proposal_unavailable_title" tools:ignore="MissingTranslation">Proposal unavailable</string>
+    <string name="vote_error_proposal_unavailable_message" tools:ignore="MissingTranslation">Could not load proposal. Please try again.</string>
+    <string name="coinVote_error_configUnavailableTitle" tools:ignore="MissingTranslation">Voting unavailable</string>
+    <string name="vote_error_voting_unavailable_message" tools:ignore="MissingTranslation">Could not load voting proposals. Please try again.</string>
+    <string name="coinVote_results_loadErrorTitle" tools:ignore="MissingTranslation">Couldn\'t load results</string>
+    <string name="vote_error_results_unavailable_message" tools:ignore="MissingTranslation">Could not load voting results. Please try again.</string>
+    <string name="vote_error_unable_to_load_round_title" tools:ignore="MissingTranslation">Unable to load round</string>
+    <string name="vote_error_unable_to_load_round_message" tools:ignore="MissingTranslation">Could not fetch voting round data. Please try again.</string>
+    <string name="vote_error_something_went_wrong_message" tools:ignore="MissingTranslation">We couldn\'t connect to the voting service. Please try again later, or contact support if the issue persists.</string>
+    <string name="vote_error_wallet_update_required" tools:ignore="MissingTranslation">Wallet Update Required</string>
+    <string name="vote_error_insufficient_funds_message" tools:ignore="MissingTranslation">You don\'t have enough ZEC to cover the transaction fee. Add funds to your wallet and try again.</string>
+    <string name="coinVote_common_goBack" tools:ignore="MissingTranslation">Go Back</string>
+    <string name="coinVote_confirmSubmission_authorizationFailedTitle" tools:ignore="MissingTranslation">Authorization Failed</string>
+    <string name="coinVote_confirmSubmission_authorizationFailedMessage" tools:ignore="MissingTranslation">We couldn\'t authorize your vote. Check your connection and try again.</string>
+    <string name="coinVote_pollClosedSheet_title" tools:ignore="MissingTranslation">Poll Closed</string>
+    <string name="coinVote_pollClosedSheet_message" tools:ignore="MissingTranslation">The voting period has ended.
 Your vote can no longer be submitted.</string>
-    <string name="coinVote_votingView_unverifiedPollTitle" translatable="false">Unverified Poll</string>
-    <string name="coinVote_votingView_unverifiedPollMessage" translatable="false">This poll hasn\'t been verified. We can\'t confirm its legitimacy or how results will be used.</string>
-    <string name="coinVote_pollsList_unverifiedSheetProceed" translatable="false">Proceed anyway</string>
-    <string name="coinVote_common_done" translatable="false">Done</string>
-    <string name="coinVote_common_dismiss" translatable="false">Dismiss</string>
-    <string name="coinVote_common_tryAgain" translatable="false">Try Again</string>
-    <string name="coinVote_common_close" translatable="false">Close</string>
-    <string name="coinVote_confirmSubmission_confirmWithKeystone" translatable="false">Confirm with Keystone</string>
-    <string name="coinVote_common_confirm" translatable="false">Confirm</string>
-    <string name="vote_confirm_cta_preparing" translatable="false">Preparing vote...</string>
-    <string name="vote_confirm_cta_resume_keystone_signing" translatable="false">Resume Keystone signing</string>
-    <string name="vote_confirm_cta_sign_keystone" translatable="false">Sign with Keystone</string>
-    <string name="coinVote_delegationSigning_bundleProgress" translatable="false">Sign bundle %1$d/%2$d</string>
-    <string name="coinVote_submission_continuedProcessingTitle" translatable="false">Submitting votes</string>
-    <string name="coinVote_confirmSubmission_progressAuthorizing" translatable="false">Authorizing...</string>
-    <string name="vote_confirm_cta_submitting" translatable="false">Submitting vote %1$d of %2$d</string>
-    <string name="coinVote_store_submissionAuthorizingVote" translatable="false">Authorizing vote...</string>
-    <string name="coinVote_confirmSubmission_progressSubmittingVoteCount" translatable="false">Submitting vote %1$d of %2$d...</string>
-    <string name="coinVote_results_percentValue" translatable="false">%1$d%%</string>
-    <string name="coinVote_common_submission" translatable="false">Submission</string>
-    <string name="coinVote_confirmSubmission_headerTitleIdle" translatable="false">Confirm &amp; Submit</string>
-    <string name="coinVote_confirmSubmission_headerTitleCompleted" translatable="false">Submission Confirmed!</string>
-    <string name="coinVote_confirmSubmission_submissionFailedTitle" translatable="false">Submission Failed</string>
-    <string name="coinVote_confirmSubmission_headerSubtitleIdleKeystone" translatable="false">Review before signing the voting authorization with your Keystone. This is final. Your vote will be published and cannot be changed.</string>
-    <string name="coinVote_confirmSubmission_headerSubtitleIdle" translatable="false">Review before confirming the voting authorization. This is final. Your vote will be published and cannot be changed.</string>
-    <string name="coinVote_confirmSubmission_headerSubtitleSubmitting" translatable="false">Vote submission is in progress, please don\'t leave this screen until it is finished.</string>
-    <string name="coinVote_confirmSubmission_headerSubtitleCompleted" translatable="false">Your vote was successfully published and cannot be changed.</string>
-    <string name="coinVote_confirmSubmission_submissionFailedMessage" translatable="false">Your vote couldn\'t be submitted. Check your connection and try again.</string>
-    <string name="vote_confirm_error_auth" translatable="false">Authorization transaction failed. Please try again.</string>
-    <string name="vote_confirm_error_no_choices" translatable="false">No vote choices are available to submit.</string>
-    <string name="vote_confirm_error_authentication" translatable="false">Authentication failed. Please try again.</string>
-    <string name="vote_confirm_preparing" translatable="false">Preparing...</string>
-    <string name="vote_confirm_memo_resume_keystone" translatable="false">Resume the pending Keystone signing request, then continue signing the remaining delegation bundles.</string>
-    <string name="vote_confirm_memo_sign_keystone" translatable="false">Sign each prepared delegation bundle with Keystone before submitting your votes.</string>
-    <string name="coinVote_delegationSigning_memoMessage" translatable="false">I am authorizing this hotkey managed by my wallet to vote on %1$s with %2$s.</string>
-    <string name="vote_confirm_memo_preparing" translatable="false">Your wallet is still preparing the voting authorization for this poll.</string>
-    <string name="coinVote_confirmSubmission_detailPoll" translatable="false">Poll</string>
-    <string name="coinVote_confirmSubmission_detailVotingPower" translatable="false">Voting power</string>
-    <string name="coinVote_confirmSubmission_detailVotingHotkey" translatable="false">Voting hotkey</string>
-    <string name="coinVote_confirmSubmission_detailMemo" translatable="false">Memo</string>
-    <string name="vote_delegation_signing_title" translatable="false">Delegation signing</string>
-    <string name="vote_delegation_signing_status_generating" translatable="false">Generating proof... %1$d%%</string>
-    <string name="vote_delegation_signing_status_complete" translatable="false">Proof complete - submitting delegation...</string>
-    <string name="vote_delegation_signing_status_ready" translatable="false">Ready to generate zero-knowledge proof</string>
-    <string name="vote_delegation_signing_cta_generating" translatable="false">Generating...</string>
-    <string name="vote_delegation_signing_cta" translatable="false">Generate delegation proof</string>
-    <string name="vote_ineligible_top_bar_title" translatable="false">Voting Eligibility</string>
-    <string name="coinVote_ineligible_titleNoVote" translatable="false">Not Eligible for This Round</string>
-    <string name="coinVote_ineligible_noNotesMessage" translatable="false">Your wallet has no shielded notes from before the snapshot block. Only funds that existed at block #%@ are eligible for this voting round.</string>
-    <string name="vote_ineligible_no_notes_at_snapshot" translatable="false">Your wallet has no shielded notes from before snapshot block #%1$s. Only funds that existed at the snapshot block are eligible for this voting round.</string>
-    <string name="vote_ineligible_balance_too_low" translatable="false">Your shielded voting weight at the snapshot block was %1$s ZEC, so this wallet is not eligible for this voting round.</string>
-    <string name="vote_ineligible_balance_too_low_at_snapshot" translatable="false">Your shielded voting weight at snapshot block #%1$s was %2$s ZEC, so this wallet is not eligible for this voting round.</string>
-    <string name="coinVote_proposalDetail_position" translatable="false">%1$d OF %2$d</string>
-    <string name="coinVote_proposalList_ctaConfirmSubmit" translatable="false">Confirm &amp; Submit</string>
-    <string name="coinVote_proposalList_ctaStartVoting" translatable="false">Start Voting</string>
-    <string name="coinVote_proposalList_ctaContinueVoting" translatable="false">Continue Voting</string>
-    <string name="coinVote_proposalList_reviewTitle" translatable="false">Review and submit vote</string>
-    <string name="vote_proposal_list_meta_line" translatable="false">%1$s  &#8226;  %2$s</string>
-    <string name="coinVote_proposalList_headerEndsAt" translatable="false">Ends %1$s</string>
-    <string name="coinVote_common_votedDate" translatable="false">Voted %1$s</string>
-    <string name="coinVote_proposalList_votingPower" translatable="false">Voting Power %1$s</string>
-    <string name="coinVote_tallying_detailEnded" translatable="false">Ended</string>
-    <string name="vote_proposal_list_time_minutes_left" translatable="false">%1$dm left</string>
-    <string name="vote_proposal_list_time_hours_left" translatable="false">%1$dh left</string>
-    <string name="vote_proposal_list_time_day_left" translatable="false">%1$d day left</string>
-    <string name="vote_proposal_list_time_days_left" translatable="false">%1$d days left</string>
-    <string name="coinVote_common_viewMore" translatable="false">View more</string>
-    <string name="coinVote_common_viewLess" translatable="false">View less</string>
-    <string name="coinVote_proposalList_viewForumDiscussions" translatable="false">View Forum Discussions</string>
-    <string name="coinVote_common_support" translatable="false">Support</string>
-    <string name="coinVote_common_oppose" translatable="false">Oppose</string>
-    <string name="coinVote_common_abstain" translatable="false">Abstain</string>
-    <string name="coinVote_common_back" translatable="false">Back</string>
-    <string name="coinVote_common_next" translatable="false">Next</string>
-    <string name="coinVote_common_save" translatable="false">Save</string>
-    <string name="coinVote_proposalDetail_viewForumDiscussion" translatable="false">View Forum Discussion</string>
-    <string name="coinVote_proposalDetail_unansweredTitle" translatable="false">Unanswered Questions</string>
-    <string name="coinVote_proposalDetail_skippedMessageSingle" translatable="false">You have not responded to 1 question. Confirm to skip this question or go back to respond.</string>
-    <string name="coinVote_proposalDetail_skippedMessageMultiple" translatable="false">You have not responded to %1$d questions. Confirm to skip these questions or go back to respond.</string>
-    <string name="vote_proposal_detail_no_choices_message" translatable="false">Select at least one answer before reviewing and submitting your vote.</string>
-    <string name="coinVote_proposalList_reviewSubtitle" translatable="false">Tap on the question to edit any of your answers. After you review your answers, tap on Confirm &amp; Submit.</string>
-    <string name="coinVote_proposalList_yourVote" translatable="false">Your vote:</string>
-    <string name="coinVote_results_title" translatable="false">Results</string>
-    <string name="coinVote_common_zecValue" translatable="false">%1$.3f ZEC</string>
-    <string name="coinVote_results_total" translatable="false">Total: %1$.3f ZEC</string>
-    <string name="vote_results_ended" translatable="false">Ended %1$s</string>
-    <string name="vote_results_voted" translatable="false">Voted %1$s</string>
-    <string name="coinVote_common_votingPower" translatable="false">Voting Power %1$.3f ZEC</string>
-    <string name="coinVote_results_metaLine" translatable="false">%1$s  &#8226;  %2$s</string>
-    <string name="coinVote_results_votedLine" translatable="false">Voted: %1$s</string>
-    <string name="coinVote_common_governanceTitle" translatable="false">Governance</string>
-    <string name="coinVote_tallying_titleInProgress" translatable="false">Votes Closed</string>
-    <string name="coinVote_tallying_bodyInProgress" translatable="false">Results are being tallied. The election authority is decrypting the aggregate vote totals.</string>
-    <string name="coinVote_tallying_status" translatable="false">Tallying</string>
-    <string name="coinVote_tallying_detailRound" translatable="false">Round</string>
-    <string name="coinVote_tallying_detailProposals" translatable="false">Proposals</string>
-    <string name="coinVote_configError_title" translatable="false">Wallet Update Required</string>
-    <string name="coinVote_store_userError_noReachableVoteServers" translatable="false">Unable to reach any vote server. Please check your internet connection and try again.</string>
-    <string name="coinVote_store_userError_nullifierAlreadySpent" translatable="false">This wallet has already been registered for this voting round. If you have this wallet on multiple devices, please use the device where you originally started the voting process.</string>
-    <string name="coinVote_store_userError_roundNotActive" translatable="false">This voting round is no longer accepting votes. It may have ended or is not yet open.</string>
-    <string name="coinVote_store_userError_roundNotFound" translatable="false">This voting round could not be found on the network.</string>
-    <string name="coinVote_store_userError_pirSnapshotMismatch" translatable="false">The nullifier service is out of sync with the round\'s snapshot. Voting cannot proceed until a PIR server reports the matching snapshot. Please try again in a few minutes.</string>
-    <string name="coinVote_store_userError_pirInvalidProofData" translatable="false">The nullifier service returned invalid proof data. Please try again in a few minutes.</string>
-    <string name="coinVote_store_userError_pirUnavailable" translatable="false">Unable to reach the nullifier service. Please check your internet connection and try again.</string>
-    <string name="coinVote_store_userError_pirEndpointsMissing" translatable="false">The voting configuration is missing nullifier-service endpoints. Please update the app and try again.</string>
-    <string name="coinVote_store_userError_commitmentTreeNotGrown" translatable="false">Your transaction hasn\'t been confirmed yet. The network may be congested — please wait a moment and try again.</string>
-    <string name="coinVote_store_userError_invalidAnchorHeight" translatable="false">The voting state is out of sync. Please retry to use the latest data.</string>
-    <string name="coinVote_store_userError_invalidProof" translatable="false">Your proof was rejected by the network. Please try again.</string>
-    <string name="coinVote_store_userError_proofGenerationFailed" translatable="false">Proof generation failed. Please try again.</string>
-    <string name="coinVote_store_userError_noTreeState" translatable="false">The voting commitment tree is not available yet. The voting round may not have started or the chain has not processed any commitments.</string>
-    <string name="coinVote_store_userError_http5" translatable="false">The voting server is temporarily unavailable. Please try again shortly.</string>
-    <string name="coinVote_store_userError_lightwalletdUnavailable" translatable="false">Unable to reach the Zcash lightwalletd server. Please check your internet connection or try switching to a different server in Settings.</string>
-    <string name="vote_error_mapper_pir_connection" translatable="false">Could not connect to the privacy-preserving vote server. Please check your connection and try again.</string>
-    <string name="vote_error_mapper_insufficient_funds" translatable="false">Insufficient funds to authorize your vote. A small fee is required.</string>
-    <string name="coinVote_delegation_insufficientSnapshotBalance" translatable="false">Your shielded balance at the snapshot (%1$s ZEC) is below the minimum required to vote (%2$s ZEC).</string>
-    <string name="vote_error_mapper_wallet_sync" translatable="false">Your wallet is not fully synced. Please wait for syncing to complete before voting.</string>
-    <string name="vote_error_mapper_network" translatable="false">Network error. Please check your connection and try again.</string>
-    <string name="vote_error_mapper_version" translatable="false">Your app may need an update to participate in this voting round.</string>
-    <string name="vote_error_mapper_unknown" translatable="false">An unexpected error occurred. Please try again.</string>
-    <string name="coinVote_walletSyncing_title" translatable="false">Wallet Syncing</string>
-    <string name="coinVote_walletSyncing_subtitle" translatable="false">Your wallet needs to sync to the snapshot block height before you can participate in voting.</string>
-    <string name="vote_wallet_syncing_top_bar_title" translatable="false">Wallet Sync</string>
-    <string name="vote_wallet_syncing_title" translatable="false">Syncing your wallet</string>
-    <string name="vote_wallet_syncing_message" translatable="false">Your wallet needs to scan up to block %1$d before you can vote. Currently at block %2$d.</string>
-    <string name="vote_wallet_syncing_progress_complete" translatable="false">100%% complete</string>
-    <string name="vote_wallet_syncing_progress_percent" translatable="false">%1$d%% complete</string>
-    <string name="vote_wallet_syncing_status_complete" translatable="false">Sync complete</string>
-    <string name="vote_wallet_syncing_status_progress" translatable="false">%1$d%% - block %2$d of %3$d</string>
+    <string name="coinVote_votingView_unverifiedPollTitle" tools:ignore="MissingTranslation">Unverified Poll</string>
+    <string name="coinVote_votingView_unverifiedPollMessage" tools:ignore="MissingTranslation">This poll hasn\'t been verified. We can\'t confirm its legitimacy or how results will be used.</string>
+    <string name="coinVote_pollsList_unverifiedSheetProceed" tools:ignore="MissingTranslation">Proceed anyway</string>
+    <string name="coinVote_common_done" tools:ignore="MissingTranslation">Done</string>
+    <string name="coinVote_common_dismiss" tools:ignore="MissingTranslation">Dismiss</string>
+    <string name="coinVote_common_tryAgain" tools:ignore="MissingTranslation">Try Again</string>
+    <string name="coinVote_common_close" tools:ignore="MissingTranslation">Close</string>
+    <string name="coinVote_confirmSubmission_confirmWithKeystone" tools:ignore="MissingTranslation">Confirm with Keystone</string>
+    <string name="coinVote_common_confirm" tools:ignore="MissingTranslation">Confirm</string>
+    <string name="vote_confirm_cta_preparing" tools:ignore="MissingTranslation">Preparing vote...</string>
+    <string name="vote_confirm_cta_resume_keystone_signing" tools:ignore="MissingTranslation">Resume Keystone signing</string>
+    <string name="vote_confirm_cta_sign_keystone" tools:ignore="MissingTranslation">Sign with Keystone</string>
+    <string name="coinVote_delegationSigning_bundleProgress" tools:ignore="MissingTranslation">Sign bundle %1$d/%2$d</string>
+    <string name="coinVote_submission_continuedProcessingTitle" tools:ignore="MissingTranslation">Submitting votes</string>
+    <string name="coinVote_confirmSubmission_progressAuthorizing" tools:ignore="MissingTranslation">Authorizing...</string>
+    <string name="vote_confirm_cta_submitting" tools:ignore="MissingTranslation">Submitting vote %1$d of %2$d</string>
+    <string name="coinVote_store_submissionAuthorizingVote" tools:ignore="MissingTranslation">Authorizing vote...</string>
+    <string name="coinVote_confirmSubmission_progressSubmittingVoteCount" tools:ignore="MissingTranslation">Submitting vote %1$d of %2$d...</string>
+    <string name="coinVote_results_percentValue" tools:ignore="MissingTranslation">%1$d%%</string>
+    <string name="coinVote_common_submission" tools:ignore="MissingTranslation">Submission</string>
+    <string name="coinVote_confirmSubmission_headerTitleIdle" tools:ignore="MissingTranslation">Confirm &amp; Submit</string>
+    <string name="coinVote_confirmSubmission_headerTitleCompleted" tools:ignore="MissingTranslation">Submission Confirmed!</string>
+    <string name="coinVote_confirmSubmission_submissionFailedTitle" tools:ignore="MissingTranslation">Submission Failed</string>
+    <string name="coinVote_confirmSubmission_headerSubtitleIdleKeystone" tools:ignore="MissingTranslation">Review before signing the voting authorization with your Keystone. This is final. Your vote will be published and cannot be changed.</string>
+    <string name="coinVote_confirmSubmission_headerSubtitleIdle" tools:ignore="MissingTranslation">Review before confirming the voting authorization. This is final. Your vote will be published and cannot be changed.</string>
+    <string name="coinVote_confirmSubmission_headerSubtitleSubmitting" tools:ignore="MissingTranslation">Vote submission is in progress, please don\'t leave this screen until it is finished.</string>
+    <string name="coinVote_confirmSubmission_headerSubtitleCompleted" tools:ignore="MissingTranslation">Your vote was successfully published and cannot be changed.</string>
+    <string name="coinVote_confirmSubmission_submissionFailedMessage" tools:ignore="MissingTranslation">Your vote couldn\'t be submitted. Check your connection and try again.</string>
+    <string name="vote_confirm_error_auth" tools:ignore="MissingTranslation">Authorization transaction failed. Please try again.</string>
+    <string name="vote_confirm_error_no_choices" tools:ignore="MissingTranslation">No vote choices are available to submit.</string>
+    <string name="vote_confirm_error_authentication" tools:ignore="MissingTranslation">Authentication failed. Please try again.</string>
+    <string name="vote_confirm_preparing" tools:ignore="MissingTranslation">Preparing...</string>
+    <string name="vote_confirm_memo_resume_keystone" tools:ignore="MissingTranslation">Resume the pending Keystone signing request, then continue signing the remaining delegation bundles.</string>
+    <string name="vote_confirm_memo_sign_keystone" tools:ignore="MissingTranslation">Sign each prepared delegation bundle with Keystone before submitting your votes.</string>
+    <string name="coinVote_delegationSigning_memoMessage" tools:ignore="MissingTranslation">I am authorizing this hotkey managed by my wallet to vote on %1$s with %2$s.</string>
+    <string name="vote_confirm_memo_preparing" tools:ignore="MissingTranslation">Your wallet is still preparing the voting authorization for this poll.</string>
+    <string name="coinVote_confirmSubmission_detailPoll" tools:ignore="MissingTranslation">Poll</string>
+    <string name="coinVote_confirmSubmission_detailVotingPower" tools:ignore="MissingTranslation">Voting power</string>
+    <string name="coinVote_confirmSubmission_detailVotingHotkey" tools:ignore="MissingTranslation">Voting hotkey</string>
+    <string name="coinVote_confirmSubmission_detailMemo" tools:ignore="MissingTranslation">Memo</string>
+    <string name="vote_delegation_signing_title" tools:ignore="MissingTranslation">Delegation signing</string>
+    <string name="vote_delegation_signing_status_generating" tools:ignore="MissingTranslation">Generating proof... %1$d%%</string>
+    <string name="vote_delegation_signing_status_complete" tools:ignore="MissingTranslation">Proof complete - submitting delegation...</string>
+    <string name="vote_delegation_signing_status_ready" tools:ignore="MissingTranslation">Ready to generate zero-knowledge proof</string>
+    <string name="vote_delegation_signing_cta_generating" tools:ignore="MissingTranslation">Generating...</string>
+    <string name="vote_delegation_signing_cta" tools:ignore="MissingTranslation">Generate delegation proof</string>
+    <string name="vote_ineligible_top_bar_title" tools:ignore="MissingTranslation">Voting Eligibility</string>
+    <string name="coinVote_ineligible_titleNoVote" tools:ignore="MissingTranslation">Not Eligible for This Round</string>
+    <string name="coinVote_ineligible_noNotesMessage" tools:ignore="MissingTranslation">Your wallet has no shielded notes from before the snapshot block. Only funds that existed at block #%@ are eligible for this voting round.</string>
+    <string name="vote_ineligible_no_notes_at_snapshot" tools:ignore="MissingTranslation">Your wallet has no shielded notes from before snapshot block #%1$s. Only funds that existed at the snapshot block are eligible for this voting round.</string>
+    <string name="vote_ineligible_balance_too_low" tools:ignore="MissingTranslation">Your shielded voting weight at the snapshot block was %1$s ZEC, so this wallet is not eligible for this voting round.</string>
+    <string name="vote_ineligible_balance_too_low_at_snapshot" tools:ignore="MissingTranslation">Your shielded voting weight at snapshot block #%1$s was %2$s ZEC, so this wallet is not eligible for this voting round.</string>
+    <string name="coinVote_proposalDetail_position" tools:ignore="MissingTranslation">%1$d OF %2$d</string>
+    <string name="coinVote_proposalList_ctaConfirmSubmit" tools:ignore="MissingTranslation">Confirm &amp; Submit</string>
+    <string name="coinVote_proposalList_ctaStartVoting" tools:ignore="MissingTranslation">Start Voting</string>
+    <string name="coinVote_proposalList_ctaContinueVoting" tools:ignore="MissingTranslation">Continue Voting</string>
+    <string name="coinVote_proposalList_reviewTitle" tools:ignore="MissingTranslation">Review and submit vote</string>
+    <string name="vote_proposal_list_meta_line" tools:ignore="MissingTranslation">%1$s  &#8226;  %2$s</string>
+    <string name="coinVote_proposalList_headerEndsAt" tools:ignore="MissingTranslation">Ends %1$s</string>
+    <string name="coinVote_common_votedDate" tools:ignore="MissingTranslation">Voted %1$s</string>
+    <string name="coinVote_proposalList_votingPower" tools:ignore="MissingTranslation">Voting Power %1$s</string>
+    <string name="coinVote_tallying_detailEnded" tools:ignore="MissingTranslation">Ended</string>
+    <string name="vote_proposal_list_time_minutes_left" tools:ignore="MissingTranslation">%1$dm left</string>
+    <string name="vote_proposal_list_time_hours_left" tools:ignore="MissingTranslation">%1$dh left</string>
+    <string name="vote_proposal_list_time_day_left" tools:ignore="MissingTranslation">%1$d day left</string>
+    <string name="vote_proposal_list_time_days_left" tools:ignore="MissingTranslation">%1$d days left</string>
+    <string name="coinVote_common_viewMore" tools:ignore="MissingTranslation">View more</string>
+    <string name="coinVote_common_viewLess" tools:ignore="MissingTranslation">View less</string>
+    <string name="coinVote_proposalList_viewForumDiscussions" tools:ignore="MissingTranslation">View Forum Discussions</string>
+    <string name="coinVote_common_support" tools:ignore="MissingTranslation">Support</string>
+    <string name="coinVote_common_oppose" tools:ignore="MissingTranslation">Oppose</string>
+    <string name="coinVote_common_abstain" tools:ignore="MissingTranslation">Abstain</string>
+    <string name="coinVote_common_back" tools:ignore="MissingTranslation">Back</string>
+    <string name="coinVote_common_next" tools:ignore="MissingTranslation">Next</string>
+    <string name="coinVote_common_save" tools:ignore="MissingTranslation">Save</string>
+    <string name="coinVote_proposalDetail_viewForumDiscussion" tools:ignore="MissingTranslation">View Forum Discussion</string>
+    <string name="coinVote_proposalDetail_unansweredTitle" tools:ignore="MissingTranslation">Unanswered Questions</string>
+    <string name="coinVote_proposalDetail_skippedMessageSingle" tools:ignore="MissingTranslation">You have not responded to 1 question. Confirm to skip this question or go back to respond.</string>
+    <string name="coinVote_proposalDetail_skippedMessageMultiple" tools:ignore="MissingTranslation">You have not responded to %1$d questions. Confirm to skip these questions or go back to respond.</string>
+    <string name="vote_proposal_detail_no_choices_message" tools:ignore="MissingTranslation">Select at least one answer before reviewing and submitting your vote.</string>
+    <string name="coinVote_proposalList_reviewSubtitle" tools:ignore="MissingTranslation">Tap on the question to edit any of your answers. After you review your answers, tap on Confirm &amp; Submit.</string>
+    <string name="coinVote_proposalList_yourVote" tools:ignore="MissingTranslation">Your vote:</string>
+    <string name="coinVote_results_title" tools:ignore="MissingTranslation">Results</string>
+    <string name="coinVote_common_zecValue" tools:ignore="MissingTranslation">%1$.3f ZEC</string>
+    <string name="coinVote_results_total" tools:ignore="MissingTranslation">Total: %1$.3f ZEC</string>
+    <string name="vote_results_ended" tools:ignore="MissingTranslation">Ended %1$s</string>
+    <string name="vote_results_voted" tools:ignore="MissingTranslation">Voted %1$s</string>
+    <string name="coinVote_common_votingPower" tools:ignore="MissingTranslation">Voting Power %1$.3f ZEC</string>
+    <string name="coinVote_results_metaLine" tools:ignore="MissingTranslation">%1$s  &#8226;  %2$s</string>
+    <string name="coinVote_results_votedLine" tools:ignore="MissingTranslation">Voted: %1$s</string>
+    <string name="coinVote_common_governanceTitle" tools:ignore="MissingTranslation">Governance</string>
+    <string name="coinVote_tallying_titleInProgress" tools:ignore="MissingTranslation">Votes Closed</string>
+    <string name="coinVote_tallying_bodyInProgress" tools:ignore="MissingTranslation">Results are being tallied. The election authority is decrypting the aggregate vote totals.</string>
+    <string name="coinVote_tallying_status" tools:ignore="MissingTranslation">Tallying</string>
+    <string name="coinVote_tallying_detailRound" tools:ignore="MissingTranslation">Round</string>
+    <string name="coinVote_tallying_detailProposals" tools:ignore="MissingTranslation">Proposals</string>
+    <string name="coinVote_configError_title" tools:ignore="MissingTranslation">Wallet Update Required</string>
+    <string name="coinVote_store_userError_noReachableVoteServers" tools:ignore="MissingTranslation">Unable to reach any vote server. Please check your internet connection and try again.</string>
+    <string name="coinVote_store_userError_nullifierAlreadySpent" tools:ignore="MissingTranslation">This wallet has already been registered for this voting round. If you have this wallet on multiple devices, please use the device where you originally started the voting process.</string>
+    <string name="coinVote_store_userError_roundNotActive" tools:ignore="MissingTranslation">This voting round is no longer accepting votes. It may have ended or is not yet open.</string>
+    <string name="coinVote_store_userError_roundNotFound" tools:ignore="MissingTranslation">This voting round could not be found on the network.</string>
+    <string name="coinVote_store_userError_pirSnapshotMismatch" tools:ignore="MissingTranslation">The nullifier service is out of sync with the round\'s snapshot. Voting cannot proceed until a PIR server reports the matching snapshot. Please try again in a few minutes.</string>
+    <string name="coinVote_store_userError_pirInvalidProofData" tools:ignore="MissingTranslation">The nullifier service returned invalid proof data. Please try again in a few minutes.</string>
+    <string name="coinVote_store_userError_pirUnavailable" tools:ignore="MissingTranslation">Unable to reach the nullifier service. Please check your internet connection and try again.</string>
+    <string name="coinVote_store_userError_pirEndpointsMissing" tools:ignore="MissingTranslation">The voting configuration is missing nullifier-service endpoints. Please update the app and try again.</string>
+    <string name="coinVote_store_userError_commitmentTreeNotGrown" tools:ignore="MissingTranslation">Your transaction hasn\'t been confirmed yet. The network may be congested — please wait a moment and try again.</string>
+    <string name="coinVote_store_userError_invalidAnchorHeight" tools:ignore="MissingTranslation">The voting state is out of sync. Please retry to use the latest data.</string>
+    <string name="coinVote_store_userError_invalidProof" tools:ignore="MissingTranslation">Your proof was rejected by the network. Please try again.</string>
+    <string name="coinVote_store_userError_proofGenerationFailed" tools:ignore="MissingTranslation">Proof generation failed. Please try again.</string>
+    <string name="coinVote_store_userError_noTreeState" tools:ignore="MissingTranslation">The voting commitment tree is not available yet. The voting round may not have started or the chain has not processed any commitments.</string>
+    <string name="coinVote_store_userError_http5" tools:ignore="MissingTranslation">The voting server is temporarily unavailable. Please try again shortly.</string>
+    <string name="coinVote_store_userError_lightwalletdUnavailable" tools:ignore="MissingTranslation">Unable to reach the Zcash lightwalletd server. Please check your internet connection or try switching to a different server in Settings.</string>
+    <string name="vote_error_mapper_pir_connection" tools:ignore="MissingTranslation">Could not connect to the privacy-preserving vote server. Please check your connection and try again.</string>
+    <string name="vote_error_mapper_insufficient_funds" tools:ignore="MissingTranslation">Insufficient funds to authorize your vote. A small fee is required.</string>
+    <string name="coinVote_delegation_insufficientSnapshotBalance" tools:ignore="MissingTranslation">Your shielded balance at the snapshot (%1$s ZEC) is below the minimum required to vote (%2$s ZEC).</string>
+    <string name="vote_error_mapper_wallet_sync" tools:ignore="MissingTranslation">Your wallet is not fully synced. Please wait for syncing to complete before voting.</string>
+    <string name="vote_error_mapper_network" tools:ignore="MissingTranslation">Network error. Please check your connection and try again.</string>
+    <string name="vote_error_mapper_version" tools:ignore="MissingTranslation">Your app may need an update to participate in this voting round.</string>
+    <string name="vote_error_mapper_unknown" tools:ignore="MissingTranslation">An unexpected error occurred. Please try again.</string>
+    <string name="coinVote_walletSyncing_title" tools:ignore="MissingTranslation">Wallet Syncing</string>
+    <string name="coinVote_walletSyncing_subtitle" tools:ignore="MissingTranslation">Your wallet needs to sync to the snapshot block height before you can participate in voting.</string>
+    <string name="vote_wallet_syncing_top_bar_title" tools:ignore="MissingTranslation">Wallet Sync</string>
+    <string name="vote_wallet_syncing_title" tools:ignore="MissingTranslation">Syncing your wallet</string>
+    <string name="vote_wallet_syncing_message" tools:ignore="MissingTranslation">Your wallet needs to scan up to block %1$d before you can vote. Currently at block %2$d.</string>
+    <string name="vote_wallet_syncing_progress_complete" tools:ignore="MissingTranslation">100%% complete</string>
+    <string name="vote_wallet_syncing_progress_percent" tools:ignore="MissingTranslation">%1$d%% complete</string>
+    <string name="vote_wallet_syncing_status_complete" tools:ignore="MissingTranslation">Sync complete</string>
+    <string name="vote_wallet_syncing_status_progress" tools:ignore="MissingTranslation">%1$d%% - block %2$d of %3$d</string>
 
     <!-- ===== warning ===== -->
     <string name="notEnoughFreeSpace_title">Not enough free space</string>
