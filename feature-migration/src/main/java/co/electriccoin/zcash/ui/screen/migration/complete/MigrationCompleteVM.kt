@@ -13,7 +13,7 @@ import co.electriccoin.zcash.ui.common.model.LceState
 import co.electriccoin.zcash.ui.common.model.SubmitResult
 import co.electriccoin.zcash.ui.common.model.groupLce
 import co.electriccoin.zcash.ui.common.model.guardLoading
-import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
+import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_RESIDUAL_MIN_ZATOSHI
 import co.electriccoin.zcash.ui.common.model.migration.MigrationTransferFailureState
 import co.electriccoin.zcash.ui.common.model.migration.formatMigrationDuration
 import co.electriccoin.zcash.ui.common.model.mutableLce
@@ -200,24 +200,28 @@ class MigrationCompleteVM(
         viewModelScope.launch {
             try {
                 // Keystone-only auto-continuation (hot-wallet multi-run is deferred): if residual
-                // Orchard balance is still above the real dust threshold (not just non-zero — a
-                // multi-round campaign's per-round MigrationState.Complete doesn't distinguish
-                // "genuinely done" from "this round's transfers are mined, more residual needs
-                // another round"), clear the plan instead of marking "seen" — GetHomeMessageUseCase's
-                // migrationMessageFor() then naturally re-evaluates to REQUIRED (plan == null) even
-                // though the SDK's own MigrationState is still Complete (it only advances once the
-                // next round is actually committed).
+                // Orchard balance is still at or above the engine's real migratable minimum (not
+                // just non-zero — a multi-round campaign's per-round MigrationState.Complete doesn't
+                // distinguish "genuinely done" from "this round's transfers are mined, more residual
+                // needs another round"), clear the plan instead of marking "seen" —
+                // GetHomeMessageUseCase's migrationMessageFor() then naturally re-evaluates to
+                // REQUIRED (plan == null) even though the SDK's own MigrationState is still Complete
+                // (it only advances once the next round is actually committed).
+                // MIGRATION_RESIDUAL_MIN_ZATOSHI (not the smaller MIGRATION_DUST_THRESHOLD_ZATOSHI)
+                // is the correct gate here: it's the same constant migrationMessageFor() uses to
+                // decide "Migrate now" vs. the residue/lock flow. A residual between the two
+                // thresholds is un-migratable (proposeMigrationTransfers returns NothingToMigrate),
+                // so gating on the smaller dust threshold used to make this flag true for a residual
+                // the engine could never actually turn into another round — leaving the completion
+                // screen unmarked "seen" while the home banner had already moved on to the residue
+                // flow for the same balance.
                 // Guarded (2026-08-07 Fable review): this sat in a try/finally with no catch — the
-                // finally block (navigate back) would still run on a "database is locked" throw,
-                // but the exception then propagated past it uncaught, crashing the app right after
-                // navigating. Falls back to the same MIGRATION_DUST_THRESHOLD_ZATOSHI constant
-                // migrationMessageFor itself defaults to.
-                val dustThreshold =
-                    runCatching { getOrchardMigrationSdk().migrationDustThresholdZatoshi() }
-                        .getOrDefault(MIGRATION_DUST_THRESHOLD_ZATOSHI)
+                // finally block (navigate back) would still run on an exception partway through this
+                // block, but the exception then propagated past it uncaught, crashing the app right
+                // after navigating.
                 val moreRoundsNeeded =
                     getSelectedWalletAccount() is KeystoneAccount &&
-                        getOrchardBalance().value > dustThreshold
+                        getOrchardBalance().value >= MIGRATION_RESIDUAL_MIN_ZATOSHI
                 // The background chain and any leftover notification are already cancelled in
                 // init{} (as soon as this screen was shown, not deferred until now) — a subsequent
                 // Keystone round re-arms a fresh chain at its own commit either way.

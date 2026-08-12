@@ -1,6 +1,7 @@
 package co.electriccoin.zcash.ui.screen.migration.complete
 
 import androidx.navigation.NavBackStackEntry
+import cash.z.ecc.android.sdk.MigrationState
 import cash.z.ecc.android.sdk.MigrationSummary
 import cash.z.ecc.android.sdk.OrchardMigrationSdk
 import cash.z.ecc.android.sdk.model.Proposal
@@ -16,6 +17,7 @@ import co.electriccoin.zcash.ui.common.model.SubmitResult
 import co.electriccoin.zcash.ui.common.model.WalletAccount
 import co.electriccoin.zcash.ui.common.model.ZashiAccount
 import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_DUST_THRESHOLD_ZATOSHI
+import co.electriccoin.zcash.ui.common.model.migration.MIGRATION_RESIDUAL_MIN_ZATOSHI
 import co.electriccoin.zcash.ui.common.provider.HasLockedOrchardDustStorageProvider
 import co.electriccoin.zcash.ui.common.provider.HasSeenMigrationCompleteStorageProvider
 import co.electriccoin.zcash.ui.common.provider.MigrationNotifier
@@ -25,6 +27,7 @@ import co.electriccoin.zcash.ui.common.usecase.ErrorMapperUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardBalanceUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetOrchardMigrationSdkUseCase
 import co.electriccoin.zcash.ui.common.usecase.GetSelectedWalletAccountUseCase
+import co.electriccoin.zcash.ui.common.usecase.migrationMessageFor
 import co.electriccoin.zcash.ui.screen.migration.success.MigrationSuccessArgs
 import co.electriccoin.zcash.ui.screen.signkeystonetransaction.SignKeystoneTransactionArgs
 import co.electriccoin.zcash.work.MigrationScheduler
@@ -59,19 +62,44 @@ class MigrationCompleteVMTest {
     }
 
     @Test
-    fun keystoneAccountWithResidualBalanceClearsPlanInsteadOfMarkingSeen() =
+    fun keystoneAccountWithMigratableResidualBalanceClearsPlanInsteadOfMarkingSeen() =
         runTest {
+            // A residual at or above MIGRATION_RESIDUAL_MIN_ZATOSHI is genuinely migratable -- the
+            // engine can propose another round for it, so onDone() must clear the plan (not mark
+            // seen) and let the home banner re-offer that round.
             val seen = mockk<HasSeenMigrationCompleteStorageProvider>(relaxed = true)
             val router = FakeNavigationRouter()
             val vm =
                 vm(
                     seen = seen,
                     account = mockk<KeystoneAccount>(relaxed = true),
-                    orchardBalanceZatoshi = 500_000L,
+                    orchardBalanceZatoshi = MIGRATION_RESIDUAL_MIN_ZATOSHI + 500_000L,
                     router = router,
                 )
 
             vm.state.value // force lazy init to run (StateFlow combine below reads loadLce)
+            advanceUntilIdle()
+            invokeOnDone(vm)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { seen.store(true) }
+            assertEquals(1, router.backToRootCount)
+        }
+
+    @Test
+    fun keystoneAccountWithResidualExactlyAtResidualMinClearsPlanInsteadOfMarkingSeen() =
+        runTest {
+            // Boundary check: exactly-at-residual-min is still migratable (comparison is `>=`).
+            val seen = mockk<HasSeenMigrationCompleteStorageProvider>(relaxed = true)
+            val router = FakeNavigationRouter()
+            val vm =
+                vm(
+                    seen = seen,
+                    account = mockk<KeystoneAccount>(relaxed = true),
+                    orchardBalanceZatoshi = MIGRATION_RESIDUAL_MIN_ZATOSHI,
+                    router = router,
+                )
+
             advanceUntilIdle()
             invokeOnDone(vm)
             advanceUntilIdle()
@@ -168,6 +196,50 @@ class MigrationCompleteVMTest {
 
             coVerify(exactly = 1) { seen.store(true) }
             assertEquals(1, router.backToRootCount)
+        }
+
+    @Test
+    fun onDoneAgreesWithHomeBannerForResidualInTheDustToResidualMinGap() =
+        runTest {
+            // Regression guard for the threshold discrepancy this test used to reproduce: onDone()'s
+            // `moreRoundsNeeded` check used to compare the residual only against
+            // MIGRATION_DUST_THRESHOLD_ZATOSHI (0.001 ZEC) instead of MIGRATION_RESIDUAL_MIN_ZATOSHI
+            // (0.01 ZEC) -- the actual engine minimum below which proposeMigrationTransfers() returns
+            // NothingToMigrate. For a balance in the gap between the two (e.g. the live-observed
+            // 0.005 ZEC / 500_000L zatoshi used by GetHomeMessageUseCaseMigrationTest's own
+            // residue-band tests), that made onDone() and the home banner disagree for identical
+            // input: onDone() left "seen complete" unset (expecting another round), while the home
+            // banner correctly routed to the residue/lock flow for a balance the engine can never
+            // actually turn into another round. Both decisions must now agree: this balance marks
+            // the completion seen AND the home banner reports it complete.
+            val residualInGapZatoshi = 500_000L
+            check(residualInGapZatoshi > MIGRATION_DUST_THRESHOLD_ZATOSHI)
+            check(residualInGapZatoshi < MIGRATION_RESIDUAL_MIN_ZATOSHI)
+
+            val seen = mockk<HasSeenMigrationCompleteStorageProvider>(relaxed = true)
+            val router = FakeNavigationRouter()
+            val vm =
+                vm(
+                    seen = seen,
+                    account = mockk<KeystoneAccount>(relaxed = true),
+                    orchardBalanceZatoshi = residualInGapZatoshi,
+                    router = router,
+                )
+
+            advanceUntilIdle()
+            invokeOnDone(vm)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { seen.store(true) }
+
+            val homeMessage =
+                migrationMessageFor(
+                    sdkState = MigrationState.Complete,
+                    snapshot = null,
+                    hasSeenComplete = false,
+                    orchardBalanceZatoshi = residualInGapZatoshi,
+                )
+            assertEquals(true, homeMessage?.isComplete)
         }
 
     @Test
@@ -285,15 +357,9 @@ class MigrationCompleteVMTest {
         account: WalletAccount,
         orchardBalanceZatoshi: Long,
         router: FakeNavigationRouter,
-        // migrationDustThresholdZatoshi() explicitly pinned to the real threshold constant — a
-        // relaxed mock's default would answer 0L instead, breaking the boundary tests below that
-        // set orchardBalanceZatoshi relative to MIGRATION_DUST_THRESHOLD_ZATOSHI.
         getOrchardMigrationSdk: GetOrchardMigrationSdkUseCase =
             mockk {
-                coEvery { this@mockk() } returns
-                    mockk(relaxed = true) {
-                        coEvery { migrationDustThresholdZatoshi() } returns MIGRATION_DUST_THRESHOLD_ZATOSHI
-                    }
+                coEvery { this@mockk() } returns mockk(relaxed = true)
             },
         zashiSpendingKeyDataSource: ZashiSpendingKeyDataSource = mockk(relaxed = true),
         biometricRepository: BiometricRepository = mockk(relaxed = true),
