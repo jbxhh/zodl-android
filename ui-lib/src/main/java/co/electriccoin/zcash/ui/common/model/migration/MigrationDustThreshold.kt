@@ -5,6 +5,10 @@ package co.electriccoin.zcash.ui.common.model.migration
 // `migrationMessageFor`'s defaulted parameter), so those call sites still have *a* real gate
 // instead of a bare `> 0L`/`== MigrationState.Complete` check. Matches the Rust-layer
 // `MIGRATION_DUST_THRESHOLD_ZATOSHI` in `migration.rs` as of this writing.
+//
+// Lives in ui-lib (not feature-migration) so ui-lib-level callers -- e.g.
+// WalletViewModel.shouldShowIronwoodAnnouncement -- can share the same gate feature-migration
+// uses, instead of each module inventing its own threshold.
 const val MIGRATION_DUST_THRESHOLD_ZATOSHI = 100_000L
 
 // The smallest Orchard balance the migration engine will actually migrate. Mirrors librustzcash's
