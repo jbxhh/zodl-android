@@ -7,6 +7,8 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [3.9.2 (2370)] - 2026-08-10
+
 ### Fixed:
 
 - The refund address explainer no longer reads like "USDC on NEAR" is a fixed destination for every refund — it now says the refund returns in the source currency on the same network, since that's true for any swap, not just NEAR-based ones.
