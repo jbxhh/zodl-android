@@ -383,21 +383,22 @@ class ScreenshotTest : UiTestPrerequisites() {
         // To ensure that the bottom tab is available, or wait until it is
         composeTestRule.waitUntilAtLeastOneExists(
             hasTestTag(HomeTags.SEND),
-            15.seconds.inWholeMilliseconds
+            DEFAULT_TIMEOUT_MILLISECONDS_LONG
         )
         accountScreenshots(tag, composeTestRule)
 
         composeTestRule.waitUntilAtLeastOneExists(
             hasTestTag(HomeTags.SEND),
-            15.seconds.inWholeMilliseconds
+            DEFAULT_TIMEOUT_MILLISECONDS_LONG
         )
         composeTestRule.onNode(hasTestTag(HomeTags.SEND)).performClick()
         sendZecScreenshots(resContext, tag, composeTestRule)
 
         composeTestRule.onNode(hasTestTag(ZashiTopAppBarTags.BACK)).performClick()
+        composeTestRule.waitForIdle()
         composeTestRule.waitUntilAtLeastOneExists(
             hasTestTag(HomeTags.RECEIVE),
-            15.seconds.inWholeMilliseconds
+            DEFAULT_TIMEOUT_MILLISECONDS_LONG
         )
         composeTestRule.onNode(hasTestTag(HomeTags.RECEIVE)).performClick()
         receiveZecScreenshots(resContext, tag, composeTestRule)
@@ -498,7 +499,7 @@ private fun receiveZecScreenshots(
             text = resContext.getString(R.string.receive_title, CURRENCY_TICKER),
             ignoreCase = true
         ),
-        15.seconds.inWholeMilliseconds
+        DEFAULT_TIMEOUT_MILLISECONDS_LONG
     )
 
     composeTestRule
@@ -526,7 +527,7 @@ private fun sendZecScreenshots(
 
     composeTestRule.waitUntilAtLeastOneExists(
         hasText(resContext.getString(co.electriccoin.zcash.ui.design.R.string.send_review), ignoreCase = true),
-        15.seconds.inWholeMilliseconds
+        DEFAULT_TIMEOUT_MILLISECONDS_LONG
     )
 
     composeTestRule

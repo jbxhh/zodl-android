@@ -7,6 +7,8 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [3.9.2 (2370)] - 2026-08-10
+
 ### Fixed:
 
 - The refund address explainer no longer reads like "USDC on NEAR" is a fixed destination for every refund — it now says the refund returns in the source currency on the same network, since that's true for any swap, not just NEAR-based ones.
@@ -14,6 +16,8 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 - Shielded coinholder-polling rounds with more than one vote bundle no longer fail to build or submit votes beyond the first bundle.
 - Delegated vote submissions in shielded coinholder-polling rounds are no longer rejected by the voting server.
 - Fixed a rare case where a shielded coinholder-polling vote could stall waiting for confirmation instead of completing.
+- Tapping Receive no longer hangs indefinitely when a transient address-derivation error occurs; the app falls back to the account's current address instead.
+- The device authentication prompt no longer appears on app launch before a wallet has been created or restored.
 
 ## [3.9.1 (2361)] - 2026-08-08
 

@@ -112,11 +112,19 @@ class AuthenticationViewModel(
                 }
 
                 (state == AuthenticationUIState.Initial) -> {
-                    if (secretState == SecretState.NONE) {
-                        appAccessAuthentication.value = AuthenticationUIState.NotRequired
-                        AuthenticationUIState.NotRequired
-                    } else {
-                        AuthenticationUIState.Required
+                    when (secretState) {
+                        SecretState.LOADING -> {
+                            AuthenticationUIState.Initial
+                        }
+
+                        SecretState.NONE -> {
+                            appAccessAuthentication.value = AuthenticationUIState.NotRequired
+                            AuthenticationUIState.NotRequired
+                        }
+
+                        SecretState.READY -> {
+                            AuthenticationUIState.Required
+                        }
                     }
                 }
 
