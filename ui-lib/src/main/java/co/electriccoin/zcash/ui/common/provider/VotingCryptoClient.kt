@@ -773,7 +773,7 @@ class VotingCryptoClientImpl : VotingCryptoClient {
     ): VotingDelegationPirPrecomputeResult =
         withContext(Dispatchers.IO) {
             db(dbHandle)
-                .precomputeDelegationPir(roundId, bundleIndex, pirServerUrl, notesJson.toJniNoteInfos())
+                .precomputeDelegationPir(roundId, bundleIndex, pirServerUrl, 0, 0, 0, notesJson.toJniNoteInfos())
                 .toAppModel()
         }
 
@@ -796,6 +796,9 @@ class VotingCryptoClientImpl : VotingCryptoClient {
                     roundId,
                     bundleIndex,
                     pirServerUrl,
+                    0,
+                    0,
+                    0,
                     notesJson.toJniNoteInfos(),
                     fvkBytes,
                     hotkeySeed,
