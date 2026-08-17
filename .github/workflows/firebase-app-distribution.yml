@@ -35,7 +35,7 @@ on:
       groups:
         description: 'Firebase App Distribution tester groups (comma-separated)'
         required: false
-        default: 'zodl'
+        default: 'ec,zodl'
         type: string
       release_notes:
         description: 'Release notes (empty = auto-generated from branch and commit)'
@@ -260,6 +260,12 @@ jobs:
           name: ${{ format('firebase-{0}', matrix.variant) }}
           path: ${{ steps.variant.outputs.apk_dir }}/*.apk
       - name: Deploy to Firebase App Distribution
+        # Unlike the local deploy.sh this workflow replaces, there is deliberately no
+        # check for an already-uploaded release with the same version: re-dispatching
+        # the workflow (or re-running failed jobs) rebuilds and uploads a new release
+        # and re-notifies testers. CI builds are not byte-reproducible, so a re-run
+        # produces a genuinely new binary; a duplicate distribution is cheap, whereas
+        # a silently skipped one is confusing.
         timeout-minutes: 15
         shell: bash
         env:

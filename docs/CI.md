@@ -69,6 +69,8 @@ The Firebase secrets listed below (everything except the repository-level `SLACK
     * Release variants additionally reuse the `FLEXA_PUBLISHABLE_KEY` and `CMC_PUBLISHABLE_KEY` secrets documented under Release deployment above.
     * `SLACK_WEBHOOK_URL_WALLET_TEAM` - Optional Slack incoming webhook URL for the wallet-team channel.  A final best-effort job posts the deploy result there; it is skipped when the secret is unset and cannot fail the workflow run.
 
-When no `version_code` input is provided, the version code defaults to the git commit count of the selected branch (the build's own default).  Release notes default to an auto-generated string containing the variant, branch, and commit.
+When no `version_code` input is provided, the version code defaults to the git commit count of the selected branch (the build's own default).  Release notes default to an auto-generated string containing the variant, branch, and commit.  The `groups` input defaults to `ec,zodl`, the same tester groups the local `deploy.sh` script distributed to.
+
+Unlike the local `deploy.sh`, the workflow performs no already-uploaded check before distributing: re-dispatching the workflow (or re-running failed jobs) for the same commit uploads a new release and notifies testers again.  This is deliberate — CI builds are not byte-reproducible, so a re-run produces a genuinely new binary.
 
 FOSS variants are built without `google-services.json`: the workflow skips exporting `FIREBASE_DEBUG_JSON_BASE64` / `FIREBASE_RELEASE_JSON_BASE64` for them, because those files belong to the Store Firebase project and applying the Google Services plugin to a FOSS applicationId fails the build.  This matches `scripts/prepare-foss-build.sh`, which removes the same files before FOSS builds in the release workflow.
