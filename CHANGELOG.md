@@ -7,6 +7,18 @@ and this application adheres to [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [3.9.3 (2393)] - 2026-08-17
+
+### Changed:
+
+- We improved various UI elements around Ironwood migrations.
+- We no longer request biometric authentication before a wallet exists.
+
+### Fixed:
+
+- We fixed an issue that prevented some wallets from detecting spendable funds after migration.
+- We addressed issues affecting balances, transaction activity, migration, navigation, and stability on older Android devices.
+
 ## [3.9.2 (2370)] - 2026-08-10
 
 ### Fixed:
