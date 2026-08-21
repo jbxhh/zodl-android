@@ -1,7 +1,7 @@
 package co.electriccoin.zcash.ui.screen.pay
 
 import co.electriccoin.zcash.ui.NavigationRouter
-import co.electriccoin.zcash.ui.common.model.CrossPayRequestParser
+import co.electriccoin.zcash.ui.common.model.CrossPayRequest
 import co.electriccoin.zcash.ui.common.model.SwapAsset
 import co.electriccoin.zcash.ui.common.model.SwapAssetTestFixture
 import co.electriccoin.zcash.ui.common.model.SwapMode
@@ -237,10 +237,15 @@ class PayVMTest {
             val contract = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
             val recipientAddress = "0x92bF6Fbd794bA41093013Db027400B174aE4b5Cd"
             val request =
-                requireNotNull(
-                    CrossPayRequestParser.parse(
-                        "ethereum:$contract@8453/transfer?address=$recipientAddress&uint256=2500000"
-                    )
+                CrossPayRequest(
+                    address = recipientAddress,
+                    amount = CrossPayRequest.Amount(BigDecimal("2500000"), isAtomic = true),
+                    assetReference =
+                        CrossPayRequest.AssetReference.Contract(
+                            chain = null,
+                            chainId = "8453",
+                            address = contract
+                        )
                 )
             val baseUsdc =
                 SwapAssetTestFixture.asset(

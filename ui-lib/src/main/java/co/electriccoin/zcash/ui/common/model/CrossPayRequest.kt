@@ -1,9 +1,12 @@
 package co.electriccoin.zcash.ui.common.model
 
+import cash.z.ecc.android.sdk.PaymentUriParser
+import cash.z.ecc.android.sdk.model.Eip681PaymentRequest
+import cash.z.ecc.android.sdk.model.InvalidPaymentUriException
+import cash.z.ecc.android.sdk.model.PaymentUriRequest
+import cash.z.ecc.android.sdk.model.UtxoPaymentUriRequest
 import java.math.BigDecimal
-import java.net.URI
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
+import java.math.BigInteger
 
 data class CrossPayRequest(
     val address: String,
@@ -98,158 +101,106 @@ data class CrossPayRequest(
             mapOf(
                 "arb" to setOf("eth"),
                 "base" to setOf("eth"),
-                "eth" to setOf("eth"),
-                "avax" to setOf("avax"),
-                "bch" to setOf("bch"),
                 "bsc" to setOf("bnb"),
-                "btc" to setOf("btc"),
-                "dash" to setOf("dash"),
-                "doge" to setOf("doge"),
-                "ltc" to setOf("ltc"),
-                "near" to setOf("near", "wnear"),
                 "op" to setOf("eth", "op"),
                 "pol" to setOf("matic", "pol"),
-                "sol" to setOf("sol"),
                 "xlayer" to setOf("okb")
             )
     }
 }
 
 object CrossPayRequestParser {
-    fun parse(value: String): CrossPayRequest? {
-        val trimmed = value.trim()
-        val separator = trimmed.indexOf(':')
-        if (separator <= 0) return null
-
-        val scheme = trimmed.substring(0, separator).lowercase()
-        val payload = trimmed.substring(separator + 1)
-        return when (scheme) {
-            "bitcoin" -> parseBitcoinLike(payload, "btc")
-            "bitcoincash" -> parseBitcoinLike(payload, "bch", preserveScheme = true)
-            "dash" -> parseBitcoinLike(payload, "dash")
-            "dogecoin" -> parseBitcoinLike(payload, "doge")
-            "ethereum" -> parseEthereum(payload)
-            "litecoin" -> parseBitcoinLike(payload, "ltc")
-            "near" -> parseNear(payload)
-            "solana" -> parseSolana(payload)
-            else -> null
-        }
-    }
-
-    private fun parseBitcoinLike(payload: String, chain: String, preserveScheme: Boolean = false): CrossPayRequest? {
-        val (target, query) = splitQuery(payload)
-        val decoded = decode(target.removePrefix("//"))
-        if (decoded.isEmpty()) return null
-        val params = queryParameters(query)
-        return CrossPayRequest(
-            address = if (preserveScheme) "bitcoincash:$decoded" else decoded,
-            amount = decimal(params["amount"])?.let { CrossPayRequest.Amount(it, isAtomic = false) },
-            assetReference = CrossPayRequest.AssetReference.Native(chain)
-        )
-    }
-
-    private fun parseEthereum(payload: String): CrossPayRequest? {
-        val normalized = if (payload.startsWith(PAY_PREFIX, true)) payload.drop(PAY_PREFIX.length) else payload
-        val (targetAndFunction, query) = splitQuery(normalized)
-        val segments = targetAndFunction.split('/', limit = 2)
-        var target = segments[0]
-        val function = segments.getOrNull(1)?.lowercase()
-        val chainSeparator = target.lastIndexOf('@')
-        val chainId =
-            if (chainSeparator >= 0) {
-                target.substring(chainSeparator + 1).also { target = target.substring(0, chainSeparator) }
-            } else {
-                null
-            }
-        if (target.isEmpty() || chainId?.all(Char::isDigit) == false) return null
-        val params = queryParameters(query)
-
-        return if (function.isNullOrEmpty()) {
-            CrossPayRequest(
-                address = target,
-                amount = decimal(params["value"])?.let { CrossPayRequest.Amount(it, isAtomic = true) },
-                assetReference = CrossPayRequest.AssetReference.EvmNative(chainId)
-            )
-        } else {
-            parseErc20Transfer(function, target, chainId, params)
-        }
-    }
-
-    private fun parseErc20Transfer(
-        function: String,
-        contract: String,
-        chainId: String?,
-        params: Map<String, String>
-    ): CrossPayRequest? {
-        val recipient = params["address"] ?: return null
-        val isSupported = function == "transfer" && isHexAddress(contract) && isHexAddress(recipient)
-        return if (isSupported) {
-            CrossPayRequest(
-                address = recipient,
-                amount = decimal(params["uint256"])?.let { CrossPayRequest.Amount(it, isAtomic = true) },
-                assetReference = CrossPayRequest.AssetReference.Contract(null, chainId, contract)
-            )
-        } else {
+    suspend fun parse(value: String): CrossPayRequest? =
+        try {
+            PaymentUriParser.new().parse(value).toCrossPayRequest()
+        } catch (_: InvalidPaymentUriException) {
             null
         }
-    }
 
-    private fun parseSolana(payload: String): CrossPayRequest? {
-        val (target, query) = splitQuery(payload)
-        val address = decode(target.removePrefix("//"))
-        if (address.isEmpty() || runCatching { URI(address).scheme }.getOrNull() != null) return null
-        val params = queryParameters(query)
-        val assetReference =
-            params["spl-token"]?.let {
-                CrossPayRequest.AssetReference.Contract(chain = "sol", chainId = null, address = it)
-            } ?: CrossPayRequest.AssetReference.Native("sol")
-        return CrossPayRequest(
-            address = address,
-            amount = decimal(params["amount"])?.let { CrossPayRequest.Amount(it, isAtomic = false) },
-            assetReference = assetReference
-        )
-    }
-
-    private fun parseNear(payload: String): CrossPayRequest? {
-        val (target, query) = splitQuery(payload)
-        val address = decode(target.removePrefix("//"))
-        if (address.isEmpty()) return null
-        val amount = decimal(queryParameters(query)["amount"])
-        return CrossPayRequest(
-            address = address,
-            amount = amount?.let { CrossPayRequest.Amount(it, isAtomic = false) },
-            assetReference = CrossPayRequest.AssetReference.Native("near")
-        )
-    }
-}
-
-private fun splitQuery(value: String): Pair<String, String?> {
-    val separator = value.indexOf('?')
-    return if (separator < 0) value to null else value.substring(0, separator) to value.substring(separator + 1)
-}
-
-private fun queryParameters(query: String?): Map<String, String> =
-    query
-        ?.split('&')
-        ?.mapNotNull {
-            val pair = it.split('=', limit = 2)
-            pair.takeIf { parts -> parts.size == 2 }?.let { parts ->
-                decode(parts[0]).lowercase() to decode(parts[1])
+    private fun PaymentUriRequest.toCrossPayRequest(): CrossPayRequest? =
+        when (this) {
+            is PaymentUriRequest.Bitcoin -> {
+                request.toCrossPayRequest("btc")
             }
-        }?.toMap()
-        .orEmpty()
 
-private fun decimal(value: String?): BigDecimal? =
-    value
-        ?.let { runCatching { BigDecimal(it) }.getOrNull() }
-        ?.takeIf { it.signum() >= 0 }
+            is PaymentUriRequest.Ethereum -> {
+                request.toCrossPayRequest()
+            }
 
-private fun decode(value: String): String = URLDecoder.decode(value, StandardCharsets.UTF_8)
+            is PaymentUriRequest.Litecoin -> {
+                request.toCrossPayRequest("ltc")
+            }
 
-private fun isHexAddress(value: String): Boolean =
-    value.length == EVM_ADDRESS_LENGTH &&
-        value.startsWith("0x", true) &&
-        value.drop(2).all { it in '0'..'9' || it.lowercaseChar() in 'a'..'f' }
+            is PaymentUriRequest.SolanaTransfer -> {
+                val assetReference =
+                    request.splToken?.let {
+                        CrossPayRequest.AssetReference.Contract(
+                            chain = "sol",
+                            chainId = null,
+                            address = it.value
+                        )
+                    } ?: CrossPayRequest.AssetReference.Native("sol")
 
-private const val PAY_PREFIX = "pay-"
-private const val EVM_ADDRESS_LENGTH = 42
+                CrossPayRequest(
+                    address = request.recipient.value,
+                    amount =
+                        request.amount
+                            ?.value
+                            ?.toBigDecimal()
+                            ?.asDisplayAmount(),
+                    assetReference = assetReference
+                )
+            }
+
+            is PaymentUriRequest.SolanaTransaction -> {
+                null
+            }
+        }
+
+    private fun UtxoPaymentUriRequest.toCrossPayRequest(chain: String) =
+        CrossPayRequest(
+            address = address.value,
+            amount = amount?.value?.toBigDecimal()?.asDisplayAmount(),
+            assetReference = CrossPayRequest.AssetReference.Native(chain)
+        )
+
+    private fun Eip681PaymentRequest.toCrossPayRequest(): CrossPayRequest? =
+        when (this) {
+            is Eip681PaymentRequest.Native -> {
+                CrossPayRequest(
+                    address = recipientAddress.value,
+                    amount = valueHex.toAtomicAmount(),
+                    assetReference = CrossPayRequest.AssetReference.EvmNative(chainId)
+                )
+            }
+
+            is Eip681PaymentRequest.Erc20 -> {
+                CrossPayRequest(
+                    address = recipientAddress.value,
+                    amount = valueHex.toAtomicAmount(),
+                    assetReference =
+                        CrossPayRequest.AssetReference.Contract(
+                            chain = null,
+                            chainId = chainId,
+                            address = tokenContractAddress.value
+                        )
+                )
+            }
+
+            Eip681PaymentRequest.Unrecognised -> {
+                null
+            }
+        }
+
+    private fun BigDecimal.asDisplayAmount() = CrossPayRequest.Amount(this, isAtomic = false)
+
+    private fun String?.toAtomicAmount(): CrossPayRequest.Amount? =
+        this?.let {
+            CrossPayRequest.Amount(
+                value = BigInteger(removePrefix("0x"), HEX_RADIX).toBigDecimal(),
+                isAtomic = true
+            )
+        }
+
+    private const val HEX_RADIX = 16
+}
