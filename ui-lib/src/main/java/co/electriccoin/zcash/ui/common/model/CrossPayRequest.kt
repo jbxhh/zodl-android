@@ -55,8 +55,13 @@ data class CrossPayRequest(
         reference: AssetReference.EvmNative,
         current: SwapAsset?
     ): List<SwapAsset> {
-        val chain = reference.chainId?.let(::evmChain) ?: current?.chainTicker?.lowercase()
-        return chain?.let { nativeAssets(assets, it) }.orEmpty()
+        val chain = reference.chainId?.let(::evmChain)
+        // An explicit but unsupported chain id must be rejected, not silently treated the same
+        // as "no chain id at all" -- otherwise a request for an unsupported chain resolves to
+        // whatever asset the user already had selected, which the user never asked for.
+        if (reference.chainId != null && chain == null) return emptyList()
+        val resolvedChain = chain ?: current?.chainTicker?.lowercase()
+        return resolvedChain?.let { nativeAssets(assets, it) }.orEmpty()
     }
 
     private fun contractAssets(
