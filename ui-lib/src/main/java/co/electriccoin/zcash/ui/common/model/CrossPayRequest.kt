@@ -8,6 +8,14 @@ import cash.z.ecc.android.sdk.model.UtxoPaymentUriRequest
 import java.math.BigDecimal
 import java.math.BigInteger
 
+/**
+ * A cross-chain payment request resolved from a validated [PaymentUriRequest] (SDK) into a
+ * concrete, app-known [SwapAsset]. Covers Bitcoin and Litecoin on-chain transfers, EVM native
+ * and ERC-20 transfers across the chains in [EVM_CHAINS], and Solana native/SPL-token transfers.
+ * Solana interactive transaction-request links ([PaymentUriRequest.SolanaTransaction]) and
+ * unrecognised EIP-681 requests are explicitly out of scope and rejected during parsing -- see
+ * [CrossPayRequestParser.parse].
+ */
 data class CrossPayRequest(
     val address: String,
     val amount: Amount?,
@@ -39,7 +47,7 @@ data class CrossPayRequest(
             when (val reference = assetReference) {
                 is AssetReference.Native -> nativeAssets(assets, reference.chain)
                 is AssetReference.EvmNative -> evmNativeAssets(assets, reference, current)
-                is AssetReference.Contract -> contractAssets(assets, reference)
+                is AssetReference.Contract -> contractAssets(assets, reference, current)
             }
 
         return current?.takeIf(candidates::contains) ?: candidates.singleOrNull()
@@ -60,18 +68,28 @@ data class CrossPayRequest(
         // as "no chain id at all" -- otherwise a request for an unsupported chain resolves to
         // whatever asset the user already had selected, which the user never asked for.
         if (reference.chainId != null && chain == null) return emptyList()
-        val resolvedChain = chain ?: current?.chainTicker?.lowercase()
+        // Only fall back to the currently-selected asset's chain when it is actually an EVM
+        // chain -- a SOL/BTC/LTC asset selected as `current` must not silently match a native
+        // EVM request just because nativeTokens' permissive default matches any chain against
+        // itself.
+        val resolvedChain = chain ?: evmChainIfKnown(current?.chainTicker)
         return resolvedChain?.let { nativeAssets(assets, it) }.orEmpty()
     }
 
     private fun contractAssets(
         assets: Collection<SwapAsset>,
-        reference: AssetReference.Contract
+        reference: AssetReference.Contract,
+        current: SwapAsset?
     ): List<SwapAsset> {
-        val chain = reference.chainId?.let(::evmChain) ?: reference.chain
+        // reference.chain is an explicit, already-trusted non-EVM chain (e.g. Solana's literal
+        // "sol") from the parser -- it doesn't need the same EVM-chain validation as the
+        // current-derived fallback used when chainId is absent (every ERC-20 request: EIP-681
+        // has no `chain` string, only a numeric chainId).
+        val chain = reference.chainId?.let(::evmChain) ?: reference.chain ?: evmChainIfKnown(current?.chainTicker)
         if (reference.chainId != null && chain == null) return emptyList()
+        if (chain == null) return emptyList()
         return assets.filter {
-            (chain == null || it.chainTicker.equals(chain, true)) &&
+            it.chainTicker.equals(chain, true) &&
                 it.contractAddress?.equals(reference.address, true) == true
         }
     }
@@ -87,10 +105,24 @@ data class CrossPayRequest(
 
     private fun evmChain(chainId: String): String? = EVM_CHAINS[chainId]
 
+    /**
+     * Returns [chain] unchanged if it is a recognized EVM chain ticker, else null. Used to guard
+     * the currently-selected-asset fallback in [resolveAsset]: [current] may be on any chain
+     * (SOL, BTC, LTC, ...), and only an EVM one is a valid disambiguation for an EVM request
+     * with no explicit chain id.
+     */
+    private fun evmChainIfKnown(chain: String?): String? =
+        chain?.lowercase()?.takeIf { it in EVM_CHAINS.values }
+
     private fun nativeTokens(chain: String): Set<String> =
         NATIVE_TOKENS[chain.lowercase()] ?: setOf(chain.lowercase())
 
     private companion object {
+        // Known duplication (MOB-1751 review): this table and NATIVE_TOKENS are hand-duplicated
+        // in the iOS app's CrossPayRequest.swift. See
+        // https://github.com/zodl-inc/zodl-android/pull/2457 and
+        // https://github.com/zodl-inc/zodl-ios/pull/2002 for the tracked follow-up to collapse
+        // this into one shared source.
         val EVM_CHAINS =
             mapOf(
                 "1" to "eth",
