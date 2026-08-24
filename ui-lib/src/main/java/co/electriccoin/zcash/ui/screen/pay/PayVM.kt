@@ -185,8 +185,14 @@ internal class PayVM(
             val result = navigateToScanAddress()
             if (result != null) {
                 navigationRouter.back()
+                // Computed once, outside the update {} CAS-retry loop: this re-runs the curated-
+                // assets filter (an O(n*m) scan) on every retry otherwise, duplicating a
+                // computation the VM already produces reactively elsewhere via
+                // getCuratedSwapAssetsUseCase.observe(). The `else -> it.amount` fallback below
+                // still has to read state inside the lambda, since it depends on whatever the
+                // latest retry's state actually is.
+                val resolved = result.resolve(getCuratedSwapAssetsUseCase().data.orEmpty(), internalState.value.asset)
                 internalState.update {
-                    val resolved = result.resolve(getCuratedSwapAssetsUseCase().data.orEmpty(), it.asset)
                     val amount =
                         when {
                             resolved.amount != null -> NumberTextFieldInnerState.fromAmount(resolved.amount)

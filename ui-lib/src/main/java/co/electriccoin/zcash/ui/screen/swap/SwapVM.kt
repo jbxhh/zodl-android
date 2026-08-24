@@ -217,14 +217,22 @@ internal class SwapVM(
             val result = navigateToScanAddress()
             if (result != null) {
                 navigationRouter.back()
+                val resolved =
+                    result.resolve(getCuratedSwapAssetsUseCase().data.orEmpty(), internalState.value.swapAsset)
+                // In SWAP_INTO_ZEC, the address field being scanned is the refund address for the
+                // *source* asset, not a payment recipient -- it has no bearing on which asset is
+                // being swapped. Only apply a resolved asset/amount from the scan in the other
+                // direction, where the scanned address is the actual swap counterparty.
+                val isRefundAddressScan = internalState.value.swapDirection == SWAP_INTO_ZEC
                 internalState.update {
-                    val resolved = result.resolve(getCuratedSwapAssetsUseCase().data.orEmpty(), it.swapAsset)
                     it.copy(
                         selectedContact = null,
                         addressText = resolved.address,
-                        swapAsset = resolved.asset,
+                        swapAsset = if (isRefundAddressScan) it.swapAsset else resolved.asset,
                         amountTextState =
-                            if (resolved.amount != null) {
+                            if (isRefundAddressScan) {
+                                it.amountTextState
+                            } else if (resolved.amount != null) {
                                 NumberTextFieldInnerState.fromAmount(resolved.amount)
                             } else if (resolved.isPaymentRequest) {
                                 NumberTextFieldInnerState()
