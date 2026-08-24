@@ -54,8 +54,34 @@ data class CrossPayRequest(
     }
 
     private fun nativeAssets(assets: Collection<SwapAsset>, chain: String) =
-        assets.filter {
-            it.chainTicker.equals(chain, true) && it.tokenTicker.lowercase() in nativeTokens(chain)
+        assets.filter { it.matchesChain(chain) && it.tokenTicker.lowercase() in nativeTokens(chain) }
+
+    /**
+     * Resolves the chain a request should be evaluated against, or null to reject the request
+     * outright (no candidates).
+     *
+     * - If [chainId] is present, it must resolve via [EVM_CHAINS] -- an explicit but unsupported
+     *   chain id must be rejected, not silently treated the same as "no chain id at all" (which
+     *   falls through to the [current]-derived fallback below); otherwise a request for an
+     *   unsupported chain would resolve to whatever asset the user already had selected, which
+     *   the user never asked for. Note this never falls through to [explicitChain]/[current] once
+     *   [chainId] is present, even if it fails to resolve.
+     * - Otherwise, [explicitChain] is used if present -- an explicit, already-trusted non-EVM
+     *   chain from the parser (e.g. Solana's literal "sol"), which doesn't need EVM validation.
+     * - Otherwise, falls back to [current]'s chain, but only when it is itself a recognized EVM
+     *   chain -- a SOL/BTC/LTC asset selected as `current` must not silently match an EVM
+     *   request just because `nativeTokens`'s permissive default matches any chain against
+     *   itself.
+     */
+    private fun resolveTargetChain(
+        chainId: String?,
+        explicitChain: String?,
+        current: SwapAsset?
+    ): String? =
+        if (chainId != null) {
+            evmChain(chainId)
+        } else {
+            explicitChain ?: evmChainIfKnown(current?.chainTicker)
         }
 
     private fun evmNativeAssets(
@@ -63,17 +89,8 @@ data class CrossPayRequest(
         reference: AssetReference.EvmNative,
         current: SwapAsset?
     ): List<SwapAsset> {
-        val chain = reference.chainId?.let(::evmChain)
-        // An explicit but unsupported chain id must be rejected, not silently treated the same
-        // as "no chain id at all" -- otherwise a request for an unsupported chain resolves to
-        // whatever asset the user already had selected, which the user never asked for.
-        if (reference.chainId != null && chain == null) return emptyList()
-        // Only fall back to the currently-selected asset's chain when it is actually an EVM
-        // chain -- a SOL/BTC/LTC asset selected as `current` must not silently match a native
-        // EVM request just because nativeTokens' permissive default matches any chain against
-        // itself.
-        val resolvedChain = chain ?: evmChainIfKnown(current?.chainTicker)
-        return resolvedChain?.let { nativeAssets(assets, it) }.orEmpty()
+        val chain = resolveTargetChain(reference.chainId, explicitChain = null, current) ?: return emptyList()
+        return nativeAssets(assets, chain)
     }
 
     private fun contractAssets(
@@ -81,16 +98,10 @@ data class CrossPayRequest(
         reference: AssetReference.Contract,
         current: SwapAsset?
     ): List<SwapAsset> {
-        // reference.chain is an explicit, already-trusted non-EVM chain (e.g. Solana's literal
-        // "sol") from the parser -- it doesn't need the same EVM-chain validation as the
-        // current-derived fallback used when chainId is absent (every ERC-20 request: EIP-681
-        // has no `chain` string, only a numeric chainId).
-        val chain = reference.chainId?.let(::evmChain) ?: reference.chain ?: evmChainIfKnown(current?.chainTicker)
-        if (reference.chainId != null && chain == null) return emptyList()
-        if (chain == null) return emptyList()
+        val chain = resolveTargetChain(reference.chainId, reference.chain, current) ?: return emptyList()
         return assets.filter {
-            it.chainTicker.equals(chain, true) &&
-                it.contractAddress?.equals(reference.address, true) == true
+            it.matchesChain(chain) &&
+                it.contractAddress?.let { address -> addressesMatch(address, reference.address, chain) } == true
         }
     }
 
@@ -117,6 +128,20 @@ data class CrossPayRequest(
     private fun nativeTokens(chain: String): Set<String> =
         NATIVE_TOKENS[chain.lowercase()] ?: setOf(chain.lowercase())
 
+    private fun SwapAsset.matchesChain(chain: String): Boolean = chainTicker.equals(chain, true)
+
+    /**
+     * Compares two addresses for the given [chain]'s address format: case-insensitively for EVM
+     * hex addresses (a checksum's capitalization doesn't change the address), case-sensitively
+     * for everything else -- notably Solana's base58 mint/public-key addresses, where case is
+     * semantically significant and two strings differing only in case are different addresses.
+     */
+    private fun addressesMatch(
+        a: String,
+        b: String,
+        chain: String
+    ): Boolean = if (chain == "sol") a == b else a.equals(b, ignoreCase = true)
+
     private companion object {
         // Known duplication (MOB-1751 review): this table and NATIVE_TOKENS are hand-duplicated
         // in the iOS app's CrossPayRequest.swift. See
@@ -139,7 +164,12 @@ data class CrossPayRequest(
                 "arb" to setOf("eth"),
                 "base" to setOf("eth"),
                 "bsc" to setOf("bnb"),
-                "op" to setOf("eth", "op"),
+                // Optimism's own governance token (OP) is deliberately excluded here: a native
+                // EIP-681 transfer (no function call, just a value) always means the chain's gas
+                // token, which is ETH on Optimism, never OP. Including "op" let a native transfer
+                // match either asset when both were curated, making resolution ambiguous
+                // (candidates.count() > 1) for a request that's actually unambiguous.
+                "op" to setOf("eth"),
                 "pol" to setOf("matic", "pol"),
                 "xlayer" to setOf("okb")
             )
@@ -233,10 +263,18 @@ object CrossPayRequestParser {
 
     private fun String?.toAtomicAmount(): CrossPayRequest.Amount? =
         this?.let {
-            CrossPayRequest.Amount(
-                value = BigInteger(removePrefix("0x"), HEX_RADIX).toBigDecimal(),
-                isAtomic = true
-            )
+            // The SDK should always emit a well-formed "0x"-prefixed hex value here, but this
+            // parses untrusted-input-derived data one layer removed from where that's actually
+            // validated (a future SDK schema change, or a bug in the decode helpers there, would
+            // otherwise surface as an uncaught NumberFormatException past this function's only
+            // caller's narrow catch, silently stranding the caller with no state transition).
+            // Treat a malformed value as "no amount" rather than propagating the exception.
+            runCatching {
+                CrossPayRequest.Amount(
+                    value = BigInteger(removePrefix("0x"), HEX_RADIX).toBigDecimal(),
+                    isAtomic = true
+                )
+            }.getOrNull()
         }
 
     private const val HEX_RADIX = 16

@@ -128,4 +128,64 @@ class CrossPayRequestTest {
 
         assertEquals(usdcOnSolana, resolved)
     }
+
+    @Test
+    fun contractRequestWithSupportedChainIdResolvesRegardlessOfCurrentSelection() {
+        val resolved =
+            contractRequest(chain = null, chainId = "8453")
+                .resolveAsset(listOf(usdcOnBase, usdcOnArbitrum), current = usdcOnArbitrum)
+
+        assertEquals(usdcOnBase, resolved)
+    }
+
+    @Test
+    fun contractRequestWithUnsupportedChainIdIsRejectedRatherThanFallingBackToCurrentSelection() {
+        // Regression test: the chainId lookup failure and the current-asset fallback used to be
+        // folded into one expression, so an explicit but unsupported chain id (e.g. Fantom, "250")
+        // fell through to the current-asset fallback instead of being rejected -- the exact bug
+        // class already fixed for EvmNative, reintroduced here by a different code shape.
+        val resolved =
+            contractRequest(chain = null, chainId = "250")
+                .resolveAsset(listOf(usdcOnBase, usdcOnArbitrum), current = usdcOnArbitrum)
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun contractRequestMatchesSplMintAddressCaseSensitively() {
+        // Base58 (Solana mint addresses) is case-sensitive -- two strings differing only in case
+        // are different addresses, unlike EVM hex addresses where case is just checksum styling.
+        val differentCaseMint =
+            SwapAssetTestFixture.asset(
+                tokenTicker = "usdc",
+                chainTicker = "sol",
+                contractAddress = usdcOnSolana.contractAddress?.uppercase()
+            )
+        val resolved =
+            contractRequest(chain = "sol", chainId = null, address = usdcOnSolana.contractAddress.orEmpty())
+                .resolveAsset(listOf(differentCaseMint), current = null)
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun contractRequestMatchesEvmContractAddressCaseInsensitively() {
+        val upperCaseAddress =
+            contractRequest(chain = null, chainId = "8453", address = usdcOnBase.contractAddress.orEmpty().uppercase())
+
+        assertEquals(usdcOnBase, upperCaseAddress.resolveAsset(listOf(usdcOnBase), current = null))
+    }
+
+    @Test
+    fun nativeOptimismTransferIsUnambiguousEvenWithBothEthAndOpCurated() {
+        // Regression test: NATIVE_TOKENS["op"] used to include "op" alongside "eth", so a plain
+        // native transfer (which always means the gas token, ETH -- never a chain's separate
+        // governance token) became ambiguous whenever both were curated, incorrectly resolving to
+        // "no match" for a request that's actually unambiguous.
+        val ethOnOptimism = SwapAssetTestFixture.asset(tokenTicker = "eth", chainTicker = "op")
+        val opToken = SwapAssetTestFixture.asset(tokenTicker = "op", chainTicker = "op")
+        val resolved = evmNativeRequest(chainId = "10").resolveAsset(listOf(ethOnOptimism, opToken), current = null)
+
+        assertEquals(ethOnOptimism, resolved)
+    }
 }
