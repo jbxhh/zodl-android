@@ -195,9 +195,23 @@ internal class PayVM(
                 internalState.update {
                     val amount =
                         when {
-                            resolved.amount != null -> NumberTextFieldInnerState.fromAmount(resolved.amount)
-                            resolved.isPaymentRequest -> NumberTextFieldInnerState()
-                            else -> it.amount
+                            resolved.amount != null -> {
+                                NumberTextFieldInnerState.fromAmount(resolved.amount)
+                            }
+
+                            // Only clear a typed amount when the resolved asset is actually
+                            // different from what's already selected -- an amount-less rescan of
+                            // the same asset (e.g. a bare address-only EIP-681 URI) must not wipe
+                            // out an amount the user already typed for that same asset. Compared
+                            // by assetId, not full equality: see resolveAsset()'s comment in
+                            // CrossPayRequest.kt for why data-class equality isn't reliable here.
+                            resolved.isResolvedPaymentRequest && resolved.asset?.assetId != it.asset?.assetId -> {
+                                NumberTextFieldInnerState()
+                            }
+
+                            else -> {
+                                it.amount
+                            }
                         }
                     it.copy(
                         selectedABContact = null,

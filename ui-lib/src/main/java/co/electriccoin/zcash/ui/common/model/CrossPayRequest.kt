@@ -50,7 +50,12 @@ data class CrossPayRequest(
                 is AssetReference.Contract -> contractAssets(assets, reference, current)
             }
 
-        return current?.takeIf(candidates::contains) ?: candidates.singleOrNull()
+        // Compared by assetId rather than full equality: SwapAsset implementations are data
+        // classes, so a `current` captured from an older curated-assets snapshot (e.g. before a
+        // field like contractAddress was populated) would otherwise fail structural equality
+        // against the same conceptual asset in a freshly-loaded `candidates` list, breaking the
+        // "no explicit chain -> keep current selection" fallback below.
+        return current?.takeIf { c -> candidates.any { it.assetId == c.assetId } } ?: candidates.singleOrNull()
     }
 
     private fun nativeAssets(assets: Collection<SwapAsset>, chain: String) =
@@ -128,20 +133,6 @@ data class CrossPayRequest(
     private fun nativeTokens(chain: String): Set<String> =
         NATIVE_TOKENS[chain.lowercase()] ?: setOf(chain.lowercase())
 
-    private fun SwapAsset.matchesChain(chain: String): Boolean = chainTicker.equals(chain, true)
-
-    /**
-     * Compares two addresses for the given [chain]'s address format: case-insensitively for EVM
-     * hex addresses (a checksum's capitalization doesn't change the address), case-sensitively
-     * for everything else -- notably Solana's base58 mint/public-key addresses, where case is
-     * semantically significant and two strings differing only in case are different addresses.
-     */
-    private fun addressesMatch(
-        a: String,
-        b: String,
-        chain: String
-    ): Boolean = if (chain == "sol") a == b else a.equals(b, ignoreCase = true)
-
     private companion object {
         // Known duplication (MOB-1751 review): this table and NATIVE_TOKENS are hand-duplicated
         // in the iOS app's CrossPayRequest.swift. See
@@ -176,26 +167,61 @@ data class CrossPayRequest(
     }
 }
 
+// File-scoped rather than members of CrossPayRequest: neither reads any CrossPayRequest instance
+// state, and keeping them out of the class avoids pushing its member count over detekt's
+// TooManyFunctions threshold.
+private fun SwapAsset.matchesChain(chain: String): Boolean = chainTicker.equals(chain, true)
+
+/**
+ * Compares two addresses for the given [chain]'s address format: case-insensitively for EVM hex
+ * addresses (a checksum's capitalization doesn't change the address), case-sensitively for
+ * everything else -- notably Solana's base58 mint/public-key addresses, where case is semantically
+ * significant and two strings differing only in case are different addresses.
+ */
+private fun addressesMatch(
+    a: String,
+    b: String,
+    chain: String
+): Boolean = if (chain == "sol") a == b else a.equals(b, ignoreCase = true)
+
+/**
+ * Distinguishes a string that simply isn't a recognized payment-request URI at all (treated
+ * elsewhere as a literal address, e.g. a plain ZEC/BTC address with no scheme) from one that a
+ * recognized scheme deliberately puts out of scope -- a Solana Pay interactive transaction-request
+ * link, or an EIP-681 request using a method this app doesn't support. The latter must not be
+ * silently accepted as a literal recipient address either: it's a URI, and one this parser
+ * explicitly declined to honour, not something to attempt sending funds to as-is.
+ */
+sealed interface CrossPayParseResult {
+    data class Request(
+        val request: CrossPayRequest
+    ) : CrossPayParseResult
+
+    data object NotAPaymentRequest : CrossPayParseResult
+
+    data object Rejected : CrossPayParseResult
+}
+
 object CrossPayRequestParser {
-    suspend fun parse(value: String): CrossPayRequest? =
+    suspend fun parse(value: String): CrossPayParseResult =
         try {
-            PaymentUriParser.new().parse(value).toCrossPayRequest()
+            PaymentUriParser.new().parse(value).toCrossPayParseResult()
         } catch (_: InvalidPaymentUriException) {
-            null
+            CrossPayParseResult.NotAPaymentRequest
         }
 
-    private fun PaymentUriRequest.toCrossPayRequest(): CrossPayRequest? =
+    private fun PaymentUriRequest.toCrossPayParseResult(): CrossPayParseResult =
         when (this) {
             is PaymentUriRequest.Bitcoin -> {
-                request.toCrossPayRequest("btc")
+                request.toCrossPayRequest("btc").toResult()
             }
 
             is PaymentUriRequest.Ethereum -> {
-                request.toCrossPayRequest()
+                request.toCrossPayParseResult()
             }
 
             is PaymentUriRequest.Litecoin -> {
-                request.toCrossPayRequest("ltc")
+                request.toCrossPayRequest("ltc").toResult()
             }
 
             is PaymentUriRequest.SolanaTransfer -> {
@@ -216,13 +242,15 @@ object CrossPayRequestParser {
                             ?.toBigDecimal()
                             ?.asDisplayAmount(),
                     assetReference = assetReference
-                )
+                ).toResult()
             }
 
             is PaymentUriRequest.SolanaTransaction -> {
-                null
+                CrossPayParseResult.Rejected
             }
         }
+
+    private fun CrossPayRequest.toResult(): CrossPayParseResult = CrossPayParseResult.Request(this)
 
     private fun UtxoPaymentUriRequest.toCrossPayRequest(chain: String) =
         CrossPayRequest(
@@ -231,14 +259,14 @@ object CrossPayRequestParser {
             assetReference = CrossPayRequest.AssetReference.Native(chain)
         )
 
-    private fun Eip681PaymentRequest.toCrossPayRequest(): CrossPayRequest? =
+    private fun Eip681PaymentRequest.toCrossPayParseResult(): CrossPayParseResult =
         when (this) {
             is Eip681PaymentRequest.Native -> {
                 CrossPayRequest(
                     address = recipientAddress.value,
                     amount = valueHex.toAtomicAmount(),
                     assetReference = CrossPayRequest.AssetReference.EvmNative(chainId)
-                )
+                ).toResult()
             }
 
             is Eip681PaymentRequest.Erc20 -> {
@@ -251,11 +279,11 @@ object CrossPayRequestParser {
                             chainId = chainId,
                             address = tokenContractAddress.value
                         )
-                )
+                ).toResult()
             }
 
             Eip681PaymentRequest.Unrecognised -> {
-                null
+                CrossPayParseResult.Rejected
             }
         }
 

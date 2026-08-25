@@ -52,7 +52,13 @@ class NearSwapDataSource(
         withContext(Dispatchers.Default) {
             nearApiProvider
                 .getSupportedTokens()
-                .distinctBy { Triple(it.symbol, it.blockchain, it.decimals) }
+                // Includes contractAddress: two tokens sharing symbol+chain+decimals but
+                // different contract addresses (e.g. native vs. bridged USDC on the same chain)
+                // are genuinely distinct assets, not duplicates -- contractAddress is load-bearing
+                // for CrossPayRequest.contractAssets() resolution, so silently dropping one here
+                // would make it permanently unresolvable via a scanned payment URI even though
+                // the backend supports it.
+                .distinctBy { listOf(it.symbol, it.blockchain, it.decimals, it.contractAddress) }
                 .map { buildSwapAsset(it) }
         }
 
