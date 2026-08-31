@@ -1,35 +1,29 @@
 # .github/workflows/build-apk.yml
 
-name: Build APK
+name: Auto Build APK
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      variant:
-        description: "Android build variant"
-        required: true
-        default: "zcashmainnetStoreDebug"
-        type: choice
-        options:
-          - zcashmainnetStoreDebug
-          - zcashmainnetFossDebug
-          - zcashtestnetStoreDebug
-          - zcashtestnetFossDebug
 
 permissions:
   contents: read
 
+concurrency:
+  group: auto-build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Build ${{ inputs.variant }}
+    name: Build Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -41,29 +35,31 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK
         run: |
-          sdkmanager "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "ndk;27.0.12077973"
+          sdkmanager "platform-tools"
+          sdkmanager "platforms;android-36"
+          sdkmanager "build-tools;36.0.0"
+          sdkmanager "ndk;27.0.12077973"
 
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      - name: Show Gradle and Java versions
+      - name: Build mainnet Store Debug APK
         run: |
-          java -version
-          ./gradlew --version
-
-      - name: Build APK
-        run: |
-          ./gradlew ":app:assemble${{ inputs.variant#?}}" --stacktrace
+          ./gradlew \
+            :app:assembleZcashmainnetStoreDebug \
+            --stacktrace \
+            --no-daemon
         env:
           ORG_GRADLE_PROJECT_ZCASH_VERSION_CODE: "1"
           ORG_GRADLE_PROJECT_ZCASH_VERSION_NAME: "3.9.3"
           ORG_GRADLE_PROJECT_ZCASH_RELEASE_APP_NAME: "Zodl"
           ORG_GRADLE_PROJECT_ZCASH_RELEASE_PACKAGE_NAME: "co.electriccoin.zcash"
+          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PATH: ""
+          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PASSWORD: ""
+          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEY_ALIAS: ""
+          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEY_ALIAS_PASSWORD: ""
           ORG_GRADLE_PROJECT_IS_MINIFY_ENABLED: "false"
           ORG_GRADLE_PROJECT_NDK_DEBUG_SYMBOL_LEVEL: "none"
           ORG_GRADLE_PROJECT_IS_RELEASE_BUILD_DEBUGGABLE: "false"
@@ -76,36 +72,35 @@ jobs:
           ORG_GRADLE_PROJECT_ZCASH_CMC_KEY: ""
 
       - name: Find APK
-        id: apk
+        id: find-apk
         shell: bash
         run: |
           set -euo pipefail
 
-          APK_PATH="$(find app/build/outputs/apk -type f -name '*.apk' | head -n 1)"
+          apk="$(find app/build/outputs/apk \
+            -type f \
+            -name '*.apk' \
+            | head -n 1)"
 
-          if [ -z "${APK_PATH}" ]; then
-            echo "No APK was produced."
-            find app/build/outputs -maxdepth 5 -type f -print || true
+          if [ -z "$apk" ]; then
+            echo "APK was not generated."
+            find app/build/outputs -type f -print || true
             exit 1
           fi
 
-          echo "APK found: ${APK_PATH}"
-          echo "path=${APK_PATH}" >> "$GITHUB_OUTPUT"
+          echo "APK: $apk"
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
 
       - name: Rename APK
-        shell: bash
         run: |
-          set -euo pipefail
-
           mkdir -p artifacts
-
-          cp "${{ steps.apk.outputs.path }}" \
-            "artifacts/zodl-${{ inputs.variant }}.apk"
+          cp "${{ steps.find-apk.outputs.path }}" \
+            "artifacts/zodl-mainnet-store-debug.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: zodl-${{ inputs.variant }}-apk
-          path: artifacts/*.apk
+          name: zodl-mainnet-store-debug
+          path: artifacts/zodl-mainnet-store-debug.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
