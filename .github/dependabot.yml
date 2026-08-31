@@ -1,18 +1,4 @@
 #!/bin/bash
-# Zodl 本地构建脚本
-
-echo "🧹 正在清理旧构建..."
 ./gradlew clean
-
-echo "🏗️ 正在构建 FOSS Debug APK (无需 Google 密钥)..."
 ./gradlew assembleZcashmainnetFossDebug
-
-APK_DIR="app/build/outputs/apk/zcashmainnetFoss/debug/"
-if [ -d "$APK_DIR" ]; then
-    echo "✅ 构建成功！"
-    echo "📦 APK 在这里: $APK_DIR"
-    # 自动打开文件夹 (Mac 用 open, Linux 用 xdg-open)
-    open "$APK_DIR" 2>/dev/null || xdg-open "$APK_DIR"
-else
-    echo "❌ 构建失败，请检查上面的报错信息。"
-fi
+echo "APK: app/build/outputs/apk/zcashmainnetFoss/debug/"
