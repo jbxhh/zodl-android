@@ -1,79 +1,111 @@
-#!/bin/bash
-set -e
+# .github/workflows/build-apk.yml
 
-GITHUB_TOKEN="${1:?用法: $0 <GitHub Token> [debug|release]}"
-BUILD_TYPE="${2:-debug}"
-REPO="jbxhh/zodl-android"
-WORKFLOW_ID="create-release.yml"
-BRANCH="main"
-API="https://api.github.com/repos/$REPO"
-AUTH="Authorization: Bearer $GITHUB_TOKEN"
+name: Build APK
 
-echo "[INFO] 验证 Token..."
-USER=$(curl -s -H "$AUTH" https://api.github.com/user | python3 -c "import sys,json;print(json.load(sys.stdin).get('login',''))" 2>/dev/null)
-[ -z "$USER" ] && { echo "[ERR] Token 无效"; exit 1; }
-echo "[OK] 用户: $USER"
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Android build variant"
+        required: true
+        default: "zcashmainnetStoreDebug"
+        type: choice
+        options:
+          - zcashmainnetStoreDebug
+          - zcashmainnetFossDebug
+          - zcashtestnetStoreDebug
+          - zcashtestnetFossDebug
 
-echo "[INFO] 触发构建 ($BUILD_TYPE)..."
-HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$AUTH" \
-  -H "Accept: application/vnd.github+json" \
-  "$API/actions/workflows/$WORKFLOW_ID/dispatches" \
-  -d "{\"ref\":\"$BRANCH\",\"inputs\":{\"build_type\":\"$BUILD_TYPE\"}}")
-[ "$HTTP" != "204" ] && { echo "[ERR] 触发失败 HTTP $HTTP"; exit 1; }
-echo "[OK] 已触发"
+permissions:
+  contents: read
 
-sleep 5
-echo "[INFO] 等待任务启动..."
-RUN_ID=""
-for i in $(seq 1 30); do
-  RUN_ID=$(curl -s -H "$AUTH" "$API/actions/runs?branch=$BRANCH&event=workflow_dispatch&per_page=5" | python3 -c "
-import sys,json
-for r in json.load(sys.stdin).get('workflow_runs',[]):
-    if r.get('status') in ('queued','in_progress','completed'):
-        print(r['id']); break" 2>/dev/null)
-  [ -n "$RUN_ID" ] && break
-  sleep 5
-done
-[ -z "$RUN_ID" ] && { echo "[ERR] 未找到任务"; exit 1; }
-echo "[OK] 任务ID: $RUN_ID"
-echo "       https://github.com/$REPO/actions/runs/$RUN_ID"
+jobs:
+  build:
+    name: Build ${{ inputs.variant }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
 
-echo "[INFO] 等待构建完成..."
-START=$(date +%s)
-while true; do
-  sleep 15
-  RUN=$(curl -s -H "$AUTH" "$API/actions/runs/$RUN_ID")
-  STATUS=$(echo "$RUN" | python3 -c "import sys,json;print(json.load(sys.stdin).get('status',''))")
-  CONCLUSION=$(echo "$RUN" | python3 -c "import sys,json;print(json.load(sys.stdin).get('conclusion',''))")
-  ELAPSED=$(( $(date +%s) - START ))
-  echo "[INFO] 状态: $STATUS | 已用 $((ELAPSED/60))分$((ELAPSED%60))秒"
-  [ "$STATUS" = "completed" ] && break
-  [ $ELAPSED -gt 3600 ] && { echo "[ERR] 超时"; exit 1; }
-done
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-[ "$CONCLUSION" != "success" ] && { echo "[ERR] 构建失败: $CONCLUSION"; echo "       https://github.com/$REPO/actions/runs/$RUN_ID"; exit 1; }
-echo "[OK] 构建成功！"
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
 
-echo "[INFO] 下载 APK..."
-ART_ID=$(curl -s -H "$AUTH" "$API/actions/runs/$RUN_ID/artifacts" | python3 -c "
-import sys,json
-a=json.load(sys.stdin).get('artifacts',[])
-print(a[0]['id'] if a else '')" 2>/dev/null)
-ART_NAME=$(curl -s -H "$AUTH" "$API/actions/runs/$RUN_ID/artifacts" | python3 -c "
-import sys,json
-a=json.load(sys.stdin).get('artifacts',[])
-print(a[0]['name'] if a else '')" 2>/dev/null)
-echo "[OK] Artifact: $ART_NAME"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-curl -s -L -H "$AUTH" -o artifact.zip "$API/actions/artifacts/$ART_ID/zip"
-mkdir -p output && unzip -o artifact.zip -d output/ > /dev/null
-APK=$(find output -name "*.apk" | head -1)
-APK_SIZE=$(du -h "$APK" | cut -f1)
-rm -f artifact.zip
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.0.12077973"
 
-echo ""
-echo "========================================"
-echo "  构建成功！"
-echo "  APK: $(pwd)/$APK ($APK_SIZE)"
-echo "  日志: https://github.com/$REPO/actions/runs/$RUN_ID"
-echo "========================================"
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Show Gradle and Java versions
+        run: |
+          java -version
+          ./gradlew --version
+
+      - name: Build APK
+        run: |
+          ./gradlew ":app:assemble${{ inputs.variant#?}}" --stacktrace
+        env:
+          ORG_GRADLE_PROJECT_ZCASH_VERSION_CODE: "1"
+          ORG_GRADLE_PROJECT_ZCASH_VERSION_NAME: "3.9.3"
+          ORG_GRADLE_PROJECT_ZCASH_RELEASE_APP_NAME: "Zodl"
+          ORG_GRADLE_PROJECT_ZCASH_RELEASE_PACKAGE_NAME: "co.electriccoin.zcash"
+          ORG_GRADLE_PROJECT_IS_MINIFY_ENABLED: "false"
+          ORG_GRADLE_PROJECT_NDK_DEBUG_SYMBOL_LEVEL: "none"
+          ORG_GRADLE_PROJECT_IS_RELEASE_BUILD_DEBUGGABLE: "false"
+          ORG_GRADLE_PROJECT_IS_SIGN_RELEASE_BUILD_WITH_DEBUG_KEY: "false"
+          ORG_GRADLE_PROJECT_IS_USE_TEST_ORCHESTRATOR: "false"
+          ORG_GRADLE_PROJECT_IS_CRASH_ON_STRICT_MODE_VIOLATION: "false"
+          ORG_GRADLE_PROJECT_IS_ENABLE_COMPOSE_COMPILER_METRICS: "false"
+          ORG_GRADLE_PROJECT_IS_ENABLE_COMPOSE_COMPILER_REPORTS: "false"
+          ORG_GRADLE_PROJECT_ZCASH_FLEXA_KEY: ""
+          ORG_GRADLE_PROJECT_ZCASH_CMC_KEY: ""
+
+      - name: Find APK
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK_PATH="$(find app/build/outputs/apk -type f -name '*.apk' | head -n 1)"
+
+          if [ -z "${APK_PATH}" ]; then
+            echo "No APK was produced."
+            find app/build/outputs -maxdepth 5 -type f -print || true
+            exit 1
+          fi
+
+          echo "APK found: ${APK_PATH}"
+          echo "path=${APK_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Rename APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts
+
+          cp "${{ steps.apk.outputs.path }}" \
+            "artifacts/zodl-${{ inputs.variant }}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: zodl-${{ inputs.variant }}-apk
+          path: artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 14
