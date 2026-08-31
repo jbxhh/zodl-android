@@ -1,106 +1,40 @@
-# .github/workflows/build-apk.yml
-
-name: Auto Build APK
+name: Build APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: auto-build-apk-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build:
-    name: Build Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 45
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-      - name: Install Android SDK
-        run: |
-          sdkmanager "platform-tools"
-          sdkmanager "platforms;android-36"
-          sdkmanager "build-tools;36.0.0"
-          sdkmanager "ndk;27.0.12077973"
+      - run: chmod +x ./gradlew
 
-      - name: Make Gradle executable
-        run: chmod +x ./gradlew
+      - name: 构建 APK
+        run: ./gradlew assembleZcashmainnetFossDebug --stacktrace
 
-      - name: Build mainnet Store Debug APK
-        run: |
-          ./gradlew \
-            :app:assembleZcashmainnetStoreDebug \
-            --stacktrace \
-            --no-daemon
-        env:
-          ORG_GRADLE_PROJECT_ZCASH_VERSION_CODE: "1"
-          ORG_GRADLE_PROJECT_ZCASH_VERSION_NAME: "3.9.3"
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_APP_NAME: "Zodl"
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_PACKAGE_NAME: "co.electriccoin.zcash"
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PATH: ""
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEYSTORE_PASSWORD: ""
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEY_ALIAS: ""
-          ORG_GRADLE_PROJECT_ZCASH_RELEASE_KEY_ALIAS_PASSWORD: ""
-          ORG_GRADLE_PROJECT_IS_MINIFY_ENABLED: "false"
-          ORG_GRADLE_PROJECT_NDK_DEBUG_SYMBOL_LEVEL: "none"
-          ORG_GRADLE_PROJECT_IS_RELEASE_BUILD_DEBUGGABLE: "false"
-          ORG_GRADLE_PROJECT_IS_SIGN_RELEASE_BUILD_WITH_DEBUG_KEY: "false"
-          ORG_GRADLE_PROJECT_IS_USE_TEST_ORCHESTRATOR: "false"
-          ORG_GRADLE_PROJECT_IS_CRASH_ON_STRICT_MODE_VIOLATION: "false"
-          ORG_GRADLE_PROJECT_IS_ENABLE_COMPOSE_COMPILER_METRICS: "false"
-          ORG_GRADLE_PROJECT_IS_ENABLE_COMPOSE_COMPILER_REPORTS: "false"
-          ORG_GRADLE_PROJECT_ZCASH_FLEXA_KEY: ""
-          ORG_GRADLE_PROJECT_ZCASH_CMC_KEY: ""
-
-      - name: Find APK
-        id: find-apk
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          apk="$(find app/build/outputs/apk \
-            -type f \
-            -name '*.apk' \
-            | head -n 1)"
-
-          if [ -z "$apk" ]; then
-            echo "APK was not generated."
-            find app/build/outputs -type f -print || true
-            exit 1
-          fi
-
-          echo "APK: $apk"
-          echo "path=$apk" >> "$GITHUB_OUTPUT"
-
-      - name: Rename APK
-        run: |
-          mkdir -p artifacts
-          cp "${{ steps.find-apk.outputs.path }}" \
-            "artifacts/zodl-mainnet-store-debug.apk"
-
-      - name: Upload APK
+      - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:
-          name: zodl-mainnet-store-debug
-          path: artifacts/zodl-mainnet-store-debug.apk
-          if-no-files-found: error
+          name: zodl-mainnet-foss-debug
+          path: app/build/outputs/apk/zcashmainnetFoss/debug/*.apk
           retention-days: 30
