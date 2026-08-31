@@ -1,3 +1,79 @@
-chmod +x build_apk.sh
-./build_apk.sh 你的GitHubToken          # 构建debug版
-./build_apk.sh 你的GitHubToken release  # 构建release版
+#!/bin/bash
+set -e
+
+GITHUB_TOKEN="${1:?用法: $0 <GitHub Token> [debug|release]}"
+BUILD_TYPE="${2:-debug}"
+REPO="jbxhh/zodl-android"
+WORKFLOW_ID="create-release.yml"
+BRANCH="main"
+API="https://api.github.com/repos/$REPO"
+AUTH="Authorization: Bearer $GITHUB_TOKEN"
+
+echo "[INFO] 验证 Token..."
+USER=$(curl -s -H "$AUTH" https://api.github.com/user | python3 -c "import sys,json;print(json.load(sys.stdin).get('login',''))" 2>/dev/null)
+[ -z "$USER" ] && { echo "[ERR] Token 无效"; exit 1; }
+echo "[OK] 用户: $USER"
+
+echo "[INFO] 触发构建 ($BUILD_TYPE)..."
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "$AUTH" \
+  -H "Accept: application/vnd.github+json" \
+  "$API/actions/workflows/$WORKFLOW_ID/dispatches" \
+  -d "{\"ref\":\"$BRANCH\",\"inputs\":{\"build_type\":\"$BUILD_TYPE\"}}")
+[ "$HTTP" != "204" ] && { echo "[ERR] 触发失败 HTTP $HTTP"; exit 1; }
+echo "[OK] 已触发"
+
+sleep 5
+echo "[INFO] 等待任务启动..."
+RUN_ID=""
+for i in $(seq 1 30); do
+  RUN_ID=$(curl -s -H "$AUTH" "$API/actions/runs?branch=$BRANCH&event=workflow_dispatch&per_page=5" | python3 -c "
+import sys,json
+for r in json.load(sys.stdin).get('workflow_runs',[]):
+    if r.get('status') in ('queued','in_progress','completed'):
+        print(r['id']); break" 2>/dev/null)
+  [ -n "$RUN_ID" ] && break
+  sleep 5
+done
+[ -z "$RUN_ID" ] && { echo "[ERR] 未找到任务"; exit 1; }
+echo "[OK] 任务ID: $RUN_ID"
+echo "       https://github.com/$REPO/actions/runs/$RUN_ID"
+
+echo "[INFO] 等待构建完成..."
+START=$(date +%s)
+while true; do
+  sleep 15
+  RUN=$(curl -s -H "$AUTH" "$API/actions/runs/$RUN_ID")
+  STATUS=$(echo "$RUN" | python3 -c "import sys,json;print(json.load(sys.stdin).get('status',''))")
+  CONCLUSION=$(echo "$RUN" | python3 -c "import sys,json;print(json.load(sys.stdin).get('conclusion',''))")
+  ELAPSED=$(( $(date +%s) - START ))
+  echo "[INFO] 状态: $STATUS | 已用 $((ELAPSED/60))分$((ELAPSED%60))秒"
+  [ "$STATUS" = "completed" ] && break
+  [ $ELAPSED -gt 3600 ] && { echo "[ERR] 超时"; exit 1; }
+done
+
+[ "$CONCLUSION" != "success" ] && { echo "[ERR] 构建失败: $CONCLUSION"; echo "       https://github.com/$REPO/actions/runs/$RUN_ID"; exit 1; }
+echo "[OK] 构建成功！"
+
+echo "[INFO] 下载 APK..."
+ART_ID=$(curl -s -H "$AUTH" "$API/actions/runs/$RUN_ID/artifacts" | python3 -c "
+import sys,json
+a=json.load(sys.stdin).get('artifacts',[])
+print(a[0]['id'] if a else '')" 2>/dev/null)
+ART_NAME=$(curl -s -H "$AUTH" "$API/actions/runs/$RUN_ID/artifacts" | python3 -c "
+import sys,json
+a=json.load(sys.stdin).get('artifacts',[])
+print(a[0]['name'] if a else '')" 2>/dev/null)
+echo "[OK] Artifact: $ART_NAME"
+
+curl -s -L -H "$AUTH" -o artifact.zip "$API/actions/artifacts/$ART_ID/zip"
+mkdir -p output && unzip -o artifact.zip -d output/ > /dev/null
+APK=$(find output -name "*.apk" | head -1)
+APK_SIZE=$(du -h "$APK" | cut -f1)
+rm -f artifact.zip
+
+echo ""
+echo "========================================"
+echo "  构建成功！"
+echo "  APK: $(pwd)/$APK ($APK_SIZE)"
+echo "  日志: https://github.com/$REPO/actions/runs/$RUN_ID"
+echo "========================================"
